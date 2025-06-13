@@ -1,2 +1,2 @@
-# apex_upscaling_service_api
+# APEx Dispatch API
 Implementation of the APEx Upscaling Service API
