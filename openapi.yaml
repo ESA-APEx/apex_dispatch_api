@@ -1,0 +1,103 @@
+openapi: 3.0.4
+info:
+  title: APEx Dispatch API
+  description: |-
+      This is a temporary description.
+  version: 1.0.0
+externalDocs:
+  description: Find out more about Swagger
+  url: https://swagger.io
+# server:
+#  - url: https://petstore3.swagger.io/api/v3
+tags:
+  - name: Upscale Tasks
+    description: API calls to manage upscale tasks
+    # externalDocs:
+    #   description: Find out more
+    #   url: https://swagger.io
+  - name: Unit Jobs
+    description: API calls to manage processing jobs
+    # externalDocs:
+    #   description: Find out more about our store
+    #   url: https://swagger.io
+
+paths:
+  /tiles:
+    post:
+      tags:
+        - Upscale Tasks
+      summary: Retrieve a list of tiles to process
+      description: |-
+        Given a certain area of interest and a tiling grid definition (from the service’s Max AOI capacity), calculate the number of tiles to be processed by the upscaling service
+      requestBody:
+        description: Request the tiles to be processed.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TileRequest'
+        required: true
+      responses:
+        '200':
+          description: Successfully calculated tiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TileResponse'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Pet not found
+        '422':
+          description: Validation exception
+        # default:
+        #   description: Unexpected error
+        #   content:
+        #     application/json:
+        #       schema:
+        #         $ref: "#/components/schemas/Error"
+      security:
+        - petstore_auth:
+            - write:pets
+            - read:pets
+components:
+  schemas:
+    TileRequest:
+      type: object
+      required:
+        - aoi
+        - grid
+      properties:
+        aoi:
+          type: object
+          description: GeoJSON Feature using coordinates in EPSG:4326
+          example: { "type": "Feature", "geometry": {}}
+        grid:
+          type: string
+          example: S2_UTM_TILING_GRID
+          enum:
+            - S2_UTM_TILING_GRID
+    TileResponse:
+      type: object
+      properties:
+        tiles:
+          type: array
+          items:
+             type: object
+             description: GeoJSON Feature using coordinates in EPSG:4326
+             example: { "type": "Feature", "geometry": {}}
+          
+            
+    
+  securitySchemes:
+    petstore_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://petstore3.swagger.io/oauth/authorize
+          scopes:
+            "write:pets": modify pets in your account
+            "read:pets": read your pets
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
