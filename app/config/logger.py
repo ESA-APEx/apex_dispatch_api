@@ -25,8 +25,9 @@ LOGGING_CONFIG = {
         "uvicorn.error": {"level": "INFO"},
         "uvicorn.access": {"level": "INFO"},
         # custom API loggers
-        "routers": {"level": "DEBUG"},      # all your routers
-        "services": {"level": "DEBUG"},     # all your services
+        "app.routers": {"level": "DEBUG"},      # all your routers
+        "app.services": {"level": "DEBUG"},     # all your services
+        "app.platforms": {"level": "DEBUG"},     # all platform implementations
     },
 }
 

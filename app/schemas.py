@@ -28,9 +28,10 @@ class ProcessingStatusEnum(str, Enum):
 #     tiles: List[Tile] = []
 
 
-# Service / parameters
+# Service parameters
 class ServiceDetails(BaseModel):
-    id: str
+    service: str
+    application: str
 
 
 
@@ -44,7 +45,7 @@ class ServiceDetails(BaseModel):
 
 
 class ProcessingJobSummary(BaseModel):
-    id: int
+    id: str
     title: str
     status: ProcessingStatusEnum
 

@@ -12,6 +12,7 @@ def create_processing_job(summary: BaseJobRequest) -> ProcessingJobSummary:
     platform = get_processing_platform(summary.label)
     
     return platform.execute_job(
-        service_id=summary.service.id,
+        title=summary.title,
+        details=summary.service,
         parameters=summary.parameters
     )
