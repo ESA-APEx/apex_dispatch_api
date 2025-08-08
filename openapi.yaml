@@ -2,33 +2,26 @@ openapi: 3.0.4
 info:
   title: APEx Dispatch API
   description: |-
-      This is a temporary description.
+      Implementation of the APEx Dispatch Service API to support the execution of single job executions or upscaling tasks for APEx-compliant services.
   version: 1.0.0
-externalDocs:
-  description: Find out more about Swagger
-  url: https://swagger.io
-# server:
-#  - url: https://petstore3.swagger.io/api/v3
+
+security:
+  - apex_auth: []
+  
 tags:
   - name: Upscale Tasks
-    description: API calls to manage upscale tasks
-    # externalDocs:
-    #   description: Find out more
-    #   url: https://swagger.io
+    description: API calls to manage upscale tasks bundling multiple processing jobs
   - name: Unit Jobs
-    description: API calls to manage processing jobs
-    # externalDocs:
-    #   description: Find out more about our store
-    #   url: https://swagger.io
+    description: API calls to manage single processing jobs
 
 paths:
   /tiles:
     post:
       tags:
         - Upscale Tasks
-      summary: Retrieve a list of tiles to process
+      summary: Split an area of interest in a list of tiles
       description: |-
-        Given a certain area of interest and a tiling grid definition (from the service’s Max AOI capacity), calculate the number of tiles to be processed by the upscaling service
+        Given a certain area of interest and a tiling grid definition (from the service’s Max AOI capacity), calculate the number of tiles to be processed by the upscaling service.
       requestBody:
         description: Request the tiles to be processed.
         content:
@@ -44,21 +37,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/TileResponse'
         '400':
-          description: Invalid ID supplied
-        '404':
-          description: Pet not found
-        '422':
-          description: Validation exception
-        # default:
-        #   description: Unexpected error
-        #   content:
-        #     application/json:
-        #       schema:
-        #         $ref: "#/components/schemas/Error"
+          description: Grid ID is not supported
       security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
+        - apex_auth: []
+        
+  /upscale_tasks:
+    post:
+      tags:
+        - Upscale Tasks
+      summary: Create a new upscaling task
+      requestBody:
+        description: Details of the upscaling task to be created
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpscaleRequest'
+      responses:
+        '200':
+          description: Successfully created an upscaling task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpscalingTask'
+      security:
+        - apex_auth: []
+        
+  /upscale_tasks/{taskID}:
+    get:
+      tags:
+        - Upscale Tasks
+      summary: Get the details of a specific upscaling task
+      parameters:
+        - in: path
+          name: taskID
+          schema:
+            type: integer
+          required: true
+          description: ID of the upscaling task to retrieve
+      responses:
+        '200':
+          description: Successfully retrieved the upscaling task
+          content:
+            application/json:
+              schema:
+                  $ref: '#/components/schemas/UpscalingTask'
+        '404':
+          description: Could not find the upscaling task for the provided ID
+      security:
+        - apex_auth: []
+
 components:
   schemas:
     TileRequest:
@@ -82,22 +109,105 @@ components:
         tiles:
           type: array
           items:
-             type: object
-             description: GeoJSON Feature using coordinates in EPSG:4326
-             example: { "type": "Feature", "geometry": {}}
+             $ref: '#/components/schemas/Tile'
+      
+    UpscaleRequest:
+      type: object
+      required:
+        - label
+        - tiles
+        - title
+        - service
+        - parameters
+      properties:
+        label:
+          $ref: '#/components/schemas/ProcessType'
+        tiles:
+          type: array
+          items:
+             $ref: '#/components/schemas/Tile'
+        title:
+          type: string
+          description: Title of the upscaling task
+          example: My upscaling task
+        service:
+          $ref: '#/components/schemas/ServiceDetails'
+        parameters:
+          $ref: '#/components/schemas/ServiceParameters'
+  
           
-            
+          
+    # OBJECTS
     
+    ServiceDetails:
+      type: object
+      description: Details of the service to be executed
+      properties:
+        id: 
+          type: string
+          
+    ServiceParameters:
+      type: object
+      description: Object containing the parameters that need to be provided to the service execution
+      
+  
+    ProcessingJob:
+      type: object
+      description: Description of the processing job
+      
+    UpscalingTaskSummary:
+      type: object
+      description: Summary of an upscaling task
+      properties:
+       id: 
+          type: string
+          description: ID of the upscaling task
+       status:
+          $ref: '#/components/schemas/ProcessingStatus'
+      
+    UpscalingTask:
+      type: object
+      description: Details of an upscaling task
+      allOf:
+        - $ref: "#/components/schemas/UpscalingTaskSummary"
+        - type: object
+          properties:
+           service:
+              $ref: '#/components/schemas/ServiceDetails'
+           parameters:
+              $ref: '#/components/schemas/ServiceParameters'
+           jobs:
+              type: array
+              items:
+                 $ref: '#/components/schemas/ProcessingJob'
+             
+    
+      
+    Tile:
+      type: object
+      description: GeoJSON Feature using coordinates in EPSG:4326
+      example: { "type": "Feature", "geometry": {}}
+      
+    ProcessType:
+      type: string
+      description: Label indicating that the type of service that is going to be executed.
+      enum: ['OPENEO', 'OGC_API_PROCESS']
+    
+    ProcessingStatus:
+      type: string
+      description: Status of the processing
+      enum: ['CREATED', 'RUNNING', 'FINISHED', 'FAILED']
+        
+          
   securitySchemes:
-    petstore_auth:
+    apex_auth:
       type: oauth2
       flows:
-        implicit:
-          authorizationUrl: https://petstore3.swagger.io/oauth/authorize
+        authorizationCode:
+          authorizationUrl: http://auth.apex.esa.int/realms/apex/protocol/openid-connect/auth
+          tokenUrl: http://auth.apex.esa.int/realms/apex/protocol/openid-connect/token
           scopes:
-            "write:pets": modify pets in your account
-            "read:pets": read your pets
-    api_key:
-      type: apiKey
-      name: api_key
-      in: header
+            openid: OpenID Connect scope
+            profile: User profile
+            email: Email address
+
