@@ -32,13 +32,13 @@ class OpenEOPlatform(BaseProcessingPlatform):
         connection = openeo.connect(url)
         provider_id, client_id, client_secret = self._get_client_credentials(url)
         
-        connection.authenticate_oidc_device()
+        # connection.authenticate_oidc_device()
                                     
-        # connection.authenticate_oidc_client_credentials(
-        #         provider_id=provider_id,
-        #         client_id=client_id,
-        #         client_secret=client_secret,
-        # )
+        connection.authenticate_oidc_client_credentials(
+                provider_id=provider_id,
+                client_id=client_id,
+                client_secret=client_secret,
+        )
         return connection
         
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
