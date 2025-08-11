@@ -1,9 +1,13 @@
 from fastapi import FastAPI
+
+from app.platforms.dispatcher import load_processing_platforms
 from .config.logger import setup_logging
 from .config.settings import settings
 from .routers import jobs_status, unit_jobs, health
 
 setup_logging()
+
+load_processing_platforms()
 
 app = FastAPI(
     title=settings.app_name,

@@ -2,7 +2,8 @@
 import logging
 
 from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessingJobSummary, ServiceDetails
+from app.platforms.dispatcher import register_processing_platform
+from app.schemas import ProcessType, ProcessingJobSummary, ServiceDetails
 
 
 logger = logging.getLogger(__name__)
@@ -23,3 +24,5 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         :return: A ProcessingJobSummary object containing the job details.
         """
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
+        
+register_processing_platform(ProcessType.OGC_API_PROCESS, OGCAPIProcessPlatform)

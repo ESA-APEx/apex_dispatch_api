@@ -1,21 +1,31 @@
 
 import logging
 import os
-import openeo
 import re
-
 import urllib
 
+import openeo
 import requests
-
-from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessingJobSummary, ProcessingStatusEnum, ServiceDetails
-
 from dotenv import load_dotenv
 
-load_dotenv()
+from app.platforms.base import BaseProcessingPlatform
+from app.platforms.dispatcher import register_processing_platform
+from app.schemas import (
+    ProcessingJobSummary,
+    ProcessingStatusEnum,
+    ProcessType,
+    ServiceDetails,
+)
 
+load_dotenv()
 logger = logging.getLogger(__name__)
+
+# Constants
+BACKEND_AUTH_ENV_MAP = {
+    "openeo.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
+    "openeofed.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
+}
+
 
 class OpenEOPlatform(BaseProcessingPlatform):
     """
@@ -32,8 +42,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
         connection = openeo.connect(url)
         provider_id, client_id, client_secret = self._get_client_credentials(url)
         
-        # connection.authenticate_oidc_device()
-                                    
+        # @TODO: Remove the line below as this is only for local testing
+        # connection.authenticate_oidc_device()  
+                                     
         connection.authenticate_oidc_client_credentials(
                 provider_id=provider_id,
                 client_id=client_id,
@@ -49,12 +60,18 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :param url: The URL of the OpenEO backend.
         :return: A tuple containing provider ID, client ID, and client secret.
         """
-        auth_env_var = self._get_client_credentials_env_var(url)
-        if auth_env_var not in os.environ:
-            raise ValueError(f"Environment variable {auth_env_var} not set.")
+        env_var = self._get_client_credentials_env_var(url)
+        credentials_str = os.getenv(env_var)
+
+        if not credentials_str:
+            raise ValueError(f"Environment variable {env_var} not set.")
         
-        client_credentials = os.environ[auth_env_var]
-        return client_credentials.split("/", 2)
+        parts = credentials_str.split("/", 2)
+        if len(parts) != 3:
+            raise ValueError(
+                f"Invalid client credentials format in {env_var}, expected 'provider_id/client_id/client_secret'."
+            )
+        return tuple(parts)
     
     def _get_client_credentials_env_var(self, url: str) -> str:
         """
@@ -62,16 +79,12 @@ class OpenEOPlatform(BaseProcessingPlatform):
         """
         if not re.match(r"https?://", url):
             url = f"https://{url}"
-        parsed = urllib.parse.urlparse(url)
 
-        hostname = parsed.hostname
-        if hostname in {
-            "openeo.dataspace.copernicus.eu",
-            "openeofed.dataspace.copernicus.eu",
-        }:
-            return "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED"
-        else:
-            raise ValueError(f"Unsupported backend: {url=} ({hostname=})")
+        hostname = urllib.parse.urlparse(url).hostname
+        if not hostname or hostname not in BACKEND_AUTH_ENV_MAP:
+            raise ValueError(f"Unsupported backend: {url} (hostname={hostname})")
+
+        return BACKEND_AUTH_ENV_MAP[hostname]
 
     def _get_process_id(self, url: str) -> str:
         """        
@@ -81,8 +94,18 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :return: The process ID extracted from the JSON file.
         """
         logger.debug(f"Fetching process ID from {url}")
-        response = requests.get(url).json()
-        return response.get("id")
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.error(f"Error fetching process ID from {url}: {e}")
+            raise ValueError(f"Failed to fetch process ID from {url}")
+
+        process_id = response.json().get("id")
+        if not process_id:
+            raise ValueError(f"No 'id' field found in process definition at {url}")
+
+        return process_id
 
     def execute_job(self, title: str, details: ServiceDetails , parameters: dict) -> ProcessingJobSummary:
         """
@@ -96,10 +119,12 @@ class OpenEOPlatform(BaseProcessingPlatform):
         
         try:
             process_id = self._get_process_id(details.application)
-            if not process_id:
-                raise ValueError(f"Process ID not found for service: {details.service}")
             
-            logger.debug(f"Executing OpenEO job with title={title}, service={details}, process_id={process_id} and parameters={parameters}")
+            logger.debug(
+                f"Executing OpenEO job with title={title}, service={details}, "
+                f"process_id={process_id}, parameters={parameters}"
+            )
+            
             connection = self._setup_connection(details.service)
             service = connection.datacube_from_process(
                 process_id=process_id,
@@ -116,4 +141,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             )
         except Exception as e:
             logger.exception(f"Failed to execute openEO job: {e}")  
-            raise Exception("Failed to execute openEO job")
+            raise SystemError("Failed to execute openEO job")
+
+
+register_processing_platform(ProcessType.OPENEO, OpenEOPlatform)
