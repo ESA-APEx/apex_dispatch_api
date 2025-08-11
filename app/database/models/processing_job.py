@@ -16,6 +16,7 @@ class ProcessingJobRecord(Base):
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String, index=True)
+    label = Column(String, index=True)
     status = Column(Enum(ProcessingStatusEnum), index=True)
     user_id = Column(String, index=True)
     platform_job_id = Column(String, index=True)
@@ -42,5 +43,9 @@ def save_job_to_db(db_session: Session, job: ProcessingJobRecord) -> ProcessingJ
     
 
 def get_jobs_by_user_id(database: Session, user_id: str) -> List[ProcessingJobRecord]:
-    logger.info(f"Retrieving processing jobs for user: {user_id}")
+    logger.info(f"Retrieving all processing jobs for user {user_id}")
     return database.query(ProcessingJobRecord).filter(ProcessingJobRecord.user_id == user_id).all()
+
+def get_job_by_user_id(database: Session, job_id: int, user_id: str) -> ProcessingJobRecord:
+    logger.info(f"Retrieving processing job with ID {job_id} for user {user_id}")
+    return database.query(ProcessingJobRecord).filter(ProcessingJobRecord.id == job_id, ProcessingJobRecord.user_id == user_id).first()

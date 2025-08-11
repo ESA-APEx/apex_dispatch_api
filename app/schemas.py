@@ -1,8 +1,9 @@
+from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 
-class ProcessType(str, Enum):
+class ProcessTypeEnum(str, Enum):
     OPENEO = "openeo"
     OGC_API_PROCESS = "ogc_api_process"
     
@@ -47,17 +48,20 @@ class ServiceDetails(BaseModel):
 class ProcessingJobSummary(BaseModel):
     id: int
     title: str
+    label: ProcessTypeEnum
     status: ProcessingStatusEnum
 
 
-# class ProcessingJobDetails(BaseModel):
-#     label: str
-#     service: ServiceDetails
-#     parameters: ServiceParameters
+class ProcessingJobDetails(BaseModel):
+    service: ServiceDetails
+    parameters: dict
+    result_link: Optional[str]
+    created: datetime
+    updated: datetime
 
 
-# class ProcessingJob(ProcessingJobSummary, ProcessingJobDetails):
-#     pass
+class ProcessingJob(ProcessingJobSummary, ProcessingJobDetails):
+    pass
 
 
 class UpscalingTaskSummary(BaseModel):
@@ -84,7 +88,7 @@ class JobsStatusResponse(BaseModel):
 
 class BaseJobRequest(BaseModel):
     title: str
-    label: ProcessType
+    label: ProcessTypeEnum
     service: ServiceDetails
     parameters: dict
 

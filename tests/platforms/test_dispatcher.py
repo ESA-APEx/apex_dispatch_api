@@ -4,7 +4,7 @@ import pytest
 
 import app.platforms.dispatcher as dispatcher
 from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessType, ProcessingJobSummary
+from app.schemas import ProcessTypeEnum, ProcessingJobSummary
 
 
 class DummyPlatform(BaseProcessingPlatform):
@@ -25,19 +25,19 @@ def clear_registry():
 
 
 def test_register_processing_platform():
-    dispatcher.register_processing_platform(ProcessType.OPENEO, DummyPlatform)
-    assert dispatcher.PROCESSING_PLATFORMS[ProcessType.OPENEO] is DummyPlatform
+    dispatcher.register_processing_platform(ProcessTypeEnum.OPENEO, DummyPlatform)
+    assert dispatcher.PROCESSING_PLATFORMS[ProcessTypeEnum.OPENEO] is DummyPlatform
 
 
 def test_get_processing_platform_success():
-    dispatcher.PROCESSING_PLATFORMS[ProcessType.OPENEO] = DummyPlatform
-    instance = dispatcher.get_processing_platform(ProcessType.OPENEO)
+    dispatcher.PROCESSING_PLATFORMS[ProcessTypeEnum.OPENEO] = DummyPlatform
+    instance = dispatcher.get_processing_platform(ProcessTypeEnum.OPENEO)
     assert isinstance(instance, DummyPlatform)
 
 
 def test_get_processing_platform_unsupported():
     with pytest.raises(ValueError, match="Unsupported service type"):
-        dispatcher.get_processing_platform(ProcessType.OPENEO)
+        dispatcher.get_processing_platform(ProcessTypeEnum.OPENEO)
 
 
 @patch("app.platforms.dispatcher.importlib.import_module")

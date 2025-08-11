@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_processing_platform
 from app.schemas import (
-    ProcessType,
+    ProcessTypeEnum,
     ServiceDetails,
 )
 
@@ -135,4 +135,4 @@ class OpenEOPlatform(BaseProcessingPlatform):
             raise SystemError("Failed to execute openEO job")
 
 
-register_processing_platform(ProcessType.OPENEO, OpenEOPlatform)
+register_processing_platform(ProcessTypeEnum.OPENEO, OpenEOPlatform)
