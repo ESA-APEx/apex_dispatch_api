@@ -41,10 +41,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         logger.debug(f"Setting up OpenEO connection to {url}")
         connection = openeo.connect(url)
         provider_id, client_id, client_secret = self._get_client_credentials(url)
-        
-        # @TODO: Remove the line below as this is only for local testing
-        # connection.authenticate_oidc_device()  
-                                     
+         
         connection.authenticate_oidc_client_credentials(
                 provider_id=provider_id,
                 client_id=client_id,
