@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas import ProcessingJobSummary, ServiceDetails
+from app.schemas import ServiceDetails
 
 
 class BaseProcessingPlatform(ABC):

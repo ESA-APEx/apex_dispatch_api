@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from app.platforms.implementations.openeo import OpenEOPlatform
-from app.schemas import ProcessingStatusEnum, ServiceDetails
+from app.schemas import ServiceDetails
 
 
 @pytest.fixture

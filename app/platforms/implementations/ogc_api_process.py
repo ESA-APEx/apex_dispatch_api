@@ -2,8 +2,7 @@ import logging
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_processing_platform
-from app.schemas import ProcessType, ProcessingJobSummary, ServiceDetails
-
+from app.schemas import ProcessType, ServiceDetails
 
 logger = logging.getLogger(__name__)
 
