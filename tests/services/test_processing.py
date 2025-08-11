@@ -2,7 +2,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from app.schemas import BaseJobRequest, ProcessingJobSummary, ProcessType, ServiceDetails
+from app.database.models.processing_job import ProcessingJobRecord
+from app.schemas import BaseJobRequest, ProcessingJobSummary, ProcessType, ProcessingStatusEnum, ServiceDetails
 from app.services.processing import create_processing_job
 
 
@@ -19,40 +20,39 @@ def make_job_request():
     )
 
 
+@patch("app.services.processing.save_job_to_db")
 @patch("app.services.processing.get_processing_platform")
-def test_create_processing_job_calls_platform_execute(mock_get_platform):
+def test_create_processing_job_calls_platform_execute(mock_get_platform, mock_save_job_to_db):
     
     # Arrange
-    fake_summary = make_job_request()
-    fake_result = ProcessingJobSummary(
-        id="fake-job-id",
-        title=fake_summary.title,
-        status="created"
-    )
-
+    fake_job= make_job_request()
+    fake_result = 1
+    fake_summary = ProcessingJobSummary(id=fake_result, title=fake_job.title, status=ProcessingStatusEnum.CREATED,)
+    fake_record = ProcessingJobRecord(id=fake_result, title=fake_summary.title, status=ProcessingStatusEnum.CREATED)
     fake_platform = MagicMock()
-    fake_platform.execute_job.return_value = fake_result
+
+    fake_platform.execute_job.return_value = fake_result 
     mock_get_platform.return_value = fake_platform
+    
+    mock_save_job_to_db.return_value =fake_record
 
-    # Act
-    result = create_processing_job(fake_summary)
+    result = create_processing_job(None, "foobar", fake_job)
 
-    # Assert
-    mock_get_platform.assert_called_once_with(fake_summary.label)
+    mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
-        title=fake_summary.title,
-        details=fake_summary.service,
-        parameters=fake_summary.parameters
+        title=fake_job.title,
+        details=fake_job.service,
+        parameters=fake_job.parameters
     )
-    assert result is fake_result
+    mock_save_job_to_db.assert_called_once()
+    assert result == fake_summary
     
     
+@patch("app.services.processing.save_job_to_db")
 @patch("app.services.processing.get_processing_platform")
-def test_create_processing_job_platform_raises(mock_get_platform):
-    # Arrange
-    fake_summary = make_job_request()
+def test_create_processing_job_platform_raises(mock_get_platform, mock_save_job_to_db):
+    fake_summary = make_job_request() 
     mock_get_platform.side_effect = ValueError("Unsupported platform")
 
-    # Act & Assert
     with pytest.raises(ValueError, match="Unsupported platform"):
-        create_processing_job(fake_summary)
+        create_processing_job(None, "foobar", fake_summary)

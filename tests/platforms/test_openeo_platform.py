@@ -89,14 +89,13 @@ def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
     mock_connect.return_value = mock_connection
     mock_connection.datacube_from_process.return_value.create_job.return_value.job_id = "job123"
 
-    summary = platform.execute_job(
+    job_id = platform.execute_job(
         title="Test Job",
         details=service_details,
         parameters={"param1": "value1"}
     )
 
-    assert summary.id == "job123"
-    assert summary.status == ProcessingStatusEnum.CREATED
+    assert job_id == "job123"
     mock_connect.assert_called_once_with(service_details.service)
 
 

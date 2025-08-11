@@ -1,7 +1,12 @@
 import logging
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.database.db import get_db
+from app.schemas import BaseJobRequest, ProcessingJobSummary
 from app.services.processing import create_processing_job
-from fastapi import APIRouter, status, HTTPException
-from app.schemas import BaseJobRequest, ProcessingJobSummary 
+
 # from app.auth import get_current_user
 
 router = APIRouter()
@@ -11,10 +16,12 @@ logger = logging.getLogger(__name__)
 @router.post("/unit_jobs", response_model=ProcessingJobSummary, status_code=status.HTTP_201_CREATED, tags=["Unit Jobs"], summary="Create a new processing job")
 async def create_unit_job(
     payload: BaseJobRequest, 
+    db: Session = Depends(get_db),
+    user: str = "foobar"
     ): 
     """Create a new processing job with the provided data."""
     try:
-        return create_processing_job(payload)
+        return create_processing_job(db, user, payload)
     except Exception as e:
         logger.error(f"Error creating unit job: {e}")
         raise HTTPException(
