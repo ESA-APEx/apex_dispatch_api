@@ -45,7 +45,7 @@ class ServiceDetails(BaseModel):
 
 
 class ProcessingJobSummary(BaseModel):
-    id: str
+    id: int
     title: str
     status: ProcessingStatusEnum
 
