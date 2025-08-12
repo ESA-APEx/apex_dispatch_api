@@ -3,8 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = Field(default="", json_schema_extra={"env": "APP_NAME"})
-    app_description: str = Field(default="", json_schema_extra={"env": "APP_DESCRIPTION"})
+    app_name: str = Field(default="APEx Disatpcher API", json_schema_extra={"env": "APP_NAME"})
+    app_description: str = Field(default="API description for the APEx Dispatcher", json_schema_extra={"env": "APP_DESCRIPTION"})
     env: str = Field(default="development", json_schema_extra={"env": "APP_ENV"})
 
     # Keycloak / OIDC
