@@ -25,11 +25,12 @@ LOGGING_CONFIG = {
         "uvicorn.error": {"level": "INFO"},
         "uvicorn.access": {"level": "INFO"},
         # custom API loggers
-        "app.routers": {"level": "DEBUG"},      # all your routers
-        "app.services": {"level": "DEBUG"},     # all your services
-        "app.platforms": {"level": "DEBUG"},     # all platform implementations
+        "app.routers": {"level": "DEBUG"},  # all your routers
+        "app.services": {"level": "DEBUG"},  # all your services
+        "app.platforms": {"level": "DEBUG"},  # all platform implementations
     },
 }
+
 
 def setup_logging():
     logging.config.dictConfig(LOGGING_CONFIG)

@@ -11,7 +11,7 @@ from app.main import app
 def client():
     return TestClient(app)
 
-    
+
 @pytest.fixture
 def fake_db_session():
     # A simple mock DB session object

@@ -45,7 +45,9 @@ def create_processing_job(
         ),  # Assuming service is a dict
     )
     record = save_job_to_db(database, record)
-    return ProcessingJobSummary(id=record.id, title=record.title, label=summary.label, status=record.status)
+    return ProcessingJobSummary(
+        id=record.id, title=record.title, label=summary.label, status=record.status
+    )
 
 
 def get_processing_jobs_by_user_id(
@@ -68,7 +70,7 @@ def get_processing_job_by_user_id(
     logger.info(f"Retrieving processing job with ID {job_id} for user {user_id}")
     record = get_job_by_user_id(database, job_id, user_id)
     if not record:
-        return None  
+        return None
 
     return ProcessingJob(
         id=record.id,
