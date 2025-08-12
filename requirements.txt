@@ -1,6 +1,7 @@
 fastapi
 fastapi_keycloak
 flake8
+httpx
 mypy
 mypy_extensions
 openeo
