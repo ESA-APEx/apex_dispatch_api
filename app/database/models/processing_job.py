@@ -1,7 +1,7 @@
 import datetime
 import logging
 from typing import List, Optional
-from sqlalchemy import Column, DateTime, Enum, Integer, String
+from sqlalchemy import DateTime, Enum, Integer, String
 from app.database.db import Base
 from sqlalchemy.orm import Session, Mapped, mapped_column
 
