@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List
+from typing import List, Optional
 from app.database.models.processing_job import (
     ProcessingJobRecord,
     get_job_by_user_id,
@@ -45,7 +45,9 @@ def create_processing_job(
         ),  # Assuming service is a dict
     )
     record = save_job_to_db(database, record)
-    return ProcessingJobSummary(id=record.id, title=record.title, label=summary.label, status=record.status)
+    return ProcessingJobSummary(
+        id=record.id, title=record.title, label=summary.label, status=record.status
+    )
 
 
 def get_processing_jobs_by_user_id(
@@ -64,19 +66,21 @@ def get_processing_jobs_by_user_id(
 
 def get_processing_job_by_user_id(
     database: Session, job_id: int, user_id: str
-) -> List[ProcessingJob]:
+) -> Optional[ProcessingJob]:
     logger.info(f"Retrieving processing job with ID {job_id} for user {user_id}")
     record = get_job_by_user_id(database, job_id, user_id)
     if not record:
-        return None  
+        return None
 
     return ProcessingJob(
         id=record.id,
         title=record.title,
         label=record.label,
         status=record.status,
-        service=ServiceDetails.model_validate_json(json.loads(record.service_record)),
-        parameters=json.loads(record.parameters),
+        service=ServiceDetails.model_validate_json(
+            json.loads(record.service_record or "{}")
+        ),
+        parameters=json.loads(record.parameters or "{}"),
         result_link=record.result_link,
         created=record.created,
         updated=record.updated,

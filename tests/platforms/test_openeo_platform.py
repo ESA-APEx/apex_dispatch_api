@@ -16,8 +16,7 @@ def platform():
 def mock_env(monkeypatch):
     # Default environment variable for CDSEFED credentials
     monkeypatch.setenv(
-        "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
-        "provider123/client123/secret123"
+        "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED", "provider123/client123/secret123"
     )
 
 
@@ -26,7 +25,7 @@ def service_details():
     return ServiceDetails(
         service="https://openeo.dataspace.copernicus.eu",
         service_id="service-1",
-        application="https://example.com/process.json"
+        application="https://example.com/process.json",
     )
 
 
@@ -48,7 +47,9 @@ def test_get_client_credentials_invalid_format(platform, monkeypatch):
 
 
 def test_get_client_credentials_env_var_success(platform):
-    env_var = platform._get_client_credentials_env_var("https://openeo.dataspace.copernicus.eu")
+    env_var = platform._get_client_credentials_env_var(
+        "https://openeo.dataspace.copernicus.eu"
+    )
     assert env_var == "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED"
 
 
@@ -87,12 +88,12 @@ def test_get_process_id_http_error(mock_get, platform):
 def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
     mock_connection = MagicMock()
     mock_connect.return_value = mock_connection
-    mock_connection.datacube_from_process.return_value.create_job.return_value.job_id = "job123"
+    mock_connection.datacube_from_process.return_value.create_job.return_value.job_id = (
+        "job123"
+    )
 
     job_id = platform.execute_job(
-        title="Test Job",
-        details=service_details,
-        parameters={"param1": "value1"}
+        title="Test Job", details=service_details, parameters={"param1": "value1"}
     )
 
     assert job_id == "job123"
@@ -100,11 +101,11 @@ def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
 
 
 @patch("app.platforms.implementations.openeo.openeo.connect")
-@patch.object(OpenEOPlatform, "_get_process_id", side_effect=ValueError("Invalid process"))
-def test_execute_job_process_id_failure(mock_pid, mock_connect, platform, service_details):
+@patch.object(
+    OpenEOPlatform, "_get_process_id", side_effect=ValueError("Invalid process")
+)
+def test_execute_job_process_id_failure(
+    mock_pid, mock_connect, platform, service_details
+):
     with pytest.raises(SystemError, match="Failed to execute openEO job"):
-        platform.execute_job(
-            title="Test Job",
-            details=service_details,
-            parameters={}
-        )
+        platform.execute_job(title="Test Job", details=service_details, parameters={})

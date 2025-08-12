@@ -12,7 +12,7 @@ load_processing_platforms()
 app = FastAPI(
     title=settings.app_name,
     description=settings.app_description,
-    version="1.0.0", 
+    version="1.0.0",
 )
 
 # Register Keycloak - must be done after FastAPI app creation

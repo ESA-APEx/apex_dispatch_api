@@ -1,4 +1,3 @@
-
 import logging
 import os
 import re
@@ -30,8 +29,8 @@ class OpenEOPlatform(BaseProcessingPlatform):
     OpenEO processing platform implementation.
     This class handles the execution of processing jobs on the OpenEO platform.
     """
-    
-    def _setup_connection(self, url: str) -> None:
+
+    def _setup_connection(self, url: str) -> openeo.Connection:
         """
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
@@ -39,19 +38,19 @@ class OpenEOPlatform(BaseProcessingPlatform):
         logger.debug(f"Setting up OpenEO connection to {url}")
         connection = openeo.connect(url)
         provider_id, client_id, client_secret = self._get_client_credentials(url)
-         
+
         connection.authenticate_oidc_client_credentials(
-                provider_id=provider_id,
-                client_id=client_id,
-                client_secret=client_secret,
+            provider_id=provider_id,
+            client_id=client_id,
+            client_secret=client_secret,
         )
         return connection
-        
+
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
         Get client credentials for the OpenEO backend.
         This method retrieves the client credentials from environment variables.
-        
+
         :param url: The URL of the OpenEO backend.
         :return: A tuple containing provider ID, client ID, and client secret.
         """
@@ -60,14 +59,16 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         if not credentials_str:
             raise ValueError(f"Environment variable {env_var} not set.")
-        
+
         parts = credentials_str.split("/", 2)
         if len(parts) != 3:
             raise ValueError(
-                f"Invalid client credentials format in {env_var}, expected 'provider_id/client_id/client_secret'."
+                f"Invalid client credentials format in {env_var},"
+                "expected 'provider_id/client_id/client_secret'."
             )
-        return tuple(parts)
-    
+        provider_id, client_id, client_secret = parts
+        return provider_id, client_id, client_secret
+
     def _get_client_credentials_env_var(self, url: str) -> str:
         """
         Get client credentials env var name for a given backend URL.
@@ -82,9 +83,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
         return BACKEND_AUTH_ENV_MAP[hostname]
 
     def _get_process_id(self, url: str) -> str:
-        """        
+        """
         Get the process ID from a JSON file hosted at the given URL.
-        
+
         :param url: The URL of the JSON file.
         :return: The process ID extracted from the JSON file.
         """
@@ -111,27 +112,25 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :param parameters: The parameters required for the job execution.
         :return: Return the ID of the job that was created
         """
-        
+
         try:
             process_id = self._get_process_id(details.application)
-            
+
             logger.debug(
                 f"Executing OpenEO job with title={title}, service={details}, "
                 f"process_id={process_id}, parameters={parameters}"
             )
-            
+
             connection = self._setup_connection(details.service)
             service = connection.datacube_from_process(
-                process_id=process_id,
-                namespace=details.application,  
-                **parameters
+                process_id=process_id, namespace=details.application, **parameters
             )
             job = service.create_job(title=title)
             job.start()
-            
+
             return job.job_id
         except Exception as e:
-            logger.exception(f"Failed to execute openEO job: {e}")  
+            logger.exception(f"Failed to execute openEO job: {e}")
             raise SystemError("Failed to execute openEO job")
 
 

@@ -3,22 +3,17 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel
 
+
 class ProcessTypeEnum(str, Enum):
     OPENEO = "openeo"
     OGC_API_PROCESS = "ogc_api_process"
-    
+
+
 class ProcessingStatusEnum(str, Enum):
     CREATED = "created"
     RUNNING = "running"
     FINISHED = "finished"
     FAILED = "failed"
-
-
-# # Tile / GeoJSON placeholders
-# class Tile(BaseModel):
-#     type: Optional[str] = "Feature"
-#     geometry: Optional[dict] = {}
-
 
 # class TileRequest(BaseModel):
 #     aoi: dict
@@ -33,7 +28,6 @@ class ProcessingStatusEnum(str, Enum):
 class ServiceDetails(BaseModel):
     service: str
     application: str
-
 
 
 # # Process type, status
@@ -83,7 +77,7 @@ class UpscalingTaskSummary(BaseModel):
 
 class JobsStatusResponse(BaseModel):
     upscalingTasks: List[UpscalingTaskSummary] = []
-    processingJobs: List[ProcessingJobSummary]= []
+    processingJobs: List[ProcessingJobSummary] = []
 
 
 class BaseJobRequest(BaseModel):
