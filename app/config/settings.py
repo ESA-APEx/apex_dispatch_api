@@ -3,8 +3,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = Field(default="APEx Disatpcher API", json_schema_extra={"env": "APP_NAME"})
-    app_description: str = Field(default="API description for the APEx Dispatcher", json_schema_extra={"env": "APP_DESCRIPTION"})
+    app_name: str = Field(
+        default="APEx Disatpcher API", json_schema_extra={"env": "APP_NAME"}
+    )
+    app_description: str = Field(
+        default="API description for the APEx Dispatcher",
+        json_schema_extra={"env": "APP_DESCRIPTION"},
+    )
     env: str = Field(default="development", json_schema_extra={"env": "APP_ENV"})
 
     # Keycloak / OIDC
@@ -13,7 +18,9 @@ class Settings(BaseSettings):
         json_schema_extra={"env": "KEYCLOAK_SERVER_URL"},
     )
     keycloak_realm: str = Field(default="", json_schema_extra={"env": "KEYCLOAK_REALM"})
-    keycloak_client_id: str = Field(default="", json_schema_extra={"env": "KEYCLOAK_CLIENT_ID"})
+    keycloak_client_id: str = Field(
+        default="", json_schema_extra={"env": "KEYCLOAK_CLIENT_ID"}
+    )
     keycloak_client_secret: str | None = Field(
         default="", json_schema_extra={"env": "KEYCLOAK_CLIENT_SECRET"}
     )
