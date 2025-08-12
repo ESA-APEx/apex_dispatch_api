@@ -30,7 +30,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
     This class handles the execution of processing jobs on the OpenEO platform.
     """
 
-    def _setup_connection(self, url: str) -> None:
+    def _setup_connection(self, url: str) -> openeo.Connection:
         """
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
@@ -66,7 +66,8 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 f"Invalid client credentials format in {env_var},"
                 "expected 'provider_id/client_id/client_secret'."
             )
-        return tuple(parts)
+        provider_id, client_id, client_secret = parts
+        return provider_id, client_id, client_secret
 
     def _get_client_credentials_env_var(self, url: str) -> str:
         """

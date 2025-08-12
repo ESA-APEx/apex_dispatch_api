@@ -1,11 +1,11 @@
 import datetime
 import logging
-from typing import List
+from typing import List, Optional
 from sqlalchemy import Column, DateTime, Enum, Integer, String
 from app.database.db import Base
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, Mapped, mapped_column
 
-from app.schemas import ProcessingStatusEnum
+from app.schemas import ProcessTypeEnum, ProcessingStatusEnum
 
 
 logger = logging.getLogger(__name__)
@@ -14,17 +14,23 @@ logger = logging.getLogger(__name__)
 class ProcessingJobRecord(Base):
     __tablename__ = "processing_jobs"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    title = Column(String, index=True)
-    label = Column(String, index=True)
-    status = Column(Enum(ProcessingStatusEnum), index=True)
-    user_id = Column(String, index=True)
-    platform_job_id = Column(String, index=True)
-    parameters = Column(String, index=False)
-    result_link = Column(String, index=False)
-    service_record = Column(String, index=True)
-    created = Column(DateTime, default=datetime.datetime.utcnow, index=True)
-    updated = Column(
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
+    title: Mapped[str] = mapped_column(String, index=True)
+    label: Mapped[ProcessTypeEnum] = mapped_column(Enum(ProcessTypeEnum), index=True)
+    status: Mapped[ProcessingStatusEnum] = mapped_column(
+        Enum(ProcessingStatusEnum), index=True
+    )
+    user_id: Mapped[str] = mapped_column(String, index=True)
+    platform_job_id: Mapped[Optional[str]] = mapped_column(String, index=True)
+    parameters: Mapped[Optional[str]] = mapped_column(String, index=False)
+    result_link: Mapped[Optional[str]] = mapped_column(String, index=False)
+    service_record: Mapped[Optional[str]] = mapped_column(String, index=True)
+    created: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, index=True
+    )
+    updated: Mapped[datetime.datetime] = mapped_column(
         DateTime,
         default=datetime.datetime.utcnow,
         onupdate=datetime.datetime.utcnow,
@@ -59,7 +65,7 @@ def get_jobs_by_user_id(database: Session, user_id: str) -> List[ProcessingJobRe
 
 def get_job_by_user_id(
     database: Session, job_id: int, user_id: str
-) -> ProcessingJobRecord:
+) -> Optional[ProcessingJobRecord]:
     logger.info(f"Retrieving processing job with ID {job_id} for user {user_id}")
     return (
         database.query(ProcessingJobRecord)

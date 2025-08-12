@@ -15,13 +15,6 @@ class ProcessingStatusEnum(str, Enum):
     FINISHED = "finished"
     FAILED = "failed"
 
-
-# # Tile / GeoJSON placeholders
-# class Tile(BaseModel):
-#     type: Optional[str] = "Feature"
-#     geometry: Optional[dict] = {}
-
-
 # class TileRequest(BaseModel):
 #     aoi: dict
 #     grid: str
