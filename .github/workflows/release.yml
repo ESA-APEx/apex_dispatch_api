@@ -12,7 +12,7 @@ env:
   DOCKER_IMAGE_NAME: apex-dispatcher-api
   DOCKER_REGISTRY_REGION: eu-nl
   DOCKER_REGISTRY_URL: swr.eu-nl.otc.t-systems.com
-  DOCKER_REGISTRY_BUCKET: apex
+  DOCKER_REGISTRY_BUCKET: vito
 
 jobs:
   publish-docker:
