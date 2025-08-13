@@ -4,16 +4,17 @@ import pytest
 
 import app.platforms.dispatcher as dispatcher
 from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessTypeEnum, ProcessingJobSummary
+from app.schemas import ProcessTypeEnum, ProcessingJobSummary, ProcessingStatusEnum
 
 
 class DummyPlatform(BaseProcessingPlatform):
-    def execute_job(self, title: str, details: dict, parameters: dict) -> ProcessingJobSummary:
-        return ProcessingJobSummary(
-            id="dummy-job-id",
-            title=title,
-            status="created"
-        )
+    def execute_job(
+        self, title: str, details: dict, parameters: dict
+    ) -> ProcessingJobSummary:
+        return ProcessingJobSummary(id="dummy-job-id", title=title, status="created")
+
+    def get_job_status(self, job_id, details):
+        return ProcessingStatusEnum.FINISHED
 
 
 @pytest.fixture(autouse=True)

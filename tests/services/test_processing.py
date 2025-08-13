@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import ANY, patch, MagicMock
 
 import pytest
 
@@ -14,6 +14,7 @@ from app.schemas import (
 )
 from app.services.processing import (
     create_processing_job,
+    get_job_status,
     get_processing_job_by_user_id,
     get_processing_jobs_by_user_id,
 )
@@ -78,35 +79,74 @@ def test_create_processing_job_platform_raises(mock_get_platform, fake_db_sessio
         create_processing_job(fake_db_session, "foobar", fake_summary)
 
 
+@patch("app.services.processing.update_job_status_by_id")
+@patch("app.services.processing.get_job_status")
 @patch("app.services.processing.get_jobs_by_user_id")
-def test_get_processing_jobs_by_user_id(mock_get_jobs, fake_db_session):
-    # Arrange
-    fake_db_records = [
-        MagicMock(
-            id=1,
-            title="Job 1",
-            label=ProcessTypeEnum.OPENEO,
-            status=ProcessingStatusEnum.CREATED,
-        ),
-        MagicMock(
-            id=2,
-            title="Job 2",
-            label=ProcessTypeEnum.OGC_API_PROCESS,
-            status=ProcessingStatusEnum.CREATED,
-        ),
-    ]
-    mock_get_jobs.return_value = fake_db_records
+def test_get_processing_jobs_with_active_and_inactive_statuses(
+    mock_get_jobs,
+    mock_get_job_status,
+    mock_update_job_status,
+    fake_db_session,
+    fake_processing_job_record,
+):
+    inactive_job = ProcessingJobRecord(
+        id=2,
+        platform_job_id="platform456",
+        label=ProcessTypeEnum.OGC_API_PROCESS,
+        title="Finished Job",
+        status=ProcessingStatusEnum.FINISHED,
+        service_record=json.dumps({"foo": "bar"}),
+    )
+    mock_get_jobs.return_value = [fake_processing_job_record, inactive_job]
+    mock_get_job_status.return_value = ProcessingStatusEnum.RUNNING
 
-    # Act
     results = get_processing_jobs_by_user_id(fake_db_session, "user1")
 
-    # Assert
-    mock_get_jobs.assert_called_once_with(fake_db_session, "user1")
-    assert len(results) == len(fake_db_records)
-    for i, job_summary in enumerate(results):
-        assert job_summary.id == fake_db_records[i].id
-        assert job_summary.title == fake_db_records[i].title
-        assert job_summary.status == fake_db_records[i].status
+    assert len(results) == 2
+    assert isinstance(results[0], ProcessingJobSummary)
+    assert results[0].status == ProcessingStatusEnum.RUNNING
+    assert results[1].status == ProcessingStatusEnum.FINISHED
+
+    # Active job should be refreshed
+    mock_get_job_status.assert_called_once_with(fake_processing_job_record)
+    mock_update_job_status.assert_called_once_with(
+        ANY, fake_processing_job_record.id, ProcessingStatusEnum.RUNNING
+    )
+
+
+@patch("app.services.processing.update_job_status_by_id")
+@patch("app.services.processing.get_job_status")
+@patch("app.services.processing.get_jobs_by_user_id")
+def test_get_processing_jobs_no_updates(
+    mock_get_jobs,
+    mock_get_job_status,
+    mock_update_job_status,
+    fake_db_session,
+    fake_processing_job_record,
+):
+    mock_get_jobs.return_value = [fake_processing_job_record]
+    mock_get_job_status.return_value = fake_processing_job_record.status
+
+    results = get_processing_jobs_by_user_id(fake_db_session, "user1")
+
+    assert len(results) == 1
+    assert results[0].status == fake_processing_job_record.status
+
+    # Active job should be refreshed
+    mock_get_job_status.assert_called_once_with(fake_processing_job_record)
+    mock_update_job_status.assert_not_called()
+
+
+@patch("app.services.processing.get_processing_platform")
+def test_get_job_status_from_platform(mock_get_platform, fake_processing_job_record):
+
+    fake_platform = MagicMock()
+    fake_platform.get_job_status.return_value = ProcessingStatusEnum.QUEUED
+    mock_get_platform.return_value = fake_platform
+
+    status = get_job_status(fake_processing_job_record)
+
+    assert status == ProcessingStatusEnum.QUEUED
 
 
 @patch("app.services.processing.get_job_by_user_id")

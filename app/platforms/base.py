@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas import ServiceDetails
+from app.schemas import ProcessingStatusEnum, ServiceDetails
 
 
 class BaseProcessingPlatform(ABC):
@@ -18,5 +18,18 @@ class BaseProcessingPlatform(ABC):
         :param details: The service details containing the service ID and application.
         :param parameters: The parameters required for the job execution.
         :return: Return the ID of the job that was created
+        """
+        pass
+
+    @abstractmethod
+    def get_job_status(
+        self, job_id: str, details: ServiceDetails
+    ) -> ProcessingStatusEnum:
+        """
+        Retrieve the job status of a processing job that is running on the platform.
+
+        :param job_id: The ID of the job on the platform
+        :param details: The service details containing the service ID and application.
+        :return: Return the processing status
         """
         pass

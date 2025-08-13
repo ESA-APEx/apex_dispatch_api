@@ -11,6 +11,7 @@ from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_processing_platform
 from app.schemas import (
     ProcessTypeEnum,
+    ProcessingStatusEnum,
     ServiceDetails,
 )
 
@@ -104,15 +105,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
         return process_id
 
     def execute_job(self, title: str, details: ServiceDetails, parameters: dict) -> str:
-        """
-        Execute a processing job on the platform with the given service ID and parameters.
-
-        :param title: The title of the job to be executed.
-        :param details: The service details containing the service ID and application.
-        :param parameters: The parameters required for the job execution.
-        :return: Return the ID of the job that was created
-        """
-
         try:
             process_id = self._get_process_id(details.application)
 
@@ -130,8 +122,47 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
             return job.job_id
         except Exception as e:
-            logger.exception(f"Failed to execute openEO job: {e}")
-            raise SystemError("Failed to execute openEO job")
+            logger.exception("Failed to execute openEO job")
+            raise SystemError("Failed to execute openEO job") from e
+
+    def _map_openeo_status(self, status: str) -> ProcessingStatusEnum:
+        """
+        Map the status returned by openEO to a status known within the API.
+
+        :param status: Status text returned by openEO.
+        :return: ProcessingStatusEnum corresponding to the input.
+        """
+
+        logger.debug("Mapping openEO status %r to ProcessingStatusEnum", status)
+
+        mapping = {
+            "created": ProcessingStatusEnum.CREATED,
+            "queued": ProcessingStatusEnum.QUEUED,
+            "running": ProcessingStatusEnum.RUNNING,
+            "cancelled": ProcessingStatusEnum.CANCELED,
+            "finished": ProcessingStatusEnum.FINISHED,
+            "error": ProcessingStatusEnum.FAILED,
+        }
+
+        try:
+            return mapping[status.lower()]
+        except (AttributeError, KeyError):
+            logger.warning("Mapping of unknown openEO status: %r", status)
+            return ProcessingStatusEnum.UNKNOWN
+
+    def get_job_status(
+        self, job_id: str, details: ServiceDetails
+    ) -> ProcessingStatusEnum:
+        try:
+            logger.debug(f"Fetching job status for openEO job with ID {job_id}")
+            connection = self._setup_connection(details.service)
+            job = connection.job(job_id)
+            return self._map_openeo_status(job.status())
+        except Exception as e:
+            logger.exception(f"Failed to fetch status for openEO job with ID {job_id}")
+            raise SystemError(
+                f"Failed to fetch status openEO job with ID {job_id}"
+            ) from e
 
 
 register_processing_platform(ProcessTypeEnum.OPENEO, OpenEOPlatform)
