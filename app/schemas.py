@@ -15,6 +15,7 @@ class ProcessingStatusEnum(str, Enum):
     FINISHED = "finished"
     FAILED = "failed"
 
+
 # class TileRequest(BaseModel):
 #     aoi: dict
 #     grid: str
@@ -76,8 +77,8 @@ class UpscalingTaskSummary(BaseModel):
 
 
 class JobsStatusResponse(BaseModel):
-    upscalingTasks: List[UpscalingTaskSummary] = []
-    processingJobs: List[ProcessingJobSummary] = []
+    upscaling_tasks: List[UpscalingTaskSummary] = []
+    processing_jobs: List[ProcessingJobSummary] = []
 
 
 class BaseJobRequest(BaseModel):
