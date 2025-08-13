@@ -5,6 +5,7 @@ httpx
 mypy
 mypy_extensions
 openeo
+psycopg2-binary
 pydantic
 pydantic-settings
 pydantic_core
