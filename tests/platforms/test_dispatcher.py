@@ -27,7 +27,7 @@ def clear_registry():
 
 
 def test_register_processing_platform():
-    dispatcher.register_processing_platform(ProcessTypeEnum.OPENEO, DummyPlatform)
+    dispatcher.register_platform(ProcessTypeEnum.OPENEO)(DummyPlatform)
     assert dispatcher.PROCESSING_PLATFORMS[ProcessTypeEnum.OPENEO] is DummyPlatform
 
 

@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 
 from app.platforms.base import BaseProcessingPlatform
-from app.platforms.dispatcher import register_processing_platform
+from app.platforms.dispatcher import register_platform 
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 
@@ -22,6 +22,7 @@ BACKEND_AUTH_ENV_MAP = {
 }
 
 
+@register_platform(ProcessTypeEnum.OPENEO)
 class OpenEOPlatform(BaseProcessingPlatform):
     """
     OpenEO processing platform implementation.
@@ -160,6 +161,3 @@ class OpenEOPlatform(BaseProcessingPlatform):
             raise SystemError(
                 f"Failed to fetch status openEO job with ID {job_id}"
             ) from e
-
-
-register_processing_platform(ProcessTypeEnum.OPENEO, OpenEOPlatform)
