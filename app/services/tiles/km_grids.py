@@ -1,37 +1,21 @@
 import logging
-from typing import Callable, Dict, List
+from typing import List
 
-import pyproj
 from geojson_pydantic import GeometryCollection, Polygon
 from geojson_pydantic.geometries import Geometry, parse_geometry_obj
+import pyproj
 from shapely import box
 from shapely.geometry import shape
 from shapely.ops import transform
 
 from app.schemas.tiles import GridTypeEnum
+from app.services.tiles.base import register_grid
+
 
 logger = logging.getLogger(__name__)
 
-GRID_REGISTRY: Dict[GridTypeEnum, Callable[[Polygon], GeometryCollection]] = {}
 
-
-def split_polygon_by_grid(polygon: Polygon, grid: GridTypeEnum) -> GeometryCollection:
-    """
-    Split a GeoJSON Polygon into smaller polygons according to the specified grid type.
-
-    :param polygon: The GeoJSON Polygon to split.
-    :param grid: The grid type to use for splitting.
-    :return: A list of GeoJSON Polygons.
-    :raises ValueError: If the grid type is unknown.
-    """
-    if grid.lower() not in GRID_REGISTRY:
-        logger.error(f"An unknown grid was requested: {grid}")
-        raise ValueError(f"Unknown grid: {grid}")
-
-    split_func = GRID_REGISTRY[grid]
-    return split_func(polygon)
-
-
+@register_grid(GridTypeEnum.KM_20)
 def split_by_20x20_km_grid(polygon: Polygon) -> GeometryCollection:
     """
     Split polygon into 20x20 km tiles.
@@ -88,6 +72,3 @@ def _split_by_km_grid(aoi: Polygon, cell_size_km: float) -> List[Geometry]:
             y += cell_size_m
         x += cell_size_m
     return result_polygons
-
-
-GRID_REGISTRY[GridTypeEnum.KM_20] = split_by_20x20_km_grid

@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from geojson_pydantic import GeometryCollection
 
 from app.schemas.tiles import TileRequest
-from app.services.tiles import split_polygon_by_grid
+from app.services.tiles.base import split_polygon_by_grid
 
 
 router = APIRouter()
