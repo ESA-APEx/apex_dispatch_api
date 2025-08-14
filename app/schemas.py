@@ -11,9 +11,12 @@ class ProcessTypeEnum(str, Enum):
 
 class ProcessingStatusEnum(str, Enum):
     CREATED = "created"
+    QUEUED = "queued"
     RUNNING = "running"
     FINISHED = "finished"
+    CANCELED = "canceled"
     FAILED = "failed"
+    UNKNOWN = "unknown"
 
 
 # class TileRequest(BaseModel):

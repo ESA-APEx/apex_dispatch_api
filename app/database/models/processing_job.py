@@ -23,10 +23,10 @@ class ProcessingJobRecord(Base):
         Enum(ProcessingStatusEnum), index=True
     )
     user_id: Mapped[str] = mapped_column(String, index=True)
-    platform_job_id: Mapped[Optional[str]] = mapped_column(String, index=True)
-    parameters: Mapped[Optional[str]] = mapped_column(String, index=False)
+    platform_job_id: Mapped[str] = mapped_column(String, index=True)
+    parameters: Mapped[str] = mapped_column(String, index=False)
     result_link: Mapped[Optional[str]] = mapped_column(String, index=False)
-    service_record: Mapped[Optional[str]] = mapped_column(String, index=True)
+    service_record: Mapped[str] = mapped_column(String, index=True)
     created: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, index=True
     )
@@ -63,6 +63,15 @@ def get_jobs_by_user_id(database: Session, user_id: str) -> List[ProcessingJobRe
     )
 
 
+def get_job_by_id(database: Session, job_id: int) -> Optional[ProcessingJobRecord]:
+    logger.info(f"Retrieving processing job with ID {job_id}")
+    return (
+        database.query(ProcessingJobRecord)
+        .filter(ProcessingJobRecord.id == job_id)
+        .first()
+    )
+
+
 def get_job_by_user_id(
     database: Session, job_id: int, user_id: str
 ) -> Optional[ProcessingJobRecord]:
@@ -74,3 +83,19 @@ def get_job_by_user_id(
         )
         .first()
     )
+
+
+def update_job_status_by_id(
+    database: Session, job_id: int, status: ProcessingStatusEnum
+):
+    logger.info(f"Updating the status of processing job with ID {job_id} to {status}")
+    job = get_job_by_id(database, job_id)
+
+    if job:
+        job.status = status
+        database.commit()
+        database.refresh(job)
+    else:
+        logger.warning(
+            f"Could not update job status of job {job_id} as it could not be found in the database"
+        )

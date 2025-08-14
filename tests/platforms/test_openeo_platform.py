@@ -4,7 +4,15 @@ import pytest
 import requests
 
 from app.platforms.implementations.openeo import OpenEOPlatform
-from app.schemas import ServiceDetails
+from app.schemas import ProcessingStatusEnum, ServiceDetails
+
+
+class DummyOpenEOClient:
+
+    def job(self, job_id):
+        job = MagicMock()
+        job.status.return_value = ProcessingStatusEnum.RUNNING
+        return job
 
 
 @pytest.fixture
@@ -109,3 +117,46 @@ def test_execute_job_process_id_failure(
 ):
     with pytest.raises(SystemError, match="Failed to execute openEO job"):
         platform.execute_job(title="Test Job", details=service_details, parameters={})
+
+
+@pytest.mark.parametrize(
+    "openeo_status, expected_enum",
+    [
+        ("created", ProcessingStatusEnum.CREATED),
+        ("queued", ProcessingStatusEnum.QUEUED),
+        ("running", ProcessingStatusEnum.RUNNING),
+        ("cancelled", ProcessingStatusEnum.CANCELED),
+        ("finished", ProcessingStatusEnum.FINISHED),
+        ("error", ProcessingStatusEnum.FAILED),
+        ("CrEaTeD", ProcessingStatusEnum.CREATED),  # Case insensitivity
+        ("unknown_status", ProcessingStatusEnum.UNKNOWN),
+        (None, ProcessingStatusEnum.UNKNOWN),
+    ],
+)
+def test_map_openeo_status(openeo_status, expected_enum):
+    platform = OpenEOPlatform()
+    result = platform._map_openeo_status(openeo_status)
+    assert result == expected_enum
+
+
+def test_get_job_status_success():
+    platform = OpenEOPlatform()
+
+    with patch.object(platform, "_setup_connection", return_value=DummyOpenEOClient()):
+        details = ServiceDetails(service="foo", application="bar")
+        result = platform.get_job_status("job123", details)
+
+        assert result == ProcessingStatusEnum.RUNNING
+
+
+def test_get_job_status_error():
+    platform = OpenEOPlatform()
+
+    with patch.object(
+        platform, "_setup_connection", side_effect=RuntimeError("Connection error")
+    ):
+        details = ServiceDetails(service="foo", application="bar")
+        with pytest.raises(SystemError) as exc_info:
+            platform.get_job_status("job123", details)
+
+    assert "Failed to fetch status" in str(exc_info.value)

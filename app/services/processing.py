@@ -6,6 +6,7 @@ from app.database.models.processing_job import (
     get_job_by_user_id,
     get_jobs_by_user_id,
     save_job_to_db,
+    update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
 from app.schemas import (
@@ -40,9 +41,7 @@ def create_processing_job(
         platform_job_id=job_id,
         parameters=json.dumps(summary.parameters),
         result_link=None,
-        service_record=json.dumps(
-            summary.service.model_dump_json()
-        ),  # Assuming service is a dict
+        service_record=summary.service.model_dump_json(),
     )
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
@@ -50,18 +49,42 @@ def create_processing_job(
     )
 
 
+def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
+    logger.info(f"Retrieving job status for job: {job.platform_job_id}")
+    platform = get_processing_platform(job.label)
+    details = ServiceDetails.model_validate_json(job.service_record)
+    return platform.get_job_status(job.platform_job_id, details)
+
+
 def get_processing_jobs_by_user_id(
     database: Session, user_id: str
 ) -> List[ProcessingJobSummary]:
     logger.info(f"Retrieving processing jobs for user {user_id}")
-    return list(
-        map(
-            lambda x: ProcessingJobSummary(
-                id=x.id, title=x.title, label=x.label, status=x.status
-            ),
-            get_jobs_by_user_id(database, user_id),
+
+    jobs: List[ProcessingJobSummary] = []
+    records = get_jobs_by_user_id(database, user_id)
+
+    inactive_statuses = {
+        ProcessingStatusEnum.CANCELED,
+        ProcessingStatusEnum.FAILED,
+        ProcessingStatusEnum.FINISHED,
+    }
+
+    for record in records:
+        if record.status not in inactive_statuses:
+            latest_status = get_job_status(record)
+            if latest_status != record.status:
+                update_job_status_by_id(database, record.id, latest_status)
+            status = latest_status
+        else:
+            status = record.status
+
+        jobs.append(
+            ProcessingJobSummary(
+                id=record.id, title=record.title, label=record.label, status=status
+            )
         )
-    )
+    return jobs
 
 
 def get_processing_job_by_user_id(

@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.database.models.processing_job import ProcessingJobRecord
 from app.main import app
 from app.schemas import (
     BaseJobRequest,
@@ -57,6 +58,23 @@ def fake_processing_job(fake_processing_job_summary, fake_processing_job_request
         created=datetime.now(),
         updated=datetime.now()
     )
+
+
+@pytest.fixture
+def fake_processing_job_record(
+    fake_processing_job_summary, fake_processing_job_request
+):
+    record = ProcessingJobRecord(
+        **(fake_processing_job_summary.model_dump()),
+        platform_job_id="platform-job-1",
+        service_record='{"service":"foo","application":"bar"}',
+        parameters="{}",
+        result_link="https://foo.bar",
+        created=datetime.now(),
+        updated=datetime.now()
+    )
+    record.status = ProcessingStatusEnum.CREATED
+    return record
 
 
 # @pytest.fixture(autouse=True)
