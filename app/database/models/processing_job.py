@@ -5,7 +5,7 @@ from sqlalchemy import DateTime, Enum, Integer, String
 from app.database.db import Base
 from sqlalchemy.orm import Session, Mapped, mapped_column
 
-from app.schemas import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import ProcessTypeEnum, ProcessingStatusEnum
 
 
 logger = logging.getLogger(__name__)

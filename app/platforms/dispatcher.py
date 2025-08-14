@@ -4,7 +4,7 @@ import app.platforms.implementations
 import pkgutil
 from typing import Dict, Type
 from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessTypeEnum
+from app.schemas.enum import ProcessTypeEnum
 
 PROCESSING_PLATFORMS: Dict[ProcessTypeEnum, Type[BaseProcessingPlatform]] = {}
 

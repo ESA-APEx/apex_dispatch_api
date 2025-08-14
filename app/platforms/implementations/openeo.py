@@ -9,11 +9,8 @@ from dotenv import load_dotenv
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_processing_platform
-from app.schemas import (
-    ProcessTypeEnum,
-    ProcessingStatusEnum,
-    ServiceDetails,
-)
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import ServiceDetails
 
 load_dotenv()
 logger = logging.getLogger(__name__)

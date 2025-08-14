@@ -4,7 +4,8 @@ import pytest
 
 import app.platforms.dispatcher as dispatcher
 from app.platforms.base import BaseProcessingPlatform
-from app.schemas import ProcessTypeEnum, ProcessingJobSummary, ProcessingStatusEnum
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import ProcessingJobSummary
 
 
 class DummyPlatform(BaseProcessingPlatform):

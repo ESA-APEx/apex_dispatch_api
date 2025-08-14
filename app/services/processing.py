@@ -9,14 +9,15 @@ from app.database.models.processing_job import (
     update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
-from app.schemas import (
+from sqlalchemy.orm import Session
+
+from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
     ProcessingJobSummary,
-    ProcessingStatusEnum,
     ServiceDetails,
 )
-from sqlalchemy.orm import Session
 
 
 logger = logging.getLogger(__name__)

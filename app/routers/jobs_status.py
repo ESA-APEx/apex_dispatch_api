@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
-from app.schemas import JobsStatusResponse
+from app.schemas.jobs_status import JobsStatusResponse
 from app.services.processing import get_processing_jobs_by_user_id
 
 router = APIRouter()

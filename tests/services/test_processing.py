@@ -4,12 +4,11 @@ from unittest.mock import ANY, patch, MagicMock
 import pytest
 
 from app.database.models.processing_job import ProcessingJobRecord
-from app.schemas import (
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
     ProcessingJobSummary,
-    ProcessingStatusEnum,
-    ProcessTypeEnum,
     ServiceDetails,
 )
 from app.services.processing import (

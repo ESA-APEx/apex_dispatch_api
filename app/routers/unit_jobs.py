@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
-from app.schemas import BaseJobRequest, ProcessingJobSummary, ProcessingJob
+from app.schemas.unit_job import BaseJobRequest, ProcessingJob, ProcessingJobSummary
 from app.services.processing import create_processing_job, get_processing_job_by_user_id
 
 # from app.auth import get_current_user

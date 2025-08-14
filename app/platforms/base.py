@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from app.schemas import ProcessingStatusEnum, ServiceDetails
+from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.unit_job import ServiceDetails
 
 
 class BaseProcessingPlatform(ABC):
