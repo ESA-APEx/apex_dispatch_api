@@ -1,12 +1,14 @@
 import logging
 
 from app.platforms.base import BaseProcessingPlatform
-from app.platforms.dispatcher import register_processing_platform
-from app.schemas import ProcessTypeEnum, ProcessingStatusEnum, ServiceDetails
+from app.platforms.dispatcher import register_platform
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import ServiceDetails
 
 logger = logging.getLogger(__name__)
 
 
+@register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
     """
     OGC API Process processing platform implementation.
@@ -22,6 +24,3 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         raise NotImplementedError(
             "OGC API Process job status retrieval not implemented yet."
         )
-
-
-register_processing_platform(ProcessTypeEnum.OGC_API_PROCESS, OGCAPIProcessPlatform)

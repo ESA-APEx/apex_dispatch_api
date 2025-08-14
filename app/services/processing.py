@@ -9,14 +9,15 @@ from app.database.models.processing_job import (
     update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
-from app.schemas import (
+from sqlalchemy.orm import Session
+
+from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
     ProcessingJobSummary,
-    ProcessingStatusEnum,
     ServiceDetails,
 )
-from sqlalchemy.orm import Session
 
 
 logger = logging.getLogger(__name__)
@@ -100,9 +101,7 @@ def get_processing_job_by_user_id(
         title=record.title,
         label=record.label,
         status=record.status,
-        service=ServiceDetails.model_validate_json(
-            json.loads(record.service_record or "{}")
-        ),
+        service=ServiceDetails.model_validate_json(record.service_record or "{}"),
         parameters=json.loads(record.parameters or "{}"),
         result_link=record.result_link,
         created=record.created,

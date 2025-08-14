@@ -4,10 +4,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import WebSocketDisconnect
 import pytest
 
-
-from app.schemas import (
-    JobsStatusResponse,
-)
+from app.schemas.jobs_status import JobsStatusResponse
 
 
 @patch("app.routers.jobs_status.get_processing_jobs_by_user_id")

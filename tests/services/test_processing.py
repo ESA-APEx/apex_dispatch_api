@@ -4,12 +4,11 @@ from unittest.mock import ANY, patch, MagicMock
 import pytest
 
 from app.database.models.processing_job import ProcessingJobRecord
-from app.schemas import (
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
     ProcessingJobSummary,
-    ProcessingStatusEnum,
-    ProcessTypeEnum,
     ServiceDetails,
 )
 from app.services.processing import (
@@ -169,8 +168,7 @@ def test_get_processing_job_by_user_id(mock_get_job, fake_db_session):
         result_link=None,
         created="2025-08-11T10:00:00",
         updated="2025-08-11T10:00:00",
-        # Double-encoded JSON
-        service_record=json.dumps(json.dumps(fake_service_details)),
+        service_record=json.dumps(fake_service_details),
     )
     mock_get_job.return_value = fake_result
 

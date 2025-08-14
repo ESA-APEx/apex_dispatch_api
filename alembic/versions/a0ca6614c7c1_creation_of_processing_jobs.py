@@ -1,8 +1,8 @@
 """Creation of processing jobs
 
-Revision ID: b3ba8db2adef
+Revision ID: a0ca6614c7c1
 Revises: 
-Create Date: 2025-08-13 09:37:59.014491
+Create Date: 2025-08-14 11:13:44.474344
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b3ba8db2adef'
+revision: str = 'a0ca6614c7c1'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,12 +25,12 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('label', sa.Enum('OPENEO', 'OGC_API_PROCESS', name='processtypeenum'), nullable=False),
-    sa.Column('status', sa.Enum('CREATED', 'RUNNING', 'FINISHED', 'FAILED', name='processingstatusenum'), nullable=False),
+    sa.Column('status', sa.Enum('CREATED', 'QUEUED', 'RUNNING', 'FINISHED', 'CANCELED', 'FAILED', 'UNKNOWN', name='processingstatusenum'), nullable=False),
     sa.Column('user_id', sa.String(), nullable=False),
-    sa.Column('platform_job_id', sa.String(), nullable=True),
-    sa.Column('parameters', sa.String(), nullable=True),
+    sa.Column('platform_job_id', sa.String(), nullable=False),
+    sa.Column('parameters', sa.String(), nullable=False),
     sa.Column('result_link', sa.String(), nullable=True),
-    sa.Column('service_record', sa.String(), nullable=True),
+    sa.Column('service_record', sa.String(), nullable=False),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('updated', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')

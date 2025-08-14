@@ -7,12 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.database.models.processing_job import ProcessingJobRecord
 from app.main import app
-from app.schemas import (
+from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.unit_job import (
     BaseJobRequest,
-    ProcessTypeEnum,
     ProcessingJob,
     ProcessingJobSummary,
-    ProcessingStatusEnum,
     ServiceDetails,
 )
 
