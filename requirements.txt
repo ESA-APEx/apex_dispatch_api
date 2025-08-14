@@ -17,4 +17,5 @@ pytest-cov
 python-dotenv
 requests
 SQLAlchemy
-types-shapely   
+types-requests
+types-shapely

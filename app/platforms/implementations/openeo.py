@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 
 from app.platforms.base import BaseProcessingPlatform
-from app.platforms.dispatcher import register_platform 
+from app.platforms.dispatcher import register_platform
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 
