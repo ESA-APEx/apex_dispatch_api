@@ -169,7 +169,7 @@ def test_get_processing_job_by_user_id(mock_get_job, fake_db_session):
         created="2025-08-11T10:00:00",
         updated="2025-08-11T10:00:00",
         # Double-encoded JSON
-        service_record=json.dumps(json.dumps(fake_service_details)),
+        service_record=json.dumps(fake_service_details),
     )
     mock_get_job.return_value = fake_result
 
