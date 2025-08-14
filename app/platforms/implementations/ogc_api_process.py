@@ -24,3 +24,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         raise NotImplementedError(
             "OGC API Process job status retrieval not implemented yet."
         )
+
+    def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
+        raise NotImplementedError(
+            "OGC API Process job result retrieval not implemented yet."
+        )

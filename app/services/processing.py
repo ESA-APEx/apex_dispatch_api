@@ -6,6 +6,7 @@ from app.database.models.processing_job import (
     get_job_by_user_id,
     get_jobs_by_user_id,
     save_job_to_db,
+    update_job_result_by_id,
     update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
@@ -57,6 +58,13 @@ def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
     return platform.get_job_status(job.platform_job_id, details)
 
 
+def get_job_result_url(job: ProcessingJobRecord) -> str:
+    logger.info(f"Retrieving job result for job: {job.platform_job_id}")
+    platform = get_processing_platform(job.label)
+    details = ServiceDetails.model_validate_json(job.service_record)
+    return platform.get_job_result_url(job.platform_job_id, details)
+
+
 def get_processing_jobs_by_user_id(
     database: Session, user_id: str
 ) -> List[ProcessingJobSummary]:
@@ -72,6 +80,7 @@ def get_processing_jobs_by_user_id(
     }
 
     for record in records:
+        # Only check status for active jobs
         if record.status not in inactive_statuses:
             latest_status = get_job_status(record)
             if latest_status != record.status:
@@ -79,6 +88,11 @@ def get_processing_jobs_by_user_id(
             status = latest_status
         else:
             status = record.status
+
+        # Update the result if the job is finished and results weren't retrieved yet
+        if status == ProcessingStatusEnum.FINISHED and not record.result_link:
+            result_link = get_job_result_url(record)
+            update_job_result_by_id(database, record.id, result_link)
 
         jobs.append(
             ProcessingJobSummary(
