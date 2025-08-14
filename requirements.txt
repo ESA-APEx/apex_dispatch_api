@@ -10,6 +10,7 @@ pydantic
 pydantic-settings
 pydantic_core
 pytest
+pytest-asyncio
 pytest-cov
 python-dotenv
 requests

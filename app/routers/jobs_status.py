@@ -1,6 +1,7 @@
+import asyncio
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
     tags=["Upscale Tasks", "Unit Jobs"],
     summary="Get a list of all upscaling tasks & processing jobs for the authenticated user",
 )
-async def jobs_status(
+async def get_jobs_status(
     db: Session = Depends(get_db),
     user: str = "foobar",
 ) -> JobsStatusResponse:
@@ -29,3 +30,33 @@ async def jobs_status(
     return JobsStatusResponse(
         upscaling_tasks=[], processing_jobs=get_processing_jobs_by_user_id(db, user)
     )
+
+
+@router.websocket(
+    "/ws/jobs_status",
+)
+async def ws_jobs_status(
+    websocket: WebSocket, user: str = "foobar", interval: int = 10
+) -> JobsStatusResponse:
+    """
+    Return combined list of upscaling tasks and processing jobs for the authenticated user.
+    """
+
+    await websocket.accept()
+    logger.debug(f"WebSocket connected for user {user}")
+
+    db = next(get_db())
+    try:
+        while True:
+            status = await get_jobs_status(db, user)
+            await websocket.send_json(status.model_dump())
+
+            await asyncio.sleep(interval)
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for user {user}")
+    except Exception as e:
+        logger.exception(f"Error in jobs_status_ws: {e}")
+        await websocket.close(code=1011, reason="Error in job status websocket: {e}")
+    finally:
+        db.close()
