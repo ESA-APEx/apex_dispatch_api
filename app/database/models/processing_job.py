@@ -99,3 +99,20 @@ def update_job_status_by_id(
         logger.warning(
             f"Could not update job status of job {job_id} as it could not be found in the database"
         )
+
+
+def update_job_result_by_id(database: Session, job_id: int, result_link: str):
+    logger.info(
+        f"Updating the result link of processing job with ID {job_id} to {result_link}"
+    )
+    job = get_job_by_id(database, job_id)
+
+    if job:
+        job.result_link = result_link
+        database.commit()
+        database.refresh(job)
+    else:
+        logger.warning(
+            f"Could not update job result link of job {job_id} as it could not be found in "
+            "the database"
+        )

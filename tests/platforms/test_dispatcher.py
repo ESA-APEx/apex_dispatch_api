@@ -17,6 +17,9 @@ class DummyPlatform(BaseProcessingPlatform):
     def get_job_status(self, job_id, details):
         return ProcessingStatusEnum.FINISHED
 
+    def get_job_result_url(self, job_id, details):
+        return "https://foo.bar"
+
 
 @pytest.fixture(autouse=True)
 def clear_registry():

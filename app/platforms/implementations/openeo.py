@@ -161,3 +161,17 @@ class OpenEOPlatform(BaseProcessingPlatform):
             raise SystemError(
                 f"Failed to fetch status openEO job with ID {job_id}"
             ) from e
+
+    def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
+        try:
+            logger.debug(f"Fetching job result for openEO job with ID {job_id}")
+            connection = self._setup_connection(details.service)
+            job = connection.job(job_id)
+            return f"{details.service}{job.get_results_metadata_url()}"
+        except Exception as e:
+            logger.exception(
+                f"Failed to fetch result url for for openEO job with ID {job_id}"
+            )
+            raise SystemError(
+                f"Failed to fetch result url for openEO job with ID {job_id}"
+            ) from e

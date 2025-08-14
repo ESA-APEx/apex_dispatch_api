@@ -34,3 +34,14 @@ class BaseProcessingPlatform(ABC):
         :return: Return the processing status
         """
         pass
+
+    @abstractmethod
+    def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
+        """
+        Retrieve the job results of a processing job that is running on the platform.
+
+        :param job_id: The ID of the job on the platform
+        :param details: The service details containing the service ID and application.
+        :return: URL where the job results are described
+        """
+        pass

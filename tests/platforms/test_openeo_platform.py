@@ -13,6 +13,7 @@ class DummyOpenEOClient:
     def job(self, job_id):
         job = MagicMock()
         job.status.return_value = ProcessingStatusEnum.RUNNING
+        job.get_results_metadata_url.return_value = "/job/results"
         return job
 
 
@@ -140,24 +141,43 @@ def test_map_openeo_status(openeo_status, expected_enum):
     assert result == expected_enum
 
 
-def test_get_job_status_success():
-    platform = OpenEOPlatform()
+@patch.object(OpenEOPlatform, "_setup_connection")
+def test_get_job_status_success(mock_connection, platform):
+    mock_connection.return_value = DummyOpenEOClient()
 
-    with patch.object(platform, "_setup_connection", return_value=DummyOpenEOClient()):
-        details = ServiceDetails(service="foo", application="bar")
-        result = platform.get_job_status("job123", details)
+    details = ServiceDetails(service="foo", application="bar")
+    result = platform.get_job_status("job123", details)
 
-        assert result == ProcessingStatusEnum.RUNNING
+    assert result == ProcessingStatusEnum.RUNNING
 
 
-def test_get_job_status_error():
-    platform = OpenEOPlatform()
+@patch.object(OpenEOPlatform, "_setup_connection")
+def test_get_job_status_error(mock_connection, platform):
+    mock_connection.side_effect = RuntimeError("Connection error")
 
-    with patch.object(
-        platform, "_setup_connection", side_effect=RuntimeError("Connection error")
-    ):
-        details = ServiceDetails(service="foo", application="bar")
-        with pytest.raises(SystemError) as exc_info:
-            platform.get_job_status("job123", details)
+    details = ServiceDetails(service="foo", application="bar")
+    with pytest.raises(SystemError) as exc_info:
+        platform.get_job_status("job123", details)
 
     assert "Failed to fetch status" in str(exc_info.value)
+
+
+@patch.object(OpenEOPlatform, "_setup_connection")
+def test_get_job_result_success(mock_connection, platform):
+    mock_connection.return_value = DummyOpenEOClient()
+
+    details = ServiceDetails(service="foo", application="bar")
+    result = platform.get_job_result_url("job123", details)
+
+    assert result == "foo/job/results"
+
+
+@patch.object(OpenEOPlatform, "_setup_connection")
+def test_get_job_url_error(mock_connection, platform):
+    mock_connection.side_effect = RuntimeError("Connection error")
+
+    details = ServiceDetails(service="foo", application="bar")
+    with pytest.raises(SystemError) as exc_info:
+        platform.get_job_result_url("job123", details)
+
+    assert "Failed to fetch result url" in str(exc_info.value)
