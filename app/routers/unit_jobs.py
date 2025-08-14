@@ -33,7 +33,11 @@ async def create_unit_job(
         )
 
 
-@router.get("/unit_jobs/{job_id}", tags=["Unit Jobs"])
+@router.get(
+    "/unit_jobs/{job_id}",
+    tags=["Unit Jobs"],
+    responses={404: {"description": "Processing job not found"}},
+)
 async def get_job(
     job_id: int, db: Session = Depends(get_db), user: str = "foobar"
 ) -> ProcessingJob:
