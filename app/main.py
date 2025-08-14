@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.platforms.dispatcher import load_processing_platforms
 from .config.logger import setup_logging
 from .config.settings import settings
-from .routers import jobs_status, unit_jobs, health
+from .routers import jobs_status, unit_jobs, health, tiles
 
 setup_logging()
 
@@ -19,6 +19,7 @@ app = FastAPI(
 # keycloak.register(app, prefix="/auth")  # mounts OIDC endpoints for login if needed
 
 # include routers
+app.include_router(tiles.router)
 app.include_router(jobs_status.router)
 app.include_router(unit_jobs.router)
 app.include_router(health.router)

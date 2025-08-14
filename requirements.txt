@@ -1,6 +1,7 @@
 fastapi
 fastapi_keycloak
 flake8
+geojson_pydantic
 httpx
 mypy
 mypy_extensions
@@ -9,9 +10,11 @@ psycopg2-binary
 pydantic
 pydantic-settings
 pydantic_core
+pyproj
 pytest
 pytest-asyncio
 pytest-cov
 python-dotenv
 requests
 SQLAlchemy
+types-shapely   
