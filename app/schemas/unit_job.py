@@ -1,9 +1,9 @@
 from datetime import datetime
-from enum import Enum
-from typing import List, Optional
+from typing import Optional
+
 from pydantic import BaseModel
 
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
 
 
 class ServiceDetails(BaseModel):
@@ -30,12 +30,8 @@ class ProcessingJob(ProcessingJobSummary, ProcessingJobDetails):
     pass
 
 
-
-
 class BaseJobRequest(BaseModel):
     title: str
     label: ProcessTypeEnum
     service: ServiceDetails
     parameters: dict
-
-
