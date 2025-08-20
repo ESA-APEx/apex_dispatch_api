@@ -111,7 +111,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 f"process_id={process_id}, parameters={parameters}"
             )
 
-            connection = self._setup_connection(details.service)
+            connection = self._setup_connection(details.endpoint)
             service = connection.datacube_from_process(
                 process_id=process_id, namespace=details.application, **parameters
             )
@@ -153,7 +153,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
     ) -> ProcessingStatusEnum:
         try:
             logger.debug(f"Fetching job status for openEO job with ID {job_id}")
-            connection = self._setup_connection(details.service)
+            connection = self._setup_connection(details.endpoint)
             job = connection.job(job_id)
             return self._map_openeo_status(job.status())
         except Exception as e:
@@ -165,9 +165,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
     def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
         try:
             logger.debug(f"Fetching job result for openEO job with ID {job_id}")
-            connection = self._setup_connection(details.service)
+            connection = self._setup_connection(details.endpoint)
             job = connection.job(job_id)
-            return f"{details.service}{job.get_results_metadata_url()}"
+            return f"{details.endpoint}{job.get_results_metadata_url()}"
         except Exception as e:
             logger.exception(
                 f"Failed to fetch result url for for openEO job with ID {job_id}"

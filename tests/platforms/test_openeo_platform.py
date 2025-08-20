@@ -33,8 +33,7 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def service_details():
     return ServiceDetails(
-        service="https://openeo.dataspace.copernicus.eu",
-        service_id="service-1",
+        endpoint="https://openeo.dataspace.copernicus.eu",
         application="https://example.com/process.json",
     )
 
@@ -107,7 +106,7 @@ def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
     )
 
     assert job_id == "job123"
-    mock_connect.assert_called_once_with(service_details.service)
+    mock_connect.assert_called_once_with(service_details.endpoint)
 
 
 @patch("app.platforms.implementations.openeo.openeo.connect")
@@ -145,7 +144,7 @@ def test_map_openeo_status(openeo_status, expected_enum):
 def test_get_job_status_success(mock_connection, platform):
     mock_connection.return_value = DummyOpenEOClient()
 
-    details = ServiceDetails(service="foo", application="bar")
+    details = ServiceDetails(endpoint="foo", application="bar")
     result = platform.get_job_status("job123", details)
 
     assert result == ProcessingStatusEnum.RUNNING
@@ -155,7 +154,7 @@ def test_get_job_status_success(mock_connection, platform):
 def test_get_job_status_error(mock_connection, platform):
     mock_connection.side_effect = RuntimeError("Connection error")
 
-    details = ServiceDetails(service="foo", application="bar")
+    details = ServiceDetails(endpoint="foo", application="bar")
     with pytest.raises(SystemError) as exc_info:
         platform.get_job_status("job123", details)
 
@@ -166,7 +165,7 @@ def test_get_job_status_error(mock_connection, platform):
 def test_get_job_result_success(mock_connection, platform):
     mock_connection.return_value = DummyOpenEOClient()
 
-    details = ServiceDetails(service="foo", application="bar")
+    details = ServiceDetails(endpoint="foo", application="bar")
     result = platform.get_job_result_url("job123", details)
 
     assert result == "foo/job/results"
@@ -176,7 +175,7 @@ def test_get_job_result_success(mock_connection, platform):
 def test_get_job_url_error(mock_connection, platform):
     mock_connection.side_effect = RuntimeError("Connection error")
 
-    details = ServiceDetails(service="foo", application="bar")
+    details = ServiceDetails(endpoint="foo", application="bar")
     with pytest.raises(SystemError) as exc_info:
         platform.get_job_result_url("job123", details)
 

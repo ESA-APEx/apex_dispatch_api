@@ -26,7 +26,7 @@ class ProcessingJobRecord(Base):
     platform_job_id: Mapped[str] = mapped_column(String, index=True)
     parameters: Mapped[str] = mapped_column(String, index=False)
     result_link: Mapped[Optional[str]] = mapped_column(String, index=False)
-    service_record: Mapped[str] = mapped_column(String, index=True)
+    service: Mapped[str] = mapped_column(String, index=True)
     created: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, index=True
     )

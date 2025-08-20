@@ -7,7 +7,7 @@ from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
 
 
 class ServiceDetails(BaseModel):
-    service: str
+    endpoint: str
     application: str
 
 

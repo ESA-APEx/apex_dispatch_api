@@ -43,7 +43,7 @@ def create_processing_job(
         platform_job_id=job_id,
         parameters=json.dumps(summary.parameters),
         result_link=None,
-        service_record=summary.service.model_dump_json(),
+        service=summary.service.model_dump_json(),
     )
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
@@ -54,14 +54,14 @@ def create_processing_job(
 def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
     logger.info(f"Retrieving job status for job: {job.platform_job_id}")
     platform = get_processing_platform(job.label)
-    details = ServiceDetails.model_validate_json(job.service_record)
+    details = ServiceDetails.model_validate_json(job.service)
     return platform.get_job_status(job.platform_job_id, details)
 
 
 def get_job_result_url(job: ProcessingJobRecord) -> str:
     logger.info(f"Retrieving job result for job: {job.platform_job_id}")
     platform = get_processing_platform(job.label)
-    details = ServiceDetails.model_validate_json(job.service_record)
+    details = ServiceDetails.model_validate_json(job.service)
     return platform.get_job_result_url(job.platform_job_id, details)
 
 
@@ -115,7 +115,7 @@ def get_processing_job_by_user_id(
         title=record.title,
         label=record.label,
         status=record.status,
-        service=ServiceDetails.model_validate_json(record.service_record or "{}"),
+        service=ServiceDetails.model_validate_json(record.service or "{}"),
         parameters=json.loads(record.parameters or "{}"),
         result_link=record.result_link,
         created=record.created,

@@ -26,7 +26,7 @@ def make_job_request():
         label=ProcessTypeEnum.OPENEO,
         title="Test Job",
         service=ServiceDetails(
-            service="dummy-service-id", application="dummy-application"
+            endpoint="dummy-service-id", application="dummy-application"
         ),
         parameters={"param": 1},
     )
@@ -95,7 +95,7 @@ def test_get_processing_jobs_with_active_and_inactive_statuses(
         label=ProcessTypeEnum.OGC_API_PROCESS,
         title="Finished Job",
         status=ProcessingStatusEnum.FAILED,
-        service_record=json.dumps({"foo": "bar"}),
+        service=json.dumps({"foo": "bar"}),
     )
     mock_get_jobs.return_value = [fake_processing_job_record, inactive_job]
     mock_get_job_status.return_value = ProcessingStatusEnum.RUNNING
@@ -149,7 +149,7 @@ def test_get_processing_jobs_with_finished_statuses(
         label=ProcessTypeEnum.OGC_API_PROCESS,
         title="Finished Job",
         status=ProcessingStatusEnum.FINISHED,
-        service_record=json.dumps({"foo": "bar"}),
+        service=json.dumps({"foo": "bar"}),
     )
     finished_job_result = ProcessingJobRecord(
         id=3,
@@ -157,7 +157,7 @@ def test_get_processing_jobs_with_finished_statuses(
         label=ProcessTypeEnum.OGC_API_PROCESS,
         title="Finished Job",
         status=ProcessingStatusEnum.FINISHED,
-        service_record=json.dumps({"foo": "bar"}),
+        service=json.dumps({"foo": "bar"}),
         result_link="https://foo.bar",
     )
     mock_get_jobs.return_value = [finished_job_no_result, finished_job_result]
@@ -203,7 +203,7 @@ def test_get_job_result_from_platform(mock_get_platform, fake_processing_job_rec
 def test_get_processing_job_by_user_id(mock_get_job, fake_db_session):
 
     fake_service_details = {
-        "service": "https://openeofed.dataspace.copernicus.eu",
+        "endpoint": "https://openeofed.dataspace.copernicus.eu",
         "application": "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/"
         "32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/"
         "variabilitymap.json",
@@ -219,7 +219,7 @@ def test_get_processing_job_by_user_id(mock_get_job, fake_db_session):
         result_link=None,
         created="2025-08-11T10:00:00",
         updated="2025-08-11T10:00:00",
-        service_record=json.dumps(fake_service_details),
+        service=json.dumps(fake_service_details),
     )
     mock_get_job.return_value = fake_result
 
@@ -231,7 +231,7 @@ def test_get_processing_job_by_user_id(mock_get_job, fake_db_session):
     assert result.title == "Test Job"
     assert result.status == ProcessingStatusEnum.CREATED
     assert isinstance(result.service, ServiceDetails)
-    assert result.service.service == fake_service_details["service"]
+    assert result.service.endpoint == fake_service_details["endpoint"]
     assert result.service.application == fake_service_details["application"]
     assert result.parameters == {"param1": "value1"}
 

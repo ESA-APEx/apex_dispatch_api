@@ -32,7 +32,7 @@ def fake_processing_job_request():
     return BaseJobRequest(
         title="Test Job",
         label=ProcessTypeEnum.OPENEO,
-        service=ServiceDetails(service="foo", application="bar"),
+        service=ServiceDetails(endpoint="foo", application="bar"),
         parameters={},
     )
 
@@ -66,7 +66,7 @@ def fake_processing_job_record(
     record = ProcessingJobRecord(
         **(fake_processing_job_summary.model_dump()),
         platform_job_id="platform-job-1",
-        service_record='{"service":"foo","application":"bar"}',
+        service='{"endpoint":"foo","application":"bar"}',
         parameters="{}",
         result_link="https://foo.bar",
         created=datetime.now(),
