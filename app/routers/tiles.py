@@ -1,13 +1,12 @@
-import logging
 from fastapi import APIRouter, HTTPException, status
 from geojson_pydantic import GeometryCollection
+from loguru import logger
 
 from app.schemas.tiles import TileRequest
 from app.services.tiles.base import split_polygon_by_grid
 
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 @router.post(

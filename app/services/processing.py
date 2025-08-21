@@ -1,6 +1,7 @@
 import json
-import logging
 from typing import List, Optional
+
+from loguru import logger
 from app.database.models.processing_job import (
     ProcessingJobRecord,
     get_job_by_user_id,
@@ -19,9 +20,6 @@ from app.schemas.unit_job import (
     ProcessingJobSummary,
     ServiceDetails,
 )
-
-
-logger = logging.getLogger(__name__)
 
 
 def create_processing_job(

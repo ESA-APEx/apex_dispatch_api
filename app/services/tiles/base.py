@@ -1,9 +1,7 @@
-import logging
 from typing import Callable, Dict
 from geojson_pydantic import GeometryCollection, Polygon
+from loguru import logger
 from app.schemas.tiles import GridTypeEnum
-
-logger = logging.getLogger(__name__)
 
 GRID_REGISTRY: Dict[GridTypeEnum, Callable[[Polygon], GeometryCollection]] = {}
 

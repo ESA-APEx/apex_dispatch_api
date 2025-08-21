@@ -3,6 +3,7 @@ fastapi_keycloak
 flake8
 geojson_pydantic
 httpx
+loguru
 mypy
 mypy_extensions
 openeo

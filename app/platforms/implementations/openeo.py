@@ -1,10 +1,10 @@
 import datetime
-import logging
 import os
 import re
 import urllib
 import jwt
 
+from loguru import logger
 import openeo
 import requests
 from dotenv import load_dotenv
@@ -15,7 +15,6 @@ from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 
 load_dotenv()
-logger = logging.getLogger(__name__)
 
 # Constants
 BACKEND_AUTH_ENV_MAP = {
@@ -56,7 +55,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
                     logger.debug("JWT bearer token is valid.")
                     return False  # Token is valid
             except Exception as e:
-                logger.warning(f"JWT token validation failed: {e}")
+                logger.error(f"JWT token validation failed: {e}")
                 return True  # Token is expired or invalid
         else:
             logger.warning("No JWT bearer token found in connection.")

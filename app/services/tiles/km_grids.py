@@ -1,8 +1,8 @@
-import logging
 from typing import List
 
 from geojson_pydantic import GeometryCollection, Polygon
 from geojson_pydantic.geometries import Geometry, parse_geometry_obj
+from loguru import logger
 import pyproj
 from shapely import box
 from shapely.geometry import shape
@@ -10,9 +10,6 @@ from shapely.ops import transform
 
 from app.schemas.tiles import GridTypeEnum
 from app.services.tiles.base import register_grid
-
-
-logger = logging.getLogger(__name__)
 
 
 @register_grid(GridTypeEnum.KM_20)
