@@ -1,11 +1,8 @@
-import logging
-
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)

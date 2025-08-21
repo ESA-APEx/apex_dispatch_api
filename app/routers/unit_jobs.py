@@ -1,6 +1,5 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
@@ -10,7 +9,6 @@ from app.services.processing import create_processing_job, get_processing_job_by
 # from app.auth import get_current_user
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -26,7 +24,7 @@ async def create_unit_job(
     try:
         return create_processing_job(db, user, payload)
     except Exception as e:
-        logger.error(f"Error creating unit job for user {user}: {e}")
+        logger.exception(f"Error creating unit job for user {user}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the processing job: {e}",
@@ -43,6 +41,7 @@ async def get_job(
 ) -> ProcessingJob:
     job = get_processing_job_by_user_id(db, job_id, user)
     if not job:
+        logger.error(f"Processing job {job_id} not found for user {user}")
         raise HTTPException(
             status_code=404,
             detail=f"Processing job {job_id} not found",

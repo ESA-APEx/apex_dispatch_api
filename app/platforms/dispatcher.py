@@ -1,5 +1,6 @@
 import importlib
-import logging
+
+from loguru import logger
 import app.platforms.implementations
 import pkgutil
 from typing import Dict, Type
@@ -7,8 +8,6 @@ from app.platforms.base import BaseProcessingPlatform
 from app.schemas.enum import ProcessTypeEnum
 
 PROCESSING_PLATFORMS: Dict[ProcessTypeEnum, Type[BaseProcessingPlatform]] = {}
-
-logger = logging.getLogger(__name__)
 
 
 def register_platform(service_type: ProcessTypeEnum):
@@ -40,4 +39,5 @@ def get_processing_platform(service_type: ProcessTypeEnum) -> BaseProcessingPlat
     try:
         return PROCESSING_PLATFORMS[service_type]()
     except KeyError:
+        logger.error(f"Processing platform for service type {service_type} not found.")
         raise ValueError(f"Unsupported service type: {service_type}")

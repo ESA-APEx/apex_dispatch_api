@@ -1,14 +1,11 @@
 import datetime
-import logging
 from typing import List, Optional
+from loguru import logger
 from sqlalchemy import DateTime, Enum, Integer, String
 from app.database.db import Base
 from sqlalchemy.orm import Session, Mapped, mapped_column
 
 from app.schemas.unit_job import ProcessTypeEnum, ProcessingStatusEnum
-
-
-logger = logging.getLogger(__name__)
 
 
 class ProcessingJobRecord(Base):

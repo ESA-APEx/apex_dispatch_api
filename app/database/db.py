@@ -1,13 +1,12 @@
-import logging
 import os
 from typing import Optional
 
 from dotenv import load_dotenv
+from loguru import logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
-logger = logging.getLogger(__name__)
 
 DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
 
@@ -36,6 +35,7 @@ def get_db():
         yield db
         db.commit()
     except Exception:
+        logger.exception("An error occurred during database retrieval")
         db.rollback()
         raise
     finally:
