@@ -1,7 +1,9 @@
+import datetime
 import logging
 import os
 import re
 import urllib
+import jwt
 
 import openeo
 import requests
@@ -29,11 +31,48 @@ class OpenEOPlatform(BaseProcessingPlatform):
     This class handles the execution of processing jobs on the OpenEO platform.
     """
 
+    _connection_cache: dict[str, openeo.Connection] = {}
+
+    def _connection_expired(self, connection: openeo.Connection) -> bool:
+        """
+        Check if the cached connection is still valid.
+        This method can be used to determine if a new connection needs to be established.
+        """
+        jwt_bearer_token = connection.auth.bearer.split("/")[-1]
+        if jwt_bearer_token:
+            try:
+                # Check if the token is still valid by decoding it
+                payload = jwt.decode(
+                    jwt_bearer_token, options={"verify_signature": False}
+                )
+                exp = payload.get("exp")
+                if not exp:
+                    logger.warning("JWT bearer token does not contain 'exp' field.")
+                    return True
+                elif exp < datetime.datetime.now(datetime.timezone.utc).timestamp():
+                    logger.warning("JWT bearer token has expired.")
+                    return True  # Token is expired
+                else:
+                    logger.debug("JWT bearer token is valid.")
+                    return False  # Token is valid
+            except Exception as e:
+                logger.warning(f"JWT token validation failed: {e}")
+                return True  # Token is expired or invalid
+        else:
+            logger.warning("No JWT bearer token found in connection.")
+            return True
+
     def _setup_connection(self, url: str) -> openeo.Connection:
         """
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
         """
+        if url in self._connection_cache and not self._connection_expired(
+            self._connection_cache[url]
+        ):
+            logger.debug(f"Reusing cached OpenEO connection to {url}")
+            return self._connection_cache[url]
+
         logger.debug(f"Setting up OpenEO connection to {url}")
         connection = openeo.connect(url)
         provider_id, client_id, client_secret = self._get_client_credentials(url)
@@ -43,6 +82,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             client_id=client_id,
             client_secret=client_secret,
         )
+        self._connection_cache[url] = connection
         return connection
 
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
