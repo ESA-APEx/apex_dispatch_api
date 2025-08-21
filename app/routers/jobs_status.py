@@ -24,7 +24,6 @@ async def get_jobs_status(
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
     logger.debug(f"Fetching jobs list for user {user}")
-    processing_jobs = get_processing_jobs_by_user_id(db, user)
     return JobsStatusResponse(
         upscaling_tasks=[], processing_jobs=get_processing_jobs_by_user_id(db, user)
     )
