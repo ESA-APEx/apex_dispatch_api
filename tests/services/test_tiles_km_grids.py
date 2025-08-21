@@ -1,6 +1,6 @@
 from geojson_pydantic import GeometryCollection, Polygon
 
-from app.services.tiles.km_grids import _split_by_km_grid, split_by_20x20_km_grid
+from app.services.tiles.grids.km_grids import _split_by_km_grid, split_by_20x20_km_grid
 
 
 def test__split_by_km_grid_creates_multiple_cells():

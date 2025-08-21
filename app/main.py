@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.middleware.correlation_id import add_correlation_id
 from app.platforms.dispatcher import load_processing_platforms
+from app.services.tiles.base import load_grids
 from .config.logger import setup_logging
 from .config.settings import settings
 from .routers import jobs_status, unit_jobs, health, tiles
@@ -9,6 +10,7 @@ from .routers import jobs_status, unit_jobs, health, tiles
 setup_logging()
 
 load_processing_platforms()
+load_grids()
 
 app = FastAPI(
     title=settings.app_name,
