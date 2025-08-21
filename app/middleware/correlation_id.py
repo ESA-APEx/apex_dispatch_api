@@ -4,7 +4,7 @@ from fastapi import Request
 from loguru import logger
 
 # Context var to store correlation ID per request
-correlation_id_ctx = contextvars.ContextVar("correlation_id", default=None)
+correlation_id_ctx = contextvars.ContextVar("correlation_id", default="-")
 
 
 async def add_correlation_id(request: Request, call_next):
