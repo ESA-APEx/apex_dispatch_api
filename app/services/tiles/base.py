@@ -1,6 +1,9 @@
+import importlib
+import pkgutil
 from typing import Callable, Dict
 from geojson_pydantic import GeometryCollection, Polygon
 from loguru import logger
+import app.services.tiles.grids
 from app.schemas.tiles import GridTypeEnum
 
 GRID_REGISTRY: Dict[GridTypeEnum, Callable[[Polygon], GeometryCollection]] = {}
@@ -8,10 +11,17 @@ GRID_REGISTRY: Dict[GridTypeEnum, Callable[[Polygon], GeometryCollection]] = {}
 
 def register_grid(grid_type: GridTypeEnum):
     def decorator(func: Callable[[Polygon], GeometryCollection]):
+        logger.debug(f"Registering grid {grid_type}")
         GRID_REGISTRY[grid_type] = func
         return func
 
     return decorator
+
+
+def load_grids():
+    """Dynamically load all processing platform implementations."""
+    for _, module_name, _ in pkgutil.iter_modules(app.services.tiles.grids.__path__):
+        importlib.import_module(f"app.services.tiles.grids.{module_name}")  # noqa: F821
 
 
 def split_polygon_by_grid(polygon: Polygon, grid: GridTypeEnum) -> GeometryCollection:
