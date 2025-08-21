@@ -31,13 +31,21 @@ async def create_unit_job(
             openapi_examples={
                 "openEO Example": {
                     "summary": "Valid openEO job request",
-                    "description": "The following example demonstrates how to create a processing job using an openEO-based service. This example triggers the [`variability map`](https://github.com/ESA-APEx/apex_algorithms/blob/main/algorithm_catalog/vito/variabilitymap/records/variabilitymap.json) process using the CDSE openEO Federation. In this case the `endpoint`represents the URL of the openEO backend and the `application` refers to the User Defined Process (UDP) that is being executed on the backend.",
+                    "description": "The following example demonstrates how to create a processing "
+                    "job using an openEO-based service. This example triggers the "
+                    "[`variability map`](https://github.com/ESA-APEx/apex_algorithms/blob/main/algo"
+                    "rithm_catalog/vito/variabilitymap/records/variabilitymap.json) "
+                    "process using the CDSE openEO Federation. In this case the `endpoint`"
+                    "represents the URL of the openEO backend and the `application` refers to the "
+                    "User Defined Process (UDP) that is being executed on the backend.",
                     "value": BaseJobRequest(
                         label=ProcessTypeEnum.OPENEO,
                         title="Example openEO Job",
                         service=ServiceDetails(
                             endpoint="https://openeofed.dataspace.copernicus.eu",
-                            application="https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json",
+                            application="https://raw.githubusercontent.com/ESA-APEx/apex_algorithms"
+                            "/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/"
+                            "variabilitymap.json",
                         ),
                         parameters={
                             "spatial_extent": {

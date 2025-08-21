@@ -10,11 +10,13 @@ class GridTypeEnum(str, Enum):
 class TileRequest(BaseModel):
     aoi: Polygon = Field(
         ...,
-        description="Polygon representing the area of interest for which the tiling grid should be calculated",
+        description="Polygon representing the area of interest for which the tiling grid should "
+        "be calculated",
     )
     grid: GridTypeEnum = Field(
         ...,
-        description="Identifier of the grid system that needs to be used to split up the area of interest",
+        description="Identifier of the grid system that needs to be used to split up the area of "
+        "interest",
     )
 
 

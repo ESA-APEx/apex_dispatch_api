@@ -26,7 +26,8 @@ def split_in_tiles(
             openapi_examples={
                 "20x20 Grid": {
                     "summary": "Request to split up area in a 20x20km grid",
-                    "description": "An example request of splitting up a given area of interest into a 20 by 20km grid.",
+                    "description": "An example request of splitting up a given area of interest "
+                    "into a 20 by 20km grid.",
                     "value": TileRequest(
                         grid=GridTypeEnum.KM_20,
                         aoi={

@@ -9,11 +9,15 @@ from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
 class ServiceDetails(BaseModel):
     endpoint: str = Field(
         ...,
-        description="URL to the endpoint where the service is hosted. For openEO, this is the openEO backend. For OGC API Processes, this field should include the base URL of the platform API",
+        description="URL to the endpoint where the service is hosted. For openEO, this is the "
+        "openEO backend. For OGC API Processes, this field should include the base URL of the "
+        "platform API",
     )
     application: str = Field(
         ...,
-        description="Path to the application that needs to be executed. For openEO this is referring to the public URL of the UDP (JSON) to execute. For OGC API Processes, this field should include the URL path pointing to the hosted service.",
+        description="Path to the application that needs to be executed. For openEO this is "
+        "referring to the public URL of the UDP (JSON) to execute. For OGC API Processes, this "
+        "field should include the URL path pointing to the hosted service.",
     )
 
 
