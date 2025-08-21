@@ -1,6 +1,31 @@
 # Contributing to the APEx Dispatch API
 
-## Registration of a new platform implementation
+## Making Contributions
+
+Contributions to the APEx Dispatch API are welcome! If you have suggestions for improvements, bug fixes, or new features, please follow these steps:
+   
+1. **Fork the repository**: Create a personal copy of the repository on GitHub.
+2. **Create a new branch**: Use a descriptive name for your branch that reflects the changes you plan to make.
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. **Make your changes**: Implement the changes you want to contribute.
+4. **Write tests**: Ensure that your changes are covered by tests. Add new tests if necessary.
+5. **Run tests**: Verify that all tests pass before submitting your changes.
+   ```bash
+   pytest
+   ```
+6. **Commit your changes**: Write a clear commit message that describes your changes.
+   ```bash
+   git commit -m "Add feature: your feature description"
+   ```
+7. **Push your changes**: Push your branch to your forked repository.
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+8. **Create a pull request**: Go to the original repository and create a pull request (PR) from your branch. Provide a clear description of the changes and why they are needed.
+
+## Registration of a new Platform Implementation
 
 To add a new platform implementation, you will need to create a new class that inherits from the `BasePlatform` class located at [`app/platforms/base.py`](app/platforms/base.py). In this new class, you will need to implement all the abstract methods defined in the [`BasePlatform`](app/platforms/base.py) class. This will ensure that your new platform implementation adheres to the expected interface and functionality.
 
