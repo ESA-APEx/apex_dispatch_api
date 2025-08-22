@@ -3,18 +3,31 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import (
     UpscalingTaskRecord,
+    get_upscale_task_by_user_id,
+    get_upscale_tasks_by_user_id,
     save_upscaling_task_to_db,
+    update_upscale_task_status_by_id,
 )
 from app.schemas.enum import ProcessingStatusEnum
-from app.schemas.unit_job import BaseJobRequest, ProcessingJobSummary
+from app.schemas.unit_job import BaseJobRequest, ProcessingJobSummary, ServiceDetails
 from app.schemas.upscale_task import (
     UpscalingTask,
     UpscalingTaskRequest,
     UpscalingTaskSummary,
 )
-from app.services.processing import create_processing_job
+from app.services.processing import (
+    create_processing_job,
+    get_processing_jobs_by_user_id,
+)
+
+INACTIVE_TASK_STATUSES = {
+    ProcessingStatusEnum.CANCELED,
+    ProcessingStatusEnum.FAILED,
+    ProcessingStatusEnum.FINISHED,
+}
 
 
 def _create_upscaling_processing_jobs(
@@ -71,13 +84,80 @@ def create_upscaling_task(
     )
 
 
+def _get_upscale_status(jobs: List[ProcessingJobSummary]) -> ProcessingStatusEnum:
+    if not jobs:
+        return ProcessingStatusEnum.CREATED  # edge case: no jobs
+
+    statuses = {job.status for job in jobs}
+
+    if ProcessingStatusEnum.RUNNING in statuses:
+        return ProcessingStatusEnum.RUNNING
+    if statuses == {ProcessingStatusEnum.FAILED}:
+        return ProcessingStatusEnum.FAILED
+    if statuses == {ProcessingStatusEnum.CANCELED}:
+        return ProcessingStatusEnum.CANCELED
+    if statuses.issubset({ProcessingStatusEnum.FINISHED, ProcessingStatusEnum.FAILED}):
+        return ProcessingStatusEnum.FINISHED
+    return ProcessingStatusEnum.CREATED
+
+
+def _refresh_record_status(
+    database: Session,
+    record: UpscalingTaskRecord,
+    jobs: List[ProcessingJobRecord],
+) -> UpscalingTaskRecord:
+    new_status = _get_upscale_status(jobs)
+    if new_status != record.status:
+        update_upscale_task_status_by_id(database, record.id, new_status)
+        record.status = new_status
+    return record
+
+
 def get_upscaling_task_by_user_id(
-    database: Session, job_id: int, user_id: str
+    database: Session, task_id: int, user_id: str
 ) -> Optional[UpscalingTask]:
-    pass
+
+    logger.info(f"Retrieving upscaling task with ID {task_id} for user {user_id}")
+    record = get_upscale_task_by_user_id(database, task_id, user_id)
+    if not record:
+        return None
+
+    jobs = get_processing_jobs_by_user_id(database, user_id, record.id)
+    if record.status not in INACTIVE_TASK_STATUSES:
+        record = _refresh_record_status(database, record, jobs)
+
+    return UpscalingTask(
+        id=record.id,
+        title=record.title,
+        label=record.label,
+        status=record.status,
+        service=ServiceDetails.model_validate_json(record.service or "{}"),
+        created=record.created,
+        updated=record.updated,
+        jobs=jobs,
+    )
 
 
 def get_upscaling_tasks_by_user_id(
     database: Session, user_id: str
 ) -> List[UpscalingTaskSummary]:
-    return []
+
+    logger.info(f"Retrieving upscaling tasks for user {user_id}")
+
+    tasks: List[UpscalingTaskSummary] = []
+    records = get_upscale_tasks_by_user_id(database, user_id)
+
+    for record in records:
+        if record.status not in INACTIVE_TASK_STATUSES:
+            jobs = get_processing_jobs_by_user_id(database, user_id, record.id)
+            record = _refresh_record_status(database, record, jobs)
+        tasks.append(
+            UpscalingTaskSummary(
+                id=record.id,
+                title=record.title,
+                label=record.label,
+                status=record.status,
+            )
+        )
+
+    return tasks

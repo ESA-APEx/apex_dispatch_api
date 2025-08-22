@@ -58,13 +58,21 @@ def save_job_to_db(
     return job
 
 
-def get_jobs_by_user_id(database: Session, user_id: str) -> List[ProcessingJobRecord]:
-    logger.info(f"Retrieving all processing jobs for user {user_id}")
+def get_jobs_by_user_id(
+    database: Session, user_id: str, upscaling_task_id: Optional[int]
+) -> List[ProcessingJobRecord]:
+    logger.info(
+        f"Retrieving all processing jobs for user {user_id} for upscaling task {upscaling_task_id}"
+    )
     return (
         database.query(ProcessingJobRecord)
         .filter(
             ProcessingJobRecord.user_id == user_id,
-            ProcessingJobRecord.upscaling_task_id.is_(None),
+            (
+                ProcessingJobRecord.upscaling_task_id == upscaling_task_id
+                if upscaling_task_id
+                else ProcessingJobRecord.upscaling_task_id.is_(None)
+            ),
         )
         .all()
     )

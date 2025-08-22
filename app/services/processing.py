@@ -68,12 +68,12 @@ def get_job_result_url(job: ProcessingJobRecord) -> str:
 
 
 def get_processing_jobs_by_user_id(
-    database: Session, user_id: str
+    database: Session, user_id: str, upscaling_task_id: int | None = None
 ) -> List[ProcessingJobSummary]:
     logger.info(f"Retrieving processing jobs for user {user_id}")
 
     jobs: List[ProcessingJobSummary] = []
-    records = get_jobs_by_user_id(database, user_id)
+    records = get_jobs_by_user_id(database, user_id, upscaling_task_id)
 
     inactive_statuses = {
         ProcessingStatusEnum.CANCELED,
