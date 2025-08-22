@@ -48,11 +48,7 @@ def test_unit_jobs_get_job_200(
 
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
-def test_unit_jobs_get_job_404(
-    mock_get_processing_job,
-    client,
-    fake_processing_job,
-):
+def test_unit_jobs_get_job_404(mock_get_processing_job, client):
 
     mock_get_processing_job.return_value = None
 

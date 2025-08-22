@@ -18,7 +18,3 @@ class TileRequest(BaseModel):
         description="Identifier of the grid system that needs to be used to split up the area of "
         "interest",
     )
-
-
-# class TileResponse(BaseModel):
-#     tiles: List[Tile] = []

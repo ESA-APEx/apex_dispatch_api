@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, status, Body
-from geojson_pydantic import GeometryCollection
+from geojson_pydantic import GeometryCollection, Polygon
 from loguru import logger
 
 from app.schemas.tiles import GridTypeEnum, TileRequest
@@ -18,6 +18,44 @@ router = APIRouter()
     description="Given a certain area of interest and a tiling grid definition (from the"
     "service’s Max AOI capacity), calculate the number of tiles to be"
     "processed by the upscaling service.",
+    responses={
+        201: {
+            "description": "Successfully split area of interest",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "type": "GeometryCollection",
+                        "geometries": [
+                            {
+                                "type": "Polygon",
+                                "coordinates": [
+                                    [
+                                        [4.813414938308839, 51.231275511382016],
+                                        [4.968699285344775, 51.231275511382016],
+                                        [4.968699285344775, 51.12105211672323],
+                                        [4.78903622852087, 51.123264199758346],
+                                        [4.813414938308839, 51.231275511382016],
+                                    ]
+                                ],
+                            },
+                            {
+                                "type": "Polygon",
+                                "coordinates": [
+                                    [
+                                        [4.836037011633863, 51.331277680080774],
+                                        [4.968699285344775, 51.34099814769344],
+                                        [4.968699285344775, 51.231275511382016],
+                                        [4.813414938308839, 51.231275511382016],
+                                        [4.836037011633863, 51.331277680080774],
+                                    ]
+                                ],
+                            },
+                        ],
+                    }
+                }
+            },
+        }
+    },
 )
 def split_in_tiles(
     payload: Annotated[
@@ -30,8 +68,8 @@ def split_in_tiles(
                     "into a 20 by 20km grid.",
                     "value": TileRequest(
                         grid=GridTypeEnum.KM_20,
-                        aoi={
-                            "coordinates": [
+                        aoi=Polygon(
+                            coordinates=[
                                 [
                                     [5.131074140132512, 51.352892918832026],
                                     [4.836037011633863, 51.331277680080774],
@@ -41,11 +79,11 @@ def split_in_tiles(
                                     [5.131074140132512, 51.352892918832026],
                                 ]
                             ],
-                            "type": "Polygon",
-                        },
+                            type="Polygon",
+                        ),
                     ),
                 }
-            }
+            },
         ),
     ],
 ) -> GeometryCollection:

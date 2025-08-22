@@ -98,7 +98,7 @@ async def create_unit_job(
     try:
         return create_processing_job(db, user, payload)
     except Exception as e:
-        logger.exception(f"Error creating unit job for user {user}: {e}")
+        logger.exception(f"Error creating processing job for user {user}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the processing job: {e}",

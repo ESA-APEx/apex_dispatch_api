@@ -7,7 +7,10 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.database.db import Base  # import your Base here
-from app.database.models.processing_job import ProcessingJobRecord  # import your models here
+from app.database.models.processing_job import (
+    ProcessingJobRecord,
+)
+from app.database.models.upscaling_task import UpscalingTaskRecord
 
 
 # this is the Alembic Config object, which provides
@@ -71,13 +74,11 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        url=get_url()
+        url=get_url(),
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

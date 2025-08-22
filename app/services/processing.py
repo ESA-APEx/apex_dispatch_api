@@ -22,30 +22,46 @@ from app.schemas.unit_job import (
 )
 
 
-def create_processing_job(
-    database: Session, user: str, summary: BaseJobRequest
-) -> ProcessingJobSummary:
-    logger.info(f"Creating processing job with summary: {summary}")
+INACTIVE_JOB_STATUSES = {
+    ProcessingStatusEnum.CANCELED,
+    ProcessingStatusEnum.FAILED,
+    ProcessingStatusEnum.FINISHED,
+}
 
-    platform = get_processing_platform(summary.label)
+
+def create_processing_job(
+    database: Session,
+    user: str,
+    request: BaseJobRequest,
+    upscaling_task_id: int | None = None,
+) -> ProcessingJobSummary:
+    logger.info(f"Creating processing job for {user} with summary: {request}")
+
+    platform = get_processing_platform(request.label)
 
     job_id = platform.execute_job(
-        title=summary.title, details=summary.service, parameters=summary.parameters
+        title=request.title, details=request.service, parameters=request.parameters
     )
 
     record = ProcessingJobRecord(
-        title=summary.title,
-        label=summary.label,
+        title=request.title,
+        label=request.label,
         status=ProcessingStatusEnum.CREATED,
         user_id=user,
         platform_job_id=job_id,
-        parameters=json.dumps(summary.parameters),
+        parameters=json.dumps(request.parameters),
         result_link=None,
-        service=summary.service.model_dump_json(),
+        service=request.service.model_dump_json(),
+        upscaling_task_id=upscaling_task_id,
     )
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
-        id=record.id, title=record.title, label=summary.label, status=record.status
+        id=record.id,
+        title=record.title,
+        label=request.label,
+        status=record.status,
+        parameters=request.parameters,
+        result_link=None,
     )
 
 
@@ -63,38 +79,43 @@ def get_job_result_url(job: ProcessingJobRecord) -> str:
     return platform.get_job_result_url(job.platform_job_id, details)
 
 
+def _refresh_job_status(
+    database: Session,
+    record: ProcessingJobRecord,
+) -> ProcessingJobRecord:
+    new_status = get_job_status(record)
+    if new_status != record.status:
+        update_job_status_by_id(database, record.id, new_status)
+        record.status = new_status
+    return record
+
+
 def get_processing_jobs_by_user_id(
-    database: Session, user_id: str
+    database: Session, user_id: str, upscaling_task_id: int | None = None
 ) -> List[ProcessingJobSummary]:
     logger.info(f"Retrieving processing jobs for user {user_id}")
 
     jobs: List[ProcessingJobSummary] = []
-    records = get_jobs_by_user_id(database, user_id)
-
-    inactive_statuses = {
-        ProcessingStatusEnum.CANCELED,
-        ProcessingStatusEnum.FAILED,
-        ProcessingStatusEnum.FINISHED,
-    }
+    records = get_jobs_by_user_id(database, user_id, upscaling_task_id)
 
     for record in records:
         # Only check status for active jobs
-        if record.status not in inactive_statuses:
-            latest_status = get_job_status(record)
-            if latest_status != record.status:
-                update_job_status_by_id(database, record.id, latest_status)
-            status = latest_status
-        else:
-            status = record.status
+        if record.status not in INACTIVE_JOB_STATUSES:
+            record = _refresh_job_status(database, record)
 
         # Update the result if the job is finished and results weren't retrieved yet
-        if status == ProcessingStatusEnum.FINISHED and not record.result_link:
+        if record.status == ProcessingStatusEnum.FINISHED and not record.result_link:
             result_link = get_job_result_url(record)
             update_job_result_by_id(database, record.id, result_link)
 
         jobs.append(
             ProcessingJobSummary(
-                id=record.id, title=record.title, label=record.label, status=status
+                id=record.id,
+                title=record.title,
+                label=record.label,
+                status=record.status,
+                parameters=json.loads(record.parameters),
+                result_link=record.result_link,
             )
         )
     return jobs
@@ -107,6 +128,9 @@ def get_processing_job_by_user_id(
     record = get_job_by_user_id(database, job_id, user_id)
     if not record:
         return None
+
+    if record.status not in INACTIVE_JOB_STATUSES:
+        record = _refresh_job_status(database, record)
 
     return ProcessingJob(
         id=record.id,
