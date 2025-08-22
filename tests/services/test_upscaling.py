@@ -7,7 +7,6 @@ from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJobSummary,
 )
-from app.schemas.upscale_task import UpscalingTask
 from app.services.upscaling import (
     _get_upscale_status,
     _refresh_record_status,
