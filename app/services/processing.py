@@ -23,29 +23,33 @@ from app.schemas.unit_job import (
 
 
 def create_processing_job(
-    database: Session, user: str, summary: BaseJobRequest
+    database: Session,
+    user: str,
+    request: BaseJobRequest,
+    upscaling_task_id: int | None = None,
 ) -> ProcessingJobSummary:
-    logger.info(f"Creating processing job with summary: {summary}")
+    logger.info(f"Creating processing job for {user} with summary: {request}")
 
-    platform = get_processing_platform(summary.label)
+    platform = get_processing_platform(request.label)
 
     job_id = platform.execute_job(
-        title=summary.title, details=summary.service, parameters=summary.parameters
+        title=request.title, details=request.service, parameters=request.parameters
     )
 
     record = ProcessingJobRecord(
-        title=summary.title,
-        label=summary.label,
+        title=request.title,
+        label=request.label,
         status=ProcessingStatusEnum.CREATED,
         user_id=user,
         platform_job_id=job_id,
-        parameters=json.dumps(summary.parameters),
+        parameters=json.dumps(request.parameters),
         result_link=None,
-        service=summary.service.model_dump_json(),
+        service=request.service.model_dump_json(),
+        upscaling_task_id=upscaling_task_id,
     )
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
-        id=record.id, title=record.title, label=summary.label, status=record.status
+        id=record.id, title=record.title, label=request.label, status=record.status
     )
 
 

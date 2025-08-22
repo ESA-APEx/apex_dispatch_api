@@ -1,11 +1,12 @@
 import datetime
 from typing import List, Optional
-from loguru import logger
-from sqlalchemy import DateTime, Enum, Integer, String
-from app.database.db import Base
-from sqlalchemy.orm import Session, Mapped, mapped_column
 
-from app.schemas.unit_job import ProcessTypeEnum, ProcessingStatusEnum
+from loguru import logger
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, Session, mapped_column
+
+from app.database.db import Base
+from app.schemas.unit_job import ProcessingStatusEnum, ProcessTypeEnum
 
 
 class ProcessingJobRecord(Base):
@@ -34,6 +35,12 @@ class ProcessingJobRecord(Base):
         index=True,
     )
 
+    upscaling_task_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("upscaling_tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
 
 def save_job_to_db(
     db_session: Session, job: ProcessingJobRecord
@@ -55,7 +62,10 @@ def get_jobs_by_user_id(database: Session, user_id: str) -> List[ProcessingJobRe
     logger.info(f"Retrieving all processing jobs for user {user_id}")
     return (
         database.query(ProcessingJobRecord)
-        .filter(ProcessingJobRecord.user_id == user_id)
+        .filter(
+            ProcessingJobRecord.user_id == user_id,
+            ProcessingJobRecord.upscaling_task_id.is_(None),
+        )
         .all()
     )
 

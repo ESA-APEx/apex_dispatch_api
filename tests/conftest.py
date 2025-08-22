@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.database.models.processing_job import ProcessingJobRecord
+from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
@@ -89,7 +90,7 @@ def fake_upscaling_task_request():
         title="Test Job",
         label=ProcessTypeEnum.OPENEO,
         service=ServiceDetails(endpoint="foo", application="bar"),
-        parameters={},
+        parameters={"temporal_extent": "2025-01-01"},
         dimension=ParameterDimension(
             name="spatial_extent",
             values=[
@@ -141,6 +142,16 @@ def fake_upscaling_task(fake_upscaling_task_summary, fake_upscaling_task_request
         created=datetime.now(),
         updated=datetime.now(),
         jobs=[]
+    )
+
+
+@pytest.fixture
+def fake_upscaling_task_record(fake_upscaling_task_summary):
+    return UpscalingTaskRecord(
+        **(fake_upscaling_task_summary.model_dump()),
+        service='{"endpoint":"foo","application":"bar"}',
+        created=datetime.now(),
+        updated=datetime.now()
     )
 
 

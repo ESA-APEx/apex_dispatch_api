@@ -60,7 +60,7 @@ def test_create_processing_job_calls_platform_execute(
 
     mock_save_job_to_db.return_value = fake_record
 
-    result = create_processing_job(fake_db_session, "foobar", fake_job)
+    result = create_processing_job(fake_db_session, "foobar", fake_job, None)
 
     mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
@@ -76,7 +76,7 @@ def test_create_processing_job_platform_raises(mock_get_platform, fake_db_sessio
     mock_get_platform.side_effect = ValueError("Unsupported platform")
 
     with pytest.raises(ValueError, match="Unsupported platform"):
-        create_processing_job(fake_db_session, "foobar", fake_summary)
+        create_processing_job(fake_db_session, "foobar", fake_summary, None)
 
 
 @patch("app.services.processing.update_job_status_by_id")
