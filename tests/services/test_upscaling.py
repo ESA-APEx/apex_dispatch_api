@@ -23,6 +23,8 @@ def make_job(status: ProcessingStatusEnum) -> ProcessingJobSummary:
         title="job",
         status=status,
         label=ProcessTypeEnum.OPENEO,
+        parameters={"param1": "value1", "param2": "value2"},
+        result_link=None,
     )
 
 

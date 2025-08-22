@@ -51,6 +51,8 @@ def fake_processing_job_summary():
         title="Test Job",
         label=ProcessTypeEnum.OPENEO,
         status=ProcessingStatusEnum.CREATED,
+        parameters={"param1": "value1", "param2": "value2"},
+        result_link=None,
     )
 
 
@@ -59,8 +61,6 @@ def fake_processing_job(fake_processing_job_summary, fake_processing_job_request
     return ProcessingJob(
         **(fake_processing_job_summary.model_dump()),
         service=fake_processing_job_request.service,
-        parameters=fake_processing_job_request.parameters,
-        result_link="https://foo.bar",
         created=datetime.now(),
         updated=datetime.now()
     )
@@ -71,13 +71,16 @@ def fake_processing_job_record(
     fake_processing_job_summary, fake_processing_job_request
 ):
     record = ProcessingJobRecord(
-        **(fake_processing_job_summary.model_dump()),
+        id=fake_processing_job_summary.id,
+        title=fake_processing_job_summary.title,
+        label=fake_processing_job_summary.label,
+        status=fake_processing_job_summary.status,
         platform_job_id="platform-job-1",
         service='{"endpoint":"foo","application":"bar"}',
         parameters="{}",
         result_link="https://foo.bar",
         created=datetime.now(),
-        updated=datetime.now()
+        updated=datetime.now(),
     )
     record.status = ProcessingStatusEnum.CREATED
     return record

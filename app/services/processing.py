@@ -56,7 +56,12 @@ def create_processing_job(
     )
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
-        id=record.id, title=record.title, label=request.label, status=record.status
+        id=record.id,
+        title=record.title,
+        label=request.label,
+        status=record.status,
+        parameters=request.parameters,
+        result_link=None,
     )
 
 
