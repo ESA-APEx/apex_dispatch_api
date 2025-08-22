@@ -21,3 +21,4 @@ requests
 SQLAlchemy
 types-requests
 types-shapely
+uvicorn[standard]
