@@ -36,13 +36,15 @@ async def get_jobs_status(
 )
 async def ws_jobs_status(
     websocket: WebSocket, user: str = "foobar", interval: int = 10
-):
+) -> JobsStatusResponse:
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
 
     await websocket.accept()
     logger.debug(f"WebSocket connected for user {user}")
+
+    await websocket.send_json({"message": "Loading the job status"})
 
     db = next(get_db())
     try:

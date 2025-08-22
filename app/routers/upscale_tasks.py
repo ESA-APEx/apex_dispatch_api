@@ -1,5 +1,15 @@
+import asyncio
+import json
 from typing import Annotated
-from fastapi import Body, APIRouter, Depends, HTTPException, status
+from fastapi import (
+    Body,
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -117,3 +127,37 @@ async def get_upscale_task(
             detail=f"Upscale task {task_id} not found",
         )
     return job
+
+
+@router.websocket(
+    "/ws/upscale_tasks/{task_id}",
+)
+async def ws_task_status(
+    websocket: WebSocket, task_id: int, user: str = "foobar", interval: int = 10
+) -> UpscalingTask:
+    await websocket.accept()
+    logger.debug(
+        f"WebSocket connected for user {user} to monitor status task {task_id}"
+    )
+
+    await websocket.send_json({"message": f"Loading initial status of {task_id}"})
+
+    db = next(get_db())
+    try:
+        while True:
+            status = get_upscaling_task_by_user_id(db, task_id, user)
+            if not status:
+                await websocket.close(
+                    code=1011, reason=f"Upscale task {task_id} not found"
+                )
+                break
+            await websocket.send_json(json.loads(status.model_dump_json()))
+            await asyncio.sleep(interval)
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for user {user}")
+    except Exception as e:
+        logger.exception(f"Error in upscaling task status websocket: {e}")
+        await websocket.close(code=1011, reason="Error in job status websocket: {e}")
+    finally:
+        db.close()
