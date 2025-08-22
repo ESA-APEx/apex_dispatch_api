@@ -1,22 +1,7 @@
-import json
-from unittest.mock import ANY, call, patch, MagicMock
+from unittest.mock import call, patch
 
-import pytest
-
-from app.database.models.processing_job import ProcessingJobRecord
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
-    ProcessingJob,
-    ProcessingJobSummary,
-    ServiceDetails,
-)
-from app.services.processing import (
-    create_processing_job,
-    get_job_result_url,
-    get_job_status,
-    get_processing_job_by_user_id,
-    get_processing_jobs_by_user_id,
 )
 from app.services.upscaling import create_upscaling_task
 
