@@ -43,12 +43,6 @@ class ProcessingJobSummary(BaseModel):
         description="Current status of the processing job",
         examples=[ProcessingStatusEnum.RUNNING],
     )
-
-
-class ProcessingJobDetails(BaseModel):
-    service: ServiceDetails = Field(
-        ..., description="Details of the service to be executed"
-    )
     parameters: dict = Field(
         ...,
         description="JSON representing the parameters for the service execution",
@@ -61,6 +55,12 @@ class ProcessingJobDetails(BaseModel):
             "https://openeofed.dataspace.copernicus.eu/jobs/"
             "cdse-j-25082106161041f1a151bd539f614130/results"
         ],
+    )
+
+
+class ProcessingJobDetails(BaseModel):
+    service: ServiceDetails = Field(
+        ..., description="Details of the service to be executed"
     )
     created: datetime = Field(..., description="Creation time of the processing job")
     updated: datetime = Field(

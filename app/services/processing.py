@@ -109,6 +109,8 @@ def get_processing_jobs_by_user_id(
                 title=record.title,
                 label=record.label,
                 status=record.status,
+                parameters=json.loads(record.parameters),
+                result_link=record.result_link,
             )
         )
     return jobs
