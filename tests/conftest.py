@@ -1,7 +1,6 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from geojson_pydantic import GeometryCollection
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -9,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
