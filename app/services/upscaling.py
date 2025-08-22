@@ -3,7 +3,6 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import (
     UpscalingTaskRecord,
     get_upscale_task_by_user_id,
@@ -104,7 +103,7 @@ def _get_upscale_status(jobs: List[ProcessingJobSummary]) -> ProcessingStatusEnu
 def _refresh_record_status(
     database: Session,
     record: UpscalingTaskRecord,
-    jobs: List[ProcessingJobRecord],
+    jobs: List[ProcessingJobSummary],
 ) -> UpscalingTaskRecord:
     new_status = _get_upscale_status(jobs)
     if new_status != record.status:

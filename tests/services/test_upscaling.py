@@ -111,6 +111,11 @@ def test_returns_created_as_fallback():
     assert _get_upscale_status(jobs) == ProcessingStatusEnum.CREATED
 
 
+def test_returns_created_when_no_jobs():
+    jobs = []
+    assert _get_upscale_status(jobs) == ProcessingStatusEnum.CREATED
+
+
 @patch("app.services.upscaling.update_upscale_task_status_by_id")
 def test_refresh_updates_status(
     mock_update, fake_db_session, fake_upscaling_task_record

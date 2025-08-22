@@ -96,7 +96,8 @@ def update_upscale_task_status_by_id(
         database.refresh(task)
     else:
         logger.warning(
-            f"Could not update upscaling task status of task {task_id} as it could not be found in the database"
+            f"Could not update upscaling task status of task {task_id} as it could not be found "
+            "in the database"
         )
 
 

@@ -22,6 +22,13 @@ from app.schemas.unit_job import (
 )
 
 
+INACTIVE_JOB_STATUSES = {
+    ProcessingStatusEnum.CANCELED,
+    ProcessingStatusEnum.FAILED,
+    ProcessingStatusEnum.FINISHED,
+}
+
+
 def create_processing_job(
     database: Session,
     user: str,
@@ -67,6 +74,17 @@ def get_job_result_url(job: ProcessingJobRecord) -> str:
     return platform.get_job_result_url(job.platform_job_id, details)
 
 
+def _refresh_job_status(
+    database: Session,
+    record: ProcessingJobRecord,
+) -> ProcessingJobRecord:
+    new_status = get_job_status(record)
+    if new_status != record.status:
+        update_job_status_by_id(database, record.id, new_status)
+        record.status = new_status
+    return record
+
+
 def get_processing_jobs_by_user_id(
     database: Session, user_id: str, upscaling_task_id: int | None = None
 ) -> List[ProcessingJobSummary]:
@@ -75,30 +93,22 @@ def get_processing_jobs_by_user_id(
     jobs: List[ProcessingJobSummary] = []
     records = get_jobs_by_user_id(database, user_id, upscaling_task_id)
 
-    inactive_statuses = {
-        ProcessingStatusEnum.CANCELED,
-        ProcessingStatusEnum.FAILED,
-        ProcessingStatusEnum.FINISHED,
-    }
-
     for record in records:
         # Only check status for active jobs
-        if record.status not in inactive_statuses:
-            latest_status = get_job_status(record)
-            if latest_status != record.status:
-                update_job_status_by_id(database, record.id, latest_status)
-            status = latest_status
-        else:
-            status = record.status
+        if record.status not in INACTIVE_JOB_STATUSES:
+            record = _refresh_job_status(database, record)
 
         # Update the result if the job is finished and results weren't retrieved yet
-        if status == ProcessingStatusEnum.FINISHED and not record.result_link:
+        if record.status == ProcessingStatusEnum.FINISHED and not record.result_link:
             result_link = get_job_result_url(record)
             update_job_result_by_id(database, record.id, result_link)
 
         jobs.append(
             ProcessingJobSummary(
-                id=record.id, title=record.title, label=record.label, status=status
+                id=record.id,
+                title=record.title,
+                label=record.label,
+                status=record.status,
             )
         )
     return jobs
@@ -111,6 +121,9 @@ def get_processing_job_by_user_id(
     record = get_job_by_user_id(database, job_id, user_id)
     if not record:
         return None
+
+    if record.status not in INACTIVE_JOB_STATUSES:
+        record = _refresh_job_status(database, record)
 
     return ProcessingJob(
         id=record.id,
