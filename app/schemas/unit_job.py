@@ -34,7 +34,7 @@ class ProcessingJobSummary(BaseModel):
     )
     label: ProcessTypeEnum = Field(
         ...,
-        description="Label that is representing the type of the service that will be executed",
+        description="Label that is representing the type of the service that was executed",
         examples=[ProcessTypeEnum.OPENEO],
     )
     status: ProcessingStatusEnum = Field(
