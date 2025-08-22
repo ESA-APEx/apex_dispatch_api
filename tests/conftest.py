@@ -1,6 +1,7 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
+from geojson_pydantic import GeometryCollection
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -13,6 +14,12 @@ from app.schemas.unit_job import (
     ProcessingJob,
     ProcessingJobSummary,
     ServiceDetails,
+)
+from app.schemas.upscale_task import (
+    ParameterDimension,
+    UpscalingTask,
+    UpscalingTaskRequest,
+    UpscalingTaskSummary,
 )
 
 
@@ -74,6 +81,67 @@ def fake_processing_job_record(
     )
     record.status = ProcessingStatusEnum.CREATED
     return record
+
+
+@pytest.fixture
+def fake_upscaling_task_request():
+    return UpscalingTaskRequest(
+        title="Test Job",
+        label=ProcessTypeEnum.OPENEO,
+        service=ServiceDetails(endpoint="foo", application="bar"),
+        parameters={},
+        dimension=ParameterDimension(
+            name="spatial_extent",
+            values=[
+                {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [4.813414938308839, 51.231275511382016],
+                            [4.968699285344775, 51.231275511382016],
+                            [4.968699285344775, 51.12105211672323],
+                            [4.78903622852087, 51.123264199758346],
+                            [4.813414938308839, 51.231275511382016],
+                        ]
+                    ],
+                },
+                {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [4.836037011633863, 51.331277680080774],
+                            [4.968699285344775, 51.34099814769344],
+                            [4.968699285344775, 51.231275511382016],
+                            [4.813414938308839, 51.231275511382016],
+                            [4.836037011633863, 51.331277680080774],
+                        ]
+                    ],
+                },
+            ],
+        ),
+    )
+
+
+@pytest.fixture
+def fake_upscaling_task_summary():
+    return UpscalingTaskSummary(
+        id=1,
+        title="Test Job",
+        label=ProcessTypeEnum.OPENEO,
+        status=ProcessingStatusEnum.CREATED,
+    )
+
+
+@pytest.fixture
+def fake_upscaling_task(fake_upscaling_task_summary, fake_upscaling_task_request):
+    return UpscalingTask(
+        **(fake_upscaling_task_summary.model_dump()),
+        service=fake_upscaling_task_request.service,
+        parameters=fake_upscaling_task_request.parameters,
+        created=datetime.now(),
+        updated=datetime.now(),
+        jobs=[]
+    )
 
 
 # @pytest.fixture(autouse=True)

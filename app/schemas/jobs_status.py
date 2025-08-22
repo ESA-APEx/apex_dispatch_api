@@ -2,7 +2,7 @@ from typing import List
 from pydantic import BaseModel, Field
 
 from app.schemas.unit_job import ProcessingJobSummary
-from app.schemas.upscaling_task import UpscalingTaskSummary
+from app.schemas.upscale_task import UpscalingTaskSummary
 
 
 class JobsStatusResponse(BaseModel):

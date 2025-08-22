@@ -5,7 +5,7 @@ from app.platforms.dispatcher import load_processing_platforms
 from app.services.tiles.base import load_grids
 from .config.logger import setup_logging
 from .config.settings import settings
-from .routers import jobs_status, unit_jobs, health, tiles
+from .routers import jobs_status, unit_jobs, health, tiles, upscale_tasks
 
 setup_logging()
 
@@ -27,4 +27,5 @@ app.middleware("http")(add_correlation_id)
 app.include_router(tiles.router)
 app.include_router(jobs_status.router)
 app.include_router(unit_jobs.router)
+app.include_router(upscale_tasks.router)
 app.include_router(health.router)

@@ -1,6 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, status, Body
-from geojson_pydantic import GeometryCollection
+from geojson_pydantic import GeometryCollection, Polygon
 from loguru import logger
 
 from app.schemas.tiles import GridTypeEnum, TileRequest
@@ -68,8 +68,8 @@ def split_in_tiles(
                     "into a 20 by 20km grid.",
                     "value": TileRequest(
                         grid=GridTypeEnum.KM_20,
-                        aoi={
-                            "coordinates": [
+                        aoi=Polygon(
+                            coordinates=[
                                 [
                                     [5.131074140132512, 51.352892918832026],
                                     [4.836037011633863, 51.331277680080774],
@@ -79,8 +79,8 @@ def split_in_tiles(
                                     [5.131074140132512, 51.352892918832026],
                                 ]
                             ],
-                            "type": "Polygon",
-                        },
+                            type="Polygon",
+                        ),
                     ),
                 }
             },

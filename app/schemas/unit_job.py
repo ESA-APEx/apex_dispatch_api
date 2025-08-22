@@ -20,7 +20,8 @@ class ServiceDetails(BaseModel):
         "referring to the public URL of the UDP (JSON) to execute. For OGC API Processes, this "
         "field should include the URL path pointing to the hosted service.",
         examples=[
-            "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json"
+            "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/"
+            "2ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json"
         ],
     )
 
@@ -57,7 +58,8 @@ class ProcessingJobDetails(BaseModel):
         ...,
         description="URL to the results of the processing job",
         examples=[
-            "https://openeofed.dataspace.copernicus.eu/jobs/cdse-j-25082106161041f1a151bd539f614130/results"
+            "https://openeofed.dataspace.copernicus.eu/jobs/"
+            "cdse-j-25082106161041f1a151bd539f614130/results"
         ],
     )
     created: datetime = Field(..., description="Creation time of the processing job")
@@ -67,7 +69,7 @@ class ProcessingJobDetails(BaseModel):
     )
 
 
-class ProcessingJob(ProcessingJobSummary, ProcessingJobDetails):
+class ProcessingJob(ProcessingJobDetails, ProcessingJobSummary):
     pass
 
 

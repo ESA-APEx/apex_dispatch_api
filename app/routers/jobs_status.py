@@ -7,6 +7,7 @@ from loguru import logger
 from app.database.db import get_db
 from app.schemas.jobs_status import JobsStatusResponse
 from app.services.processing import get_processing_jobs_by_user_id
+from app.services.upscaling import get_upscaling_tasks_by_user_id
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ async def get_jobs_status(
     """
     logger.debug(f"Fetching jobs list for user {user}")
     return JobsStatusResponse(
-        upscaling_tasks=[], processing_jobs=get_processing_jobs_by_user_id(db, user)
+        upscaling_tasks=get_upscaling_tasks_by_user_id(db, user),
+        processing_jobs=get_processing_jobs_by_user_id(db, user),
     )
 
 
