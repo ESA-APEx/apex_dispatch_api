@@ -206,7 +206,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             logger.debug(f"Fetching job result for openEO job with ID {job_id}")
             connection = self._setup_connection(details.endpoint)
             job = connection.job(job_id)
-            return f"{details.endpoint}{job.get_results_metadata_url()}"
+            return job.get_results_metadata_url(full=True)
         except Exception as e:
             logger.exception(
                 f"Failed to fetch result url for for openEO job with ID {job_id}"
