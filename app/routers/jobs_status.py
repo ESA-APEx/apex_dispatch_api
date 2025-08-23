@@ -38,7 +38,7 @@ async def get_jobs_status(
 )
 async def ws_jobs_status(
     websocket: WebSocket, user: str = "foobar", interval: int = 10
-) -> JobsStatusResponse:
+):
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """

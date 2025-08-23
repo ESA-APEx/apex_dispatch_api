@@ -138,7 +138,7 @@ async def ws_task_status(
     task_id: int,
     user: str = "foobar",
     interval: int = 10,
-) -> UpscalingTask:
+):
     await websocket.accept()
     logger.info("WebSocket connected", extra={"user": user, "task_id": task_id})
 
