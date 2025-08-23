@@ -13,7 +13,7 @@ from fastapi import (
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.database.db import get_db
+from app.database.db import SessionLocal, get_db
 from app.schemas.enum import ProcessTypeEnum
 from app.schemas.unit_job import (
     ServiceDetails,
@@ -24,6 +24,7 @@ from app.schemas.upscale_task import (
     UpscalingTaskRequest,
     UpscalingTaskSummary,
 )
+from app.schemas.websockets import WSTaskStatusMessage
 from app.services.upscaling import create_upscaling_task, get_upscaling_task_by_user_id
 
 # from app.auth import get_current_user
@@ -133,31 +134,53 @@ async def get_upscale_task(
     "/ws/upscale_tasks/{task_id}",
 )
 async def ws_task_status(
-    websocket: WebSocket, task_id: int, user: str = "foobar", interval: int = 10
+    websocket: WebSocket,
+    task_id: int,
+    user: str = "foobar",
+    interval: int = 10,
 ) -> UpscalingTask:
     await websocket.accept()
-    logger.debug(
-        f"WebSocket connected for user {user} to monitor status task {task_id}"
-    )
+    logger.info("WebSocket connected", extra={"user": user, "task_id": task_id})
 
-    await websocket.send_json({"message": f"Loading initial status of {task_id}"})
-
-    db = next(get_db())
     try:
+        await websocket.send_json(
+            WSTaskStatusMessage(
+                type="init", task_id=task_id, message="Starting status stream"
+            ).model_dump()
+        )
         while True:
-            status = get_upscaling_task_by_user_id(db, task_id, user)
-            if not status:
-                await websocket.close(
-                    code=1011, reason=f"Upscale task {task_id} not found"
+            with SessionLocal() as db:
+                await websocket.send_json(
+                    WSTaskStatusMessage(
+                        type="loading",
+                        task_id=task_id,
+                        message="Starting retrieval of status",
+                    ).model_dump()
                 )
-                break
-            await websocket.send_json(json.loads(status.model_dump_json()))
-            await asyncio.sleep(interval)
+                status = await get_upscale_task(task_id, db, user)
+                if not status:
+                    await websocket.send_json(
+                        WSTaskStatusMessage(
+                            type="error",
+                            task_id=task_id,
+                            message="Task not found",
+                        ).model_dump()
+                    )
+                    await websocket.close(
+                        code=1011, reason=f"Upscale task {task_id} not found"
+                    )
+                    break
+                await websocket.send_json(
+                    WSTaskStatusMessage(
+                        type="status",
+                        task_id=task_id,
+                        data=json.loads(status.model_dump_json()),
+                    ).model_dump()
+                )
+                await asyncio.sleep(interval)
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user {user}")
     except Exception as e:
         logger.exception(f"Error in upscaling task status websocket: {e}")
-        await websocket.close(code=1011, reason="Error in job status websocket: {e}")
-    finally:
-        db.close()
+        await websocket.close(code=1011, reason=f"Error in job status websocket: {e}")

@@ -42,8 +42,10 @@ async def test_ws_jobs_status(
     )
 
     with client.websocket_connect("/ws/jobs_status?interval=1") as websocket:
+        websocket.receive_json()
+        websocket.receive_json()
         data = websocket.receive_json()
-        assert data == {
+        assert data["data"] == {
             "upscaling_tasks": [fake_upscaling_task_summary.model_dump()],
             "processing_jobs": [fake_processing_job_summary.model_dump()],
         }
@@ -56,6 +58,8 @@ async def test_ws_jobs_status_closes_on_error(mock_get_jobs_status, client):
 
     with client.websocket_connect("/ws/jobs_status") as websocket:
         with pytest.raises(WebSocketDisconnect) as exc_info:
+            websocket.receive_json()
+            websocket.receive_json()
             websocket.receive_json()
 
         assert exc_info.value.code == 1011
