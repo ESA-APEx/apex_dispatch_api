@@ -1,11 +1,13 @@
 import asyncio
+import json
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from loguru import logger
 
-from app.database.db import get_db
+from app.database.db import SessionLocal, get_db
 from app.schemas.jobs_status import JobsStatusResponse
+from app.schemas.websockets import WSStatusMessage
 from app.services.processing import get_processing_jobs_by_user_id
 from app.services.upscaling import get_upscaling_tasks_by_user_id
 
@@ -44,13 +46,27 @@ async def ws_jobs_status(
     await websocket.accept()
     logger.debug(f"WebSocket connected for user {user}")
 
-    db = next(get_db())
+    await websocket.send_json(
+        WSStatusMessage(type="init", message="Starting status stream").model_dump()
+    )
+
     try:
         while True:
-            status = await get_jobs_status(db, user)
-            await websocket.send_json(status.model_dump())
-
-            await asyncio.sleep(interval)
+            with SessionLocal() as db:
+                await websocket.send_json(
+                    WSStatusMessage(
+                        type="loading",
+                        message="Starting retrieval of status",
+                    ).model_dump()
+                )
+                status = await get_jobs_status(db, user)
+                await websocket.send_json(
+                    WSStatusMessage(
+                        type="status",
+                        data=json.loads(status.model_dump_json()),
+                    ).model_dump()
+                )
+                await asyncio.sleep(interval)
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user {user}")

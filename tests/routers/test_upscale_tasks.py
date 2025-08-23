@@ -1,5 +1,8 @@
 import json
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+from fastapi import WebSocketDisconnect
+import pytest
 
 
 @patch("app.routers.upscale_tasks.create_upscaling_task")
@@ -57,3 +60,33 @@ def test_upscaling_task_get_task_404(mock_get_upscale_task, client):
     r = client.get("/upscale_tasks/1")
     assert r.status_code == 404
     assert "upscale task 1 not found" in r.json().get("detail", "").lower()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock
+)
+async def test_ws_jobs_status(mock_get_task_status, client, fake_upscaling_task):
+    mock_get_task_status.return_value = fake_upscaling_task
+
+    with client.websocket_connect("/ws/upscale_tasks/1?interval=1") as websocket:
+        websocket.receive_json()
+        websocket.receive_json()
+        data = websocket.receive_json()
+        assert data["data"] == json.loads(fake_upscaling_task.model_dump_json())
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock
+)
+async def test_ws_jobs_status_closes_on_error(mock_get_task_status, client):
+    mock_get_task_status.side_effect = RuntimeError("Database connection lost")
+
+    with client.websocket_connect("/ws/upscale_tasks/1") as websocket:
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            websocket.receive_json()
+            websocket.receive_json()
+            websocket.receive_json()
+
+        assert exc_info.value.code == 1011

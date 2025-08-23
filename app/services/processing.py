@@ -66,7 +66,9 @@ def create_processing_job(
 
 
 def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
-    logger.info(f"Retrieving job status for job: {job.platform_job_id}")
+    logger.info(
+        f"Retrieving job status for job: {job.platform_job_id} (current: {job.status})"
+    )
     platform = get_processing_platform(job.label)
     details = ServiceDetails.model_validate_json(job.service)
     return platform.get_job_status(job.platform_job_id, details)
