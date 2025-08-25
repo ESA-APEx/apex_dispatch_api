@@ -21,6 +21,7 @@ load_dotenv()
 BACKEND_AUTH_ENV_MAP = {
     "openeo.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
     "openeofed.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
+    "openeo.vito.be": "OPENEO_AUTH_CLIENT_CREDENTIALS_OPENEO_VITO",
 }
 
 
