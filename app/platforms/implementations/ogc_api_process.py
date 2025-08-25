@@ -1,6 +1,6 @@
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -12,7 +12,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     This class handles the execution of processing jobs on the OGC API Process platform.
     """
 
-    def execute_job(self, title: str, details: ServiceDetails, parameters: dict) -> str:
+    def execute_job(
+        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    ) -> str:
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
 
     def get_job_status(

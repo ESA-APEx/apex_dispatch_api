@@ -41,13 +41,15 @@ def create_processing_job(
 
     try:
         job_id = platform.execute_job(
-            title=request.title, details=request.service, parameters=request.parameters
+            title=request.title,
+            details=request.service,
+            parameters=request.parameters,
+            format=request.format,
         )
     except Exception:
         job_id = None
         logger.exception(f"Could not create processing job for user {user}")
 
-    print(f"JOB IS EQUAL TO {job_id}")
     record = ProcessingJobRecord(
         title=request.title,
         label=request.label,
@@ -58,9 +60,7 @@ def create_processing_job(
         service=request.service.model_dump_json(),
         upscaling_task_id=upscaling_task_id,
     )
-    print(f"RECORD IS EQUAL TO {record.status}")
     record = save_job_to_db(database, record)
-    print(f"RECORD IS EQUAL TO {record.status}")
     return ProcessingJobSummary(
         id=record.id,
         title=record.title,

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 
 from stac_pydantic import Collection
@@ -13,13 +13,16 @@ class BaseProcessingPlatform(ABC):
     """
 
     @abstractmethod
-    def execute_job(self, title: str, details: ServiceDetails, parameters: dict) -> str:
+    def execute_job(
+        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    ) -> str:
         """
         Execute a processing job on the platform with the given service ID and parameters.
 
         :param title: The title of the job to be executed.
         :param details: The service details containing the service ID and application.
         :param parameters: The parameters required for the job execution.
+        :param format: Format of the output result.
         :return: Return the ID of the job that was created
         """
         pass

@@ -52,6 +52,7 @@ def create_upscaling_processing_jobs(
                     label=request.label,
                     service=request.service,
                     parameters={**request.parameters, request.dimension.name: value},
+                    format=request.format,
                 ),
                 upscaling_task_id=upscaling_task_id,
             )

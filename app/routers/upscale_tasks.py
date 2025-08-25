@@ -15,7 +15,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.database.db import SessionLocal, get_db
-from app.schemas.enum import ProcessTypeEnum
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     ServiceDetails,
 )
@@ -66,6 +66,7 @@ async def create_upscale_task(
                             "/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/"
                             "variabilitymap.json",
                         ),
+                        format=OutputFormatEnum.GEOTIFF,
                         parameters={
                             "temporal_extent": ["2025-05-01", "2025-05-01"],
                         },

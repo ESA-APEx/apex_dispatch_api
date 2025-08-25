@@ -4,7 +4,7 @@ from unittest.mock import ANY, patch, MagicMock
 import pytest
 
 from app.database.models.processing_job import ProcessingJobRecord
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -29,6 +29,7 @@ def make_job_request():
             endpoint="dummy-service-id", application="dummy-application"
         ),
         parameters={"param": 1},
+        format=OutputFormatEnum.GEOTIFF,
     )
 
 
@@ -80,7 +81,10 @@ def test_create_processing_job_calls_platform_execute(
 
     mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
-        title=fake_job.title, details=fake_job.service, parameters=fake_job.parameters
+        title=fake_job.title,
+        details=fake_job.service,
+        parameters=fake_job.parameters,
+        format=fake_job.format,
     )
     mock_save_job_to_db.assert_called_once()
     args, _ = mock_save_job_to_db.call_args
@@ -124,7 +128,10 @@ def test_create_processing_job_calls_platform_execute_failure(
 
     mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
-        title=fake_job.title, details=fake_job.service, parameters=fake_job.parameters
+        title=fake_job.title,
+        details=fake_job.service,
+        parameters=fake_job.parameters,
+        format=fake_job.format,
     )
     mock_save_job_to_db.assert_called_once()
     args, _ = mock_save_job_to_db.call_args

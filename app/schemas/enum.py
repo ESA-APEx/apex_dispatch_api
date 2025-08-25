@@ -14,3 +14,9 @@ class ProcessingStatusEnum(str, Enum):
     CANCELED = "canceled"
     FAILED = "failed"
     UNKNOWN = "unknown"
+
+
+class OutputFormatEnum(str, Enum):
+    GEOJSON = "geojson"
+    GEOTIFF = "gtiff"
+    NETCDF = "netcdf"
