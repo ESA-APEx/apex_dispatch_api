@@ -171,7 +171,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :return: ProcessingStatusEnum corresponding to the input.
         """
 
-        logger.debug("Mapping openEO status %r to ProcessingStatusEnum", status)
+        logger.debug(f"Mapping openEO status {status} to ProcessingStatusEnum")
 
         mapping = {
             "created": ProcessingStatusEnum.CREATED,
