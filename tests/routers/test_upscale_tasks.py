@@ -5,9 +5,11 @@ from fastapi import WebSocketDisconnect
 import pytest
 
 
+@patch("app.routers.upscale_tasks.create_upscaling_processing_jobs")
 @patch("app.routers.upscale_tasks.create_upscaling_task")
 def test_upscaling_task_create_201(
     mock_create_upscaling_task,
+    mock_create_processing_jobs,
     client,
     fake_upscaling_task_request,
     fake_upscaling_task_summary,
@@ -18,6 +20,7 @@ def test_upscaling_task_create_201(
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
     assert r.status_code == 201
     assert r.json() == fake_upscaling_task_summary.model_dump()
+    assert mock_create_processing_jobs.called_once()
 
 
 @patch("app.routers.upscale_tasks.create_upscaling_task")
@@ -63,9 +66,7 @@ def test_upscaling_task_get_task_404(mock_get_upscale_task, client):
 
 
 @pytest.mark.asyncio
-@patch(
-    "app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock
-)
+@patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
 async def test_ws_jobs_status(mock_get_task_status, client, fake_upscaling_task):
     mock_get_task_status.return_value = fake_upscaling_task
 
@@ -77,9 +78,7 @@ async def test_ws_jobs_status(mock_get_task_status, client, fake_upscaling_task)
 
 
 @pytest.mark.asyncio
-@patch(
-    "app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock
-)
+@patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
 async def test_ws_jobs_status_closes_on_error(mock_get_task_status, client):
     mock_get_task_status.side_effect = RuntimeError("Database connection lost")
 
@@ -90,3 +89,18 @@ async def test_ws_jobs_status_closes_on_error(mock_get_task_status, client):
             websocket.receive_json()
 
         assert exc_info.value.code == 1011
+
+
+@pytest.mark.asyncio
+@patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
+async def test_ws_jobs_status_not_found(
+    mock_get_task_status, client, fake_upscaling_task
+):
+    mock_get_task_status.return_value = None
+
+    with client.websocket_connect("/ws/upscale_tasks/1?interval=1") as websocket:
+        websocket.receive_json()
+        websocket.receive_json()
+        data = websocket.receive_json()
+        assert data["type"] == "error"
+        assert data["message"].lower() == "task not found"
