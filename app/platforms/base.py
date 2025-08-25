@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from app.schemas.enum import ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 
+from stac_pydantic import Collection
+
 
 class BaseProcessingPlatform(ABC):
     """
@@ -36,12 +38,12 @@ class BaseProcessingPlatform(ABC):
         pass
 
     @abstractmethod
-    def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
+    def get_job_results(self, job_id: str, details: ServiceDetails) -> Collection:
         """
         Retrieve the job results of a processing job that is running on the platform.
 
         :param job_id: The ID of the job on the platform
         :param details: The service details containing the service ID and application.
-        :return: URL where the job results are described
+        :return: STAC collection representing the results.
         """
         pass

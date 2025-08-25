@@ -13,6 +13,7 @@ from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
+from stac_pydantic import Collection
 
 load_dotenv()
 
@@ -201,12 +202,12 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 f"Failed to fetch status openEO job with ID {job_id}"
             ) from e
 
-    def get_job_result_url(self, job_id: str, details: ServiceDetails) -> str:
+    def get_job_results(self, job_id: str, details: ServiceDetails) -> Collection:
         try:
             logger.debug(f"Fetching job result for openEO job with ID {job_id}")
             connection = self._setup_connection(details.endpoint)
             job = connection.job(job_id)
-            return job.get_results_metadata_url(full=True)
+            return Collection(**job.get_results().get_metadata())
         except Exception as e:
             logger.exception(
                 f"Failed to fetch result url for for openEO job with ID {job_id}"

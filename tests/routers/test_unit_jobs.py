@@ -55,3 +55,29 @@ def test_unit_jobs_get_job_404(mock_get_processing_job, client):
     r = client.get("/unit_jobs/1")
     assert r.status_code == 404
     assert "processing job 1 not found" in r.json().get("detail", "").lower()
+
+
+@patch("app.routers.unit_jobs.get_processing_job_results")
+def test_unit_jobs_get_job_results_200(
+    mock_get_processing_job_results,
+    client,
+    fake_result,
+):
+
+    mock_get_processing_job_results.return_value = fake_result
+
+    r = client.get("/unit_jobs/1/results")
+    assert r.status_code == 200
+    assert json.dumps(r.json(), indent=1) == fake_result.model_dump_json(
+        indent=1, exclude_unset=False
+    )
+
+
+@patch("app.routers.unit_jobs.get_processing_job_results")
+def test_unit_jobs_get_job_results_404(mock_get_processing_job_results, client):
+
+    mock_get_processing_job_results.return_value = None
+
+    r = client.get("/unit_jobs/1/results")
+    assert r.status_code == 404
+    assert "result for processing job 1 not found" in r.json().get("detail", "").lower()

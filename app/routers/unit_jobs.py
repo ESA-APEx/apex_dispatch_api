@@ -11,7 +11,13 @@ from app.schemas.unit_job import (
     ProcessingJobSummary,
     ServiceDetails,
 )
-from app.services.processing import create_processing_job, get_processing_job_by_user_id
+from app.services.processing import (
+    create_processing_job,
+    get_processing_job_by_user_id,
+    get_processing_job_results,
+)
+
+from stac_pydantic import Collection
 
 # from app.auth import get_current_user
 
@@ -121,3 +127,32 @@ async def get_job(
             detail=f"Processing job {job_id} not found",
         )
     return job
+
+
+@router.get(
+    "/unit_jobs/{job_id}/results",
+    tags=["Unit Jobs"],
+    responses={404: {"description": "Processing job not found"}},
+)
+async def get_job_results(
+    job_id: int, db: Session = Depends(get_db), user: str = "foobar"
+) -> Collection | None:
+    try:
+        result = get_processing_job_results(db, job_id, user)
+        if not result:
+            logger.error(
+                f"Result for processing job {job_id} not found for user {user}"
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Result for processing job {job_id} not found",
+            )
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception(f"Error creating processing job for user {user}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while creating the processing job: {e}",
+        )
