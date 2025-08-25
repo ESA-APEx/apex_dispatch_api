@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -47,14 +46,6 @@ class ProcessingJobSummary(BaseModel):
         ...,
         description="JSON representing the parameters for the service execution",
         examples=[{"param1": "value1", "param2": "value2"}],
-    )
-    result_link: Optional[str] = Field(
-        ...,
-        description="URL to the results of the processing job",
-        examples=[
-            "https://openeofed.dataspace.copernicus.eu/jobs/"
-            "cdse-j-25082106161041f1a151bd539f614130/results"
-        ],
     )
 
 

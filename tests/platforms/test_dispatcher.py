@@ -7,8 +7,14 @@ from app.platforms.base import BaseProcessingPlatform
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ProcessingJobSummary
 
+from stac_pydantic import Collection
+
 
 class DummyPlatform(BaseProcessingPlatform):
+    def __init__(self, result: Collection = None):
+        super().__init__()
+        self.fake_result = result
+
     def execute_job(
         self, title: str, details: dict, parameters: dict
     ) -> ProcessingJobSummary:
@@ -17,8 +23,8 @@ class DummyPlatform(BaseProcessingPlatform):
     def get_job_status(self, job_id, details):
         return ProcessingStatusEnum.FINISHED
 
-    def get_job_result_url(self, job_id, details):
-        return "https://foo.bar"
+    def get_job_results(self, job_id, details):
+        return self.fake_result
 
 
 @pytest.fixture(autouse=True)

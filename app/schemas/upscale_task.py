@@ -44,7 +44,6 @@ class UpscalingTaskDetails(BaseModel):
                     label=ProcessTypeEnum.OPENEO,
                     status=ProcessingStatusEnum.FINISHED,
                     parameters={"param1": "value1", "param2": "value2"},
-                    result_link="https://foo.bar",
                 ),
                 ProcessingJobSummary(
                     id=1,
@@ -52,7 +51,6 @@ class UpscalingTaskDetails(BaseModel):
                     label=ProcessTypeEnum.OPENEO,
                     status=ProcessingStatusEnum.RUNNING,
                     parameters={"param1": "value1", "param2": "value2"},
-                    result_link=None,
                 ),
             ]
         ],

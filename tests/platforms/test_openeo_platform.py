@@ -6,14 +6,20 @@ import requests
 from app.platforms.implementations.openeo import OpenEOPlatform
 from app.schemas.enum import ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
+from stac_pydantic import Collection
 
 
 class DummyOpenEOClient:
 
+    def __init__(self, result: Collection = None):
+        self.fake_result = result
+
     def job(self, job_id):
         job = MagicMock()
         job.status.return_value = ProcessingStatusEnum.RUNNING
-        job.get_results_metadata_url.return_value = "/job/results"
+        job.get_results.return_value.get_metadata.return_value = (
+            self.fake_result.model_dump() if self.fake_result else None
+        )
         return job
 
 
@@ -162,21 +168,21 @@ def test_get_job_status_error(mock_connection, platform):
 
 
 @patch.object(OpenEOPlatform, "_setup_connection")
-def test_get_job_result_success(mock_connection, platform):
-    mock_connection.return_value = DummyOpenEOClient()
+def test_get_job_results_success(mock_connection, platform, fake_result):
+    mock_connection.return_value = DummyOpenEOClient(result=fake_result)
 
     details = ServiceDetails(endpoint="foo", application="bar")
-    result = platform.get_job_result_url("job123", details)
+    result = platform.get_job_results("job123", details)
 
-    assert result == "foo/job/results"
+    assert result == fake_result
 
 
 @patch.object(OpenEOPlatform, "_setup_connection")
-def test_get_job_url_error(mock_connection, platform):
+def test_get_job_results_error(mock_connection, platform):
     mock_connection.side_effect = RuntimeError("Connection error")
 
     details = ServiceDetails(endpoint="foo", application="bar")
     with pytest.raises(SystemError) as exc_info:
-        platform.get_job_result_url("job123", details)
+        platform.get_job_results("job123", details)
 
     assert "Failed to fetch result url" in str(exc_info.value)

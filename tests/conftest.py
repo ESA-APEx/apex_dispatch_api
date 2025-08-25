@@ -22,6 +22,9 @@ from app.schemas.upscale_task import (
     UpscalingTaskSummary,
 )
 
+from stac_pydantic import Collection
+from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
+
 
 @pytest.fixture
 def client():
@@ -52,7 +55,6 @@ def fake_processing_job_summary():
         label=ProcessTypeEnum.OPENEO,
         status=ProcessingStatusEnum.CREATED,
         parameters={"param1": "value1", "param2": "value2"},
-        result_link=None,
     )
 
 
@@ -78,7 +80,6 @@ def fake_processing_job_record(
         platform_job_id="platform-job-1",
         service='{"endpoint":"foo","application":"bar"}',
         parameters="{}",
-        result_link="https://foo.bar",
         created=datetime.now(),
         updated=datetime.now(),
     )
@@ -154,6 +155,24 @@ def fake_upscaling_task_record(fake_upscaling_task_summary):
         service='{"endpoint":"foo","application":"bar"}',
         created=datetime.now(),
         updated=datetime.now()
+    )
+
+
+@pytest.fixture
+def fake_result():
+    return Collection(
+        id="fake-result",
+        title="fake-title",
+        description="This is a fake result",
+        links=[],
+        type="Collection",
+        license="free",
+        extent=Extent(
+            spatial=SpatialExtent(bbox=[]),
+            temporal=TimeInterval(
+                interval=[["2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"]]
+            ),
+        ),
     )
 
 

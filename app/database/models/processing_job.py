@@ -1,4 +1,5 @@
 import datetime
+import json
 from typing import List, Optional
 
 from loguru import logger
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.database.db import Base
 from app.schemas.unit_job import ProcessingStatusEnum, ProcessTypeEnum
+
+from stac_pydantic import Collection
 
 
 class ProcessingJobRecord(Base):
@@ -23,7 +26,6 @@ class ProcessingJobRecord(Base):
     user_id: Mapped[str] = mapped_column(String, index=True)
     platform_job_id: Mapped[str] = mapped_column(String, index=True)
     parameters: Mapped[str] = mapped_column(String, index=False)
-    result_link: Mapped[Optional[str]] = mapped_column(String, index=False)
     service: Mapped[str] = mapped_column(String, index=True)
     created: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, index=True
@@ -116,14 +118,12 @@ def update_job_status_by_id(
         )
 
 
-def update_job_result_by_id(database: Session, job_id: int, result_link: str):
-    logger.info(
-        f"Updating the result link of processing job with ID {job_id} to {result_link}"
-    )
+def update_job_result_by_id(database: Session, job_id: int, result: Collection):
+    logger.info(f"Updating the result link of processing job with ID {job_id}")
     job = get_job_by_id(database, job_id)
 
     if job:
-        job.result_link = result_link
+        job.result = json.dumps(result)
         database.commit()
         database.refresh(job)
     else:

@@ -19,6 +19,7 @@ pytest-cov
 python-dotenv
 requests
 SQLAlchemy
+stac-pydantic
 types-requests
 types-shapely
 uvicorn[standard]

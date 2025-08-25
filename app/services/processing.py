@@ -7,7 +7,6 @@ from app.database.models.processing_job import (
     get_job_by_user_id,
     get_jobs_by_user_id,
     save_job_to_db,
-    update_job_result_by_id,
     update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
@@ -21,6 +20,7 @@ from app.schemas.unit_job import (
     ServiceDetails,
 )
 
+from stac_pydantic import Collection
 
 INACTIVE_JOB_STATUSES = {
     ProcessingStatusEnum.CANCELED,
@@ -50,7 +50,6 @@ def create_processing_job(
         user_id=user,
         platform_job_id=job_id,
         parameters=json.dumps(request.parameters),
-        result_link=None,
         service=request.service.model_dump_json(),
         upscaling_task_id=upscaling_task_id,
     )
@@ -61,7 +60,6 @@ def create_processing_job(
         label=request.label,
         status=record.status,
         parameters=request.parameters,
-        result_link=None,
     )
 
 
@@ -74,11 +72,17 @@ def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
     return platform.get_job_status(job.platform_job_id, details)
 
 
-def get_job_result_url(job: ProcessingJobRecord) -> str:
-    logger.info(f"Retrieving job result for job: {job.platform_job_id}")
-    platform = get_processing_platform(job.label)
-    details = ServiceDetails.model_validate_json(job.service)
-    return platform.get_job_result_url(job.platform_job_id, details)
+def get_processing_job_results(
+    database: Session, job_id: int, user_id: str
+) -> Collection | None:
+    record = get_job_by_user_id(database, job_id, user_id)
+    if not record:
+        return None
+
+    logger.info(f"Retrieving job result for job: {record.platform_job_id}")
+    platform = get_processing_platform(record.label)
+    details = ServiceDetails.model_validate_json(record.service)
+    return platform.get_job_results(record.platform_job_id, details)
 
 
 def _refresh_job_status(
@@ -105,11 +109,6 @@ def get_processing_jobs_by_user_id(
         if record.status not in INACTIVE_JOB_STATUSES:
             record = _refresh_job_status(database, record)
 
-        # Update the result if the job is finished and results weren't retrieved yet
-        if record.status == ProcessingStatusEnum.FINISHED and not record.result_link:
-            result_link = get_job_result_url(record)
-            update_job_result_by_id(database, record.id, result_link)
-
         jobs.append(
             ProcessingJobSummary(
                 id=record.id,
@@ -117,7 +116,6 @@ def get_processing_jobs_by_user_id(
                 label=record.label,
                 status=record.status,
                 parameters=json.loads(record.parameters),
-                result_link=record.result_link,
             )
         )
     return jobs
@@ -141,7 +139,6 @@ def get_processing_job_by_user_id(
         status=record.status,
         service=ServiceDetails.model_validate_json(record.service or "{}"),
         parameters=json.loads(record.parameters or "{}"),
-        result_link=record.result_link,
         created=record.created,
         updated=record.updated,
     )
