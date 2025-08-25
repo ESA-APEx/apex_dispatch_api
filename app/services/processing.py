@@ -76,7 +76,11 @@ def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
     )
     platform = get_processing_platform(job.label)
     details = ServiceDetails.model_validate_json(job.service)
-    return platform.get_job_status(job.platform_job_id, details)
+    return (
+        platform.get_job_status(job.platform_job_id, details)
+        if job.platform_job_id
+        else job.status
+    )
 
 
 def get_processing_job_results(
@@ -89,7 +93,11 @@ def get_processing_job_results(
     logger.info(f"Retrieving job result for job: {record.platform_job_id}")
     platform = get_processing_platform(record.label)
     details = ServiceDetails.model_validate_json(record.service)
-    return platform.get_job_results(record.platform_job_id, details)
+    return (
+        platform.get_job_results(record.platform_job_id, details)
+        if record.platform_job_id
+        else None
+    )
 
 
 def _refresh_job_status(
