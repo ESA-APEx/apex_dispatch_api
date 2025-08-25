@@ -1,7 +1,6 @@
 import jwt
 from fastapi import Depends, HTTPException, WebSocket, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
-from fastapi_keycloak import OIDCUser
 from jwt import PyJWKClient
 from loguru import logger
 
@@ -43,7 +42,7 @@ def _decode_token(token: str):
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)):
-    user: OIDCUser = _decode_token(token)
+    user: dict = _decode_token(token)
     return user["sub"]
 
 
