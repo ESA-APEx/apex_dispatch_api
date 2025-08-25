@@ -4,7 +4,10 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from stac_pydantic import Collection
+from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
 
+from app.auth import get_current_user_id
 from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
@@ -22,13 +25,17 @@ from app.schemas.upscale_task import (
     UpscalingTaskSummary,
 )
 
-from stac_pydantic import Collection
-from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
+
+def fake_get_current_user_id():
+    return "foobar"
 
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    app.dependency_overrides[get_current_user_id] = fake_get_current_user_id
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.pop(get_current_user_id, None)
 
 
 @pytest.fixture
@@ -176,11 +183,3 @@ def fake_result():
             ),
         ),
     )
-
-
-# @pytest.fixture(autouse=True)
-# def disable_auth(monkeypatch):
-#     # Replace auth.get_current_user dependency with a stub for tests
-#     from app import auth
-
-#     monkeypatch.setattr(auth, "get_current_user", lambda: {"sub": "test-user"})

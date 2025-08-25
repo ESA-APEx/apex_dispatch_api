@@ -1,4 +1,4 @@
-from pydantic import AnyHttpUrl, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     env: str = Field(default="development", json_schema_extra={"env": "APP_ENV"})
 
     # Keycloak / OIDC
-    keycloak_server_url: AnyHttpUrl = Field(
-        default=AnyHttpUrl("https://localhost"),
-        json_schema_extra={"env": "KEYCLOAK_SERVER_URL"},
+    keycloak_host: str = Field(
+        default=str("localhost"),
+        json_schema_extra={"env": "KEYCLOAK_HOST"},
     )
     keycloak_realm: str = Field(default="", json_schema_extra={"env": "KEYCLOAK_REALM"})
     keycloak_client_id: str = Field(

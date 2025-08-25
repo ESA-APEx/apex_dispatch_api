@@ -66,11 +66,15 @@ def test_upscaling_task_get_task_404(mock_get_upscale_task, client):
 
 
 @pytest.mark.asyncio
+@patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
-async def test_ws_jobs_status(mock_get_task_status, client, fake_upscaling_task):
+async def test_ws_jobs_status(
+    mock_get_task_status, mock_get_user_id, client, fake_upscaling_task
+):
+    mock_get_user_id.return_value = "foobar"
     mock_get_task_status.return_value = fake_upscaling_task
 
-    with client.websocket_connect("/ws/upscale_tasks/1?interval=1") as websocket:
+    with client.websocket_connect("/ws/upscale_tasks/1?interval=1&token=123") as websocket:
         websocket.receive_json()
         websocket.receive_json()
         data = websocket.receive_json()
@@ -78,11 +82,15 @@ async def test_ws_jobs_status(mock_get_task_status, client, fake_upscaling_task)
 
 
 @pytest.mark.asyncio
+@patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
-async def test_ws_jobs_status_closes_on_error(mock_get_task_status, client):
+async def test_ws_jobs_status_closes_on_error(
+    mock_get_task_status, mock_get_user_id, client
+):
+    mock_get_user_id.return_value = "foobar"
     mock_get_task_status.side_effect = RuntimeError("Database connection lost")
 
-    with client.websocket_connect("/ws/upscale_tasks/1") as websocket:
+    with client.websocket_connect("/ws/upscale_tasks/1?token=123") as websocket:
         with pytest.raises(WebSocketDisconnect) as exc_info:
             websocket.receive_json()
             websocket.receive_json()
@@ -92,13 +100,17 @@ async def test_ws_jobs_status_closes_on_error(mock_get_task_status, client):
 
 
 @pytest.mark.asyncio
+@patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
 async def test_ws_jobs_status_not_found(
-    mock_get_task_status, client, fake_upscaling_task
+    mock_get_task_status, mock_get_user_id, client, fake_upscaling_task
 ):
+    mock_get_user_id.return_value = "foobar"
     mock_get_task_status.return_value = None
 
-    with client.websocket_connect("/ws/upscale_tasks/1?interval=1") as websocket:
+    with client.websocket_connect(
+        "/ws/upscale_tasks/1?interval=1&token=123"
+    ) as websocket:
         websocket.receive_json()
         websocket.receive_json()
         data = websocket.receive_json()
