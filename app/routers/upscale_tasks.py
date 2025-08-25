@@ -14,6 +14,7 @@ from fastapi import (
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_id, websocket_authenticate
 from app.database.db import SessionLocal, get_db
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
@@ -106,7 +107,7 @@ async def create_upscale_task(
     ],
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: str = "foobar",
+    user: str = Depends(get_current_user_id),
 ) -> UpscalingTaskSummary:
     """Create a new upscaling job with the provided data."""
     try:
@@ -133,7 +134,9 @@ async def create_upscale_task(
     responses={404: {"description": "Upscale task not found"}},
 )
 async def get_upscale_task(
-    task_id: int, db: Session = Depends(get_db), user: str = "foobar"
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user_id),
 ) -> UpscalingTask:
     job = get_upscaling_task_by_user_id(db, task_id, user)
     if not job:
@@ -151,10 +154,12 @@ async def get_upscale_task(
 async def ws_task_status(
     websocket: WebSocket,
     task_id: int,
-    user: str = "foobar",
     interval: int = 10,
 ):
-    await websocket.accept()
+    user = await websocket_authenticate(websocket)
+    if not user:
+        return
+
     logger.info("WebSocket connected", extra={"user": user, "task_id": task_id})
 
     try:
