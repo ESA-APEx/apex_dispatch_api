@@ -24,7 +24,7 @@ class ProcessingJobRecord(Base):
         Enum(ProcessingStatusEnum), index=True
     )
     user_id: Mapped[str] = mapped_column(String, index=True)
-    platform_job_id: Mapped[str] = mapped_column(String, index=True)
+    platform_job_id: Mapped[Optional[str]] = mapped_column(String, index=True)
     parameters: Mapped[str] = mapped_column(String, index=False)
     service: Mapped[str] = mapped_column(String, index=True)
     created: Mapped[datetime.datetime] = mapped_column(

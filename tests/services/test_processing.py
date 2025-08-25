@@ -83,6 +83,53 @@ def test_create_processing_job_calls_platform_execute(
         title=fake_job.title, details=fake_job.service, parameters=fake_job.parameters
     )
     mock_save_job_to_db.assert_called_once()
+    args, _ = mock_save_job_to_db.call_args
+    saved_record = args[1]
+    assert saved_record.status == ProcessingStatusEnum.CREATED
+    assert result == fake_summary
+
+
+@patch("app.services.processing.save_job_to_db")
+@patch("app.services.processing.get_processing_platform")
+def test_create_processing_job_calls_platform_execute_failure(
+    mock_get_platform, mock_save_job_to_db, fake_db_session
+):
+
+    # Arrange
+    fake_job = make_job_request()
+    fake_result = 1
+    fake_summary = ProcessingJobSummary(
+        id=fake_result,
+        title=fake_job.title,
+        label=ProcessTypeEnum.OPENEO,
+        status=ProcessingStatusEnum.CREATED,
+        parameters=fake_job.parameters,
+    )
+    fake_record = ProcessingJobRecord(
+        id=fake_result,
+        title=fake_summary.title,
+        label=ProcessTypeEnum.OPENEO,
+        status=ProcessingStatusEnum.CREATED,
+    )
+    fake_platform = MagicMock()
+
+    fake_platform.execute_job.side_effect = Exception(
+        "Could not authenticate with platform"
+    )
+    mock_get_platform.return_value = fake_platform
+
+    mock_save_job_to_db.return_value = fake_record
+
+    result = create_processing_job(fake_db_session, "foobar", fake_job, None)
+
+    mock_get_platform.assert_called_once_with(fake_job.label)
+    fake_platform.execute_job.assert_called_once_with(
+        title=fake_job.title, details=fake_job.service, parameters=fake_job.parameters
+    )
+    mock_save_job_to_db.assert_called_once()
+    args, _ = mock_save_job_to_db.call_args
+    saved_record = args[1]
+    assert saved_record.status == ProcessingStatusEnum.FAILED
     assert result == fake_summary
 
 

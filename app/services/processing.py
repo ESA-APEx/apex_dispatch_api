@@ -39,21 +39,28 @@ def create_processing_job(
 
     platform = get_processing_platform(request.label)
 
-    job_id = platform.execute_job(
-        title=request.title, details=request.service, parameters=request.parameters
-    )
+    try:
+        job_id = platform.execute_job(
+            title=request.title, details=request.service, parameters=request.parameters
+        )
+    except Exception:
+        job_id = None
+        logger.exception(f"Could not create processing job for user {user}")
 
+    print(f"JOB IS EQUAL TO {job_id}")
     record = ProcessingJobRecord(
         title=request.title,
         label=request.label,
-        status=ProcessingStatusEnum.CREATED,
+        status=ProcessingStatusEnum.CREATED if job_id else ProcessingStatusEnum.FAILED,
         user_id=user,
         platform_job_id=job_id,
         parameters=json.dumps(request.parameters),
         service=request.service.model_dump_json(),
         upscaling_task_id=upscaling_task_id,
     )
+    print(f"RECORD IS EQUAL TO {record.status}")
     record = save_job_to_db(database, record)
+    print(f"RECORD IS EQUAL TO {record.status}")
     return ProcessingJobSummary(
         id=record.id,
         title=record.title,
