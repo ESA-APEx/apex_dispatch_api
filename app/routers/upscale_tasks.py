@@ -2,6 +2,7 @@ import asyncio
 import json
 from typing import Annotated
 from fastapi import (
+    BackgroundTasks,
     Body,
     APIRouter,
     Depends,
@@ -25,7 +26,11 @@ from app.schemas.upscale_task import (
     UpscalingTaskSummary,
 )
 from app.schemas.websockets import WSTaskStatusMessage
-from app.services.upscaling import create_upscaling_task, get_upscaling_task_by_user_id
+from app.services.upscaling import (
+    create_upscaling_processing_jobs,
+    create_upscaling_task,
+    get_upscaling_task_by_user_id,
+)
 
 # from app.auth import get_current_user
 
@@ -98,12 +103,21 @@ async def create_upscale_task(
             },
         ),
     ],
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: str = "foobar",
 ) -> UpscalingTaskSummary:
     """Create a new upscaling job with the provided data."""
     try:
-        return create_upscaling_task(db, user, payload)
+        task = create_upscaling_task(db, user, payload)
+        background_tasks.add_task(
+            create_upscaling_processing_jobs,
+            database=db,
+            user=user,
+            request=payload,
+            upscaling_task_id=task.id,
+        )
+        return task
     except Exception as e:
         logger.exception(f"Error creating upscale task for user {user}: {e}")
         raise HTTPException(

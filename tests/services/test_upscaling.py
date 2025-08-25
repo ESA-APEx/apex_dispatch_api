@@ -10,6 +10,7 @@ from app.schemas.unit_job import (
 from app.services.upscaling import (
     _get_upscale_status,
     _refresh_record_status,
+    create_upscaling_processing_jobs,
     create_upscaling_task,
     get_upscaling_task_by_user_id,
     get_upscaling_tasks_by_user_id,
@@ -38,21 +39,34 @@ def make_upscaling_record(status: ProcessingJobSummary) -> UpscalingTaskRecord:
     )
 
 
-@patch("app.services.upscaling.create_processing_job")
 @patch("app.services.upscaling.save_upscaling_task_to_db")
-def test_create_upscaling_task_creates_jobs(
+def test_create_upscaling_task_creates_task(
     mock_save_upscaling_task,
-    mock_create_processing_job,
     fake_upscaling_task_request,
     fake_upscaling_task_record,
     fake_upscaling_task_summary,
-    fake_processing_job_summary,
     fake_db_session,
 ):
     user = "foobar"
     mock_save_upscaling_task.return_value = fake_upscaling_task_record
-    mock_create_processing_job.return_value = fake_processing_job_summary
     result = create_upscaling_task(fake_db_session, user, fake_upscaling_task_request)
+    mock_save_upscaling_task.assert_called_once()
+    assert result == fake_upscaling_task_summary
+
+
+@patch("app.services.upscaling.create_processing_job")
+def test_create_upscaling_task_creates_jobs(
+    mock_create_processing_job,
+    fake_upscaling_task_request,
+    fake_upscaling_task_record,
+    fake_processing_job_summary,
+    fake_db_session,
+):
+    user = "foobar"
+    mock_create_processing_job.return_value = fake_processing_job_summary
+    result = create_upscaling_processing_jobs(
+        fake_db_session, user, fake_upscaling_task_request, 1
+    )
 
     expected_calls = [
         call(
@@ -73,8 +87,7 @@ def test_create_upscaling_task_creates_jobs(
     ]
 
     mock_create_processing_job.assert_has_calls(expected_calls)
-    mock_save_upscaling_task.assert_called_once()
-    assert result == fake_upscaling_task_summary
+    assert len(result) == len(fake_upscaling_task_request.dimension.values)
 
 
 def test_returns_running_if_any_running():

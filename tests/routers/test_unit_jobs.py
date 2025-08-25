@@ -81,3 +81,15 @@ def test_unit_jobs_get_job_results_404(mock_get_processing_job_results, client):
     r = client.get("/unit_jobs/1/results")
     assert r.status_code == 404
     assert "result for processing job 1 not found" in r.json().get("detail", "").lower()
+
+
+@patch("app.routers.unit_jobs.get_processing_job_results")
+def test_unit_jobs_get_job_results_500(mock_get_processing_job_results, client):
+
+    mock_get_processing_job_results.side_effect = RuntimeError(
+        "Database connection lost"
+    )
+
+    r = client.get("/unit_jobs/1/results")
+    assert r.status_code == 500
+    assert "database connection lost" in r.json().get("detail", "").lower()

@@ -29,7 +29,7 @@ INACTIVE_TASK_STATUSES = {
 }
 
 
-def _create_upscaling_processing_jobs(
+def create_upscaling_processing_jobs(
     database: Session, user: str, request: UpscalingTaskRequest, upscaling_task_id: int
 ) -> List[ProcessingJobSummary]:
     jobs: List[ProcessingJobSummary] = []
@@ -72,12 +72,6 @@ def create_upscaling_task(
         service=request.service.model_dump_json(),
     )
     record = save_upscaling_task_to_db(database, record)
-
-    logger.info(f"Creating upscaling job for {user} with request: {request}")
-    _create_upscaling_processing_jobs(
-        database=database, user=user, request=request, upscaling_task_id=record.id
-    )
-
     return UpscalingTaskSummary(
         id=record.id, title=record.title, label=record.label, status=record.status
     )

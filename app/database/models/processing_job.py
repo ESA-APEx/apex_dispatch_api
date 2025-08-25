@@ -56,7 +56,7 @@ def save_job_to_db(
     db_session.add(job)
     db_session.commit()
     db_session.refresh(job)  # Refresh to get the ID after commit
-    logger.debug("Processing job saved with ID: {job.id}")
+    logger.debug(f"Processing job saved with ID: {job.id}")
     return job
 
 
