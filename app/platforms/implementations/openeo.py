@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
-from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -143,7 +143,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         return process_id
 
-    def execute_job(self, title: str, details: ServiceDetails, parameters: dict) -> str:
+    def execute_job(
+        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    ) -> str:
         try:
             process_id = self._get_process_id(details.application)
 
@@ -156,7 +158,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             service = connection.datacube_from_process(
                 process_id=process_id, namespace=details.application, **parameters
             )
-            job = service.create_job(title=title)
+            job = service.create_job(title=title, out_format=format)
             job.start()
 
             return job.job_id

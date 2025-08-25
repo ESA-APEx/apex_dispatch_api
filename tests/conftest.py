@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
-from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -43,6 +43,7 @@ def fake_processing_job_request():
         title="Test Job",
         label=ProcessTypeEnum.OPENEO,
         service=ServiceDetails(endpoint="foo", application="bar"),
+        format=OutputFormatEnum.GEOTIFF,
         parameters={},
     )
 
@@ -93,6 +94,7 @@ def fake_upscaling_task_request():
         title="Test Job",
         label=ProcessTypeEnum.OPENEO,
         service=ServiceDetails(endpoint="foo", application="bar"),
+        format=OutputFormatEnum.GEOTIFF,
         parameters={"temporal_extent": "2025-01-01"},
         dimension=ParameterDimension(
             name="spatial_extent",

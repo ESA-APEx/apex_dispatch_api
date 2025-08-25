@@ -4,7 +4,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
-from app.schemas.enum import ProcessTypeEnum
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -53,6 +53,7 @@ async def create_unit_job(
                             "/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/"
                             "variabilitymap.json",
                         ),
+                        format=OutputFormatEnum.GEOTIFF,
                         parameters={
                             "spatial_extent": {
                                 "type": "FeatureCollection",

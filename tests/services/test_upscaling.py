@@ -80,6 +80,7 @@ def test_create_upscaling_task_creates_jobs(
                     fake_upscaling_task_request.dimension.name: value,
                 },
                 service=fake_upscaling_task_request.service,
+                format=fake_upscaling_task_request.format,
             ),
             upscaling_task_id=fake_upscaling_task_record.id,
         )

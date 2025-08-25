@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.schemas.enum import ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
 
 
 class ServiceDetails(BaseModel):
@@ -76,4 +76,7 @@ class BaseJobRequest(BaseModel):
     parameters: dict = Field(
         ...,
         description="JSON representing the parameters for the service execution",
+    )
+    format: OutputFormatEnum = Field(
+        ..., description="Expected format of the output results"
     )

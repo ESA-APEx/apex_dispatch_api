@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from app.platforms.implementations.openeo import OpenEOPlatform
-from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -108,7 +108,10 @@ def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
     )
 
     job_id = platform.execute_job(
-        title="Test Job", details=service_details, parameters={"param1": "value1"}
+        title="Test Job",
+        details=service_details,
+        parameters={"param1": "value1"},
+        format=OutputFormatEnum.GEOTIFF,
     )
 
     assert job_id == "job123"
@@ -123,7 +126,12 @@ def test_execute_job_process_id_failure(
     mock_pid, mock_connect, platform, service_details
 ):
     with pytest.raises(SystemError, match="Failed to execute openEO job"):
-        platform.execute_job(title="Test Job", details=service_details, parameters={})
+        platform.execute_job(
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
 
 
 @pytest.mark.parametrize(
