@@ -1,0 +1,2390 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "APEx Dispatch API",
+    "description": "APEx Dispatch Service API to run jobs and upscaling tasks",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/tiles": {
+      "post": {
+        "tags": [
+          "Upscale Tasks"
+        ],
+        "summary": "Split an area of interest in a list of tiles.",
+        "description": "Given a certain area of interest and a tiling grid definition (from theservice’s Max AOI capacity), calculate the number of tiles to beprocessed by the upscaling service.",
+        "operationId": "split_in_tiles_tiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TileRequest"
+              },
+              "examples": {
+                "20x20 Grid": {
+                  "summary": "Request to split up area in a 20x20km grid",
+                  "description": "An example request of splitting up a given area of interest into a 20 by 20km grid.",
+                  "value": {
+                    "aoi": {
+                      "type": "Polygon",
+                      "coordinates": [
+                        [
+                          [
+                            5.131074140132512,
+                            51.352892918832026
+                          ],
+                          [
+                            4.836037011633863,
+                            51.331277680080774
+                          ],
+                          [
+                            4.789036228520871,
+                            51.12326419975835
+                          ],
+                          [
+                            5.164855813583216,
+                            51.11863683854557
+                          ],
+                          [
+                            5.192048230607185,
+                            51.33847556306924
+                          ],
+                          [
+                            5.131074140132512,
+                            51.352892918832026
+                          ]
+                        ]
+                      ]
+                    },
+                    "grid": "20x20km"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully split area of interest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryCollection"
+                },
+                "example": {
+                  "type": "GeometryCollection",
+                  "geometries": [
+                    {
+                      "type": "Polygon",
+                      "coordinates": [
+                        [
+                          [
+                            4.813414938308839,
+                            51.231275511382016
+                          ],
+                          [
+                            4.968699285344775,
+                            51.231275511382016
+                          ],
+                          [
+                            4.968699285344775,
+                            51.12105211672323
+                          ],
+                          [
+                            4.78903622852087,
+                            51.123264199758346
+                          ],
+                          [
+                            4.813414938308839,
+                            51.231275511382016
+                          ]
+                        ]
+                      ]
+                    },
+                    {
+                      "type": "Polygon",
+                      "coordinates": [
+                        [
+                          [
+                            4.836037011633863,
+                            51.331277680080774
+                          ],
+                          [
+                            4.968699285344775,
+                            51.34099814769344
+                          ],
+                          [
+                            4.968699285344775,
+                            51.231275511382016
+                          ],
+                          [
+                            4.813414938308839,
+                            51.231275511382016
+                          ],
+                          [
+                            4.836037011633863,
+                            51.331277680080774
+                          ]
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs_status": {
+      "get": {
+        "tags": [
+          "Upscale Tasks",
+          "Unit Jobs"
+        ],
+        "summary": "Get a list of all upscaling tasks & processing jobs for the authenticated user",
+        "description": "Return combined list of upscaling tasks and processing jobs for the authenticated user.",
+        "operationId": "get_jobs_status_jobs_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsStatusResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ]
+      }
+    },
+    "/unit_jobs": {
+      "post": {
+        "tags": [
+          "Unit Jobs"
+        ],
+        "summary": "Create a new processing job",
+        "description": "Create a new processing job with the provided data.",
+        "operationId": "create_unit_job_unit_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseJobRequest"
+              },
+              "examples": {
+                "openEO Example": {
+                  "summary": "Valid openEO job request",
+                  "description": "The following example demonstrates how to create a processing job using an openEO-based service. This example triggers the [`variability map`](https://github.com/ESA-APEx/apex_algorithms/blob/main/algorithm_catalog/vito/variabilitymap/records/variabilitymap.json) process using the CDSE openEO Federation. In this case the `endpoint`represents the URL of the openEO backend and the `application` refers to the User Defined Process (UDP) that is being executed on the backend.",
+                  "value": {
+                    "title": "Example openEO Job",
+                    "label": "openeo",
+                    "service": {
+                      "endpoint": "https://openeofed.dataspace.copernicus.eu",
+                      "application": "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json"
+                    },
+                    "parameters": {
+                      "spatial_extent": {
+                        "type": "FeatureCollection",
+                        "features": [
+                          {
+                            "type": "Feature",
+                            "properties": {},
+                            "geometry": {
+                              "coordinates": [
+                                [
+                                  [
+                                    5.170043941798298,
+                                    51.25050990858725
+                                  ],
+                                  [
+                                    5.171035037521989,
+                                    51.24865722468999
+                                  ],
+                                  [
+                                    5.178521828188366,
+                                    51.24674578027137
+                                  ],
+                                  [
+                                    5.179084341977159,
+                                    51.24984764553983
+                                  ],
+                                  [
+                                    5.170043941798298,
+                                    51.25050990858725
+                                  ]
+                                ]
+                              ],
+                              "type": "Polygon"
+                            }
+                          }
+                        ]
+                      },
+                      "temporal_extent": [
+                        "2025-05-01",
+                        "2025-05-01"
+                      ]
+                    },
+                    "format": "gtiff"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessingJobSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ]
+      }
+    },
+    "/unit_jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Unit Jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_unit_jobs__job_id__get",
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessingJob"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Processing job not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/unit_jobs/{job_id}/results": {
+      "get": {
+        "tags": [
+          "Unit Jobs"
+        ],
+        "summary": "Get Job Results",
+        "operationId": "get_job_results_unit_jobs__job_id__results_get",
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Collection"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Job Results Unit Jobs  Job Id  Results Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Processing job not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/upscale_tasks": {
+      "post": {
+        "tags": [
+          "Upscale Tasks"
+        ],
+        "summary": "Create a new upscaling task",
+        "description": "Create a new upscaling job with the provided data.",
+        "operationId": "create_upscale_task_upscale_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpscalingTaskRequest"
+              },
+              "examples": {
+                "openEO Example": {
+                  "summary": "Valid openEO job request",
+                  "description": "The following example demonstrates how to create an upscaling task using an openEO-based service. This example triggers the [`variability map`](https://github.com/ESA-APEx/apex_algorithms/blob/main/algorithm_catalog/vito/variabilitymap/records/variabilitymap.json) process using the CDSE openEO Federation. In this case the `endpoint`represents the URL of the openEO backend and the `application` refers to the User Defined Process (UDP) that is being executed on the backend.",
+                  "value": {
+                    "title": "Example openEO Job",
+                    "label": "openeo",
+                    "service": {
+                      "endpoint": "https://openeofed.dataspace.copernicus.eu",
+                      "application": "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json"
+                    },
+                    "parameters": {
+                      "temporal_extent": [
+                        "2025-05-01",
+                        "2025-05-01"
+                      ]
+                    },
+                    "format": "gtiff",
+                    "dimension": {
+                      "name": "spatial_extent",
+                      "values": [
+                        {
+                          "type": "Polygon",
+                          "coordinates": [
+                            [
+                              [
+                                4.813414938308839,
+                                51.231275511382016
+                              ],
+                              [
+                                4.968699285344775,
+                                51.231275511382016
+                              ],
+                              [
+                                4.968699285344775,
+                                51.12105211672323
+                              ],
+                              [
+                                4.78903622852087,
+                                51.123264199758346
+                              ],
+                              [
+                                4.813414938308839,
+                                51.231275511382016
+                              ]
+                            ]
+                          ]
+                        },
+                        {
+                          "type": "Polygon",
+                          "coordinates": [
+                            [
+                              [
+                                4.836037011633863,
+                                51.331277680080774
+                              ],
+                              [
+                                4.968699285344775,
+                                51.34099814769344
+                              ],
+                              [
+                                4.968699285344775,
+                                51.231275511382016
+                              ],
+                              [
+                                4.813414938308839,
+                                51.231275511382016
+                              ],
+                              [
+                                4.836037011633863,
+                                51.331277680080774
+                              ]
+                            ]
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpscalingTaskSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ]
+      }
+    },
+    "/upscale_tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "Upscale Tasks"
+        ],
+        "summary": "Get Upscale Task",
+        "operationId": "get_upscale_task_upscale_tasks__task_id__get",
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpscalingTask"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Upscale task not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Asset": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Href"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "href"
+        ],
+        "title": "Asset",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/item-spec/item-spec.md#asset-object"
+      },
+      "BaseJobRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the job to execute"
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that will be executed"
+          },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "JSON representing the parameters for the service execution"
+          },
+          "format": {
+            "$ref": "#/components/schemas/OutputFormatEnum",
+            "description": "Expected format of the output results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "label",
+          "service",
+          "parameters",
+          "format"
+        ],
+        "title": "BaseJobRequest"
+      },
+      "Collection": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Id"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "stac_version": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+            "title": "Stac Version",
+            "default": "1.0.0"
+          },
+          "links": {
+            "$ref": "#/components/schemas/Links"
+          },
+          "stac_extensions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "format": "uri"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stac Extensions",
+            "default": []
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "const": "Collection",
+            "title": "Type"
+          },
+          "assets": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Asset"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assets"
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1,
+            "title": "License"
+          },
+          "extent": {
+            "$ref": "#/components/schemas/Extent"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywords"
+          },
+          "providers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Provider"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providers"
+          },
+          "summaries": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Range"
+                    },
+                    {
+                      "items": {},
+                      "type": "array"
+                    },
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summaries"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "links",
+          "type",
+          "license",
+          "extent"
+        ],
+        "title": "Collection",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md"
+      },
+      "Extent": {
+        "properties": {
+          "spatial": {
+            "$ref": "#/components/schemas/SpatialExtent"
+          },
+          "temporal": {
+            "$ref": "#/components/schemas/TimeInterval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "spatial",
+          "temporal"
+        ],
+        "title": "Extent",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#extent-object"
+      },
+      "GeometryCollection": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "GeometryCollection",
+            "title": "Type"
+          },
+          "geometries": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/Point"
+                },
+                {
+                  "$ref": "#/components/schemas/MultiPoint"
+                },
+                {
+                  "$ref": "#/components/schemas/LineString"
+                },
+                {
+                  "$ref": "#/components/schemas/MultiLineString"
+                },
+                {
+                  "$ref": "#/components/schemas/Polygon"
+                },
+                {
+                  "$ref": "#/components/schemas/MultiPolygon"
+                },
+                {
+                  "$ref": "#/components/schemas/GeometryCollection"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "GeometryCollection": "#/components/schemas/GeometryCollection",
+                  "LineString": "#/components/schemas/LineString",
+                  "MultiLineString": "#/components/schemas/MultiLineString",
+                  "MultiPoint": "#/components/schemas/MultiPoint",
+                  "MultiPolygon": "#/components/schemas/MultiPolygon",
+                  "Point": "#/components/schemas/Point",
+                  "Polygon": "#/components/schemas/Polygon"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Geometries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "geometries"
+        ],
+        "title": "GeometryCollection",
+        "description": "GeometryCollection Model"
+      },
+      "GridTypeEnum": {
+        "type": "string",
+        "enum": [
+          "20x20km"
+        ],
+        "title": "GridTypeEnum"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobsStatusResponse": {
+        "properties": {
+          "upscaling_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/UpscalingTaskSummary"
+            },
+            "type": "array",
+            "title": "Upscaling Tasks",
+            "description": "List of upscaling tasks that are available for the user"
+          },
+          "processing_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessingJobSummary"
+            },
+            "type": "array",
+            "title": "Processing Jobs",
+            "description": "List of processing jobs that are available for the user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upscaling_tasks",
+          "processing_jobs"
+        ],
+        "title": "JobsStatusResponse"
+      },
+      "LineString": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "LineString",
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Position2D"
+                },
+                {
+                  "$ref": "#/components/schemas/Position3D"
+                }
+              ]
+            },
+            "type": "array",
+            "minItems": 2,
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "LineString",
+        "description": "LineString Model"
+      },
+      "Link": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Href"
+          },
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Rel"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MimeTypes"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "href",
+          "rel"
+        ],
+        "title": "Link",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#link-object"
+      },
+      "Links": {
+        "items": {
+          "$ref": "#/components/schemas/Link"
+        },
+        "type": "array",
+        "title": "Links"
+      },
+      "MimeTypes": {
+        "type": "string",
+        "enum": [
+          "image/tiff; application=geotiff",
+          "image/tiff; application=geotiff; profile=cloud-optimized",
+          "image/jp2",
+          "image/png",
+          "image/jpeg",
+          "application/geo+json",
+          "application/geo+json-seq",
+          "application/geopackage+sqlite3",
+          "application/vnd.google-earth.kml+xml",
+          "application/vnd.google-earth.kmz",
+          "application/x-protobuf",
+          "application/vnd.mapbox-vector-tile",
+          "application/x-hdf",
+          "application/x-hdf5",
+          "application/xml",
+          "application/json",
+          "application/ndjson",
+          "text/html",
+          "text/plain",
+          "application/vnd.oai.openapi+json;version=3.0",
+          "application/vnd.oai.openapi;version=3.0",
+          "application/schema+json",
+          "application/pdf",
+          "text/csv",
+          "application/vnd.apache.parquet",
+          "application/octet-stream"
+        ],
+        "title": "MimeTypes",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/item-spec/item-spec.md#media-types"
+      },
+      "MultiLineString": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "MultiLineString",
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Position2D"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Position3D"
+                  }
+                ]
+              },
+              "type": "array",
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "MultiLineString",
+        "description": "MultiLineString Model"
+      },
+      "MultiPoint": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "MultiPoint",
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Position2D"
+                },
+                {
+                  "$ref": "#/components/schemas/Position3D"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "MultiPoint",
+        "description": "MultiPoint Model"
+      },
+      "MultiPolygon": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "MultiPolygon",
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {
+              "items": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Position2D"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Position3D"
+                    }
+                  ]
+                },
+                "type": "array",
+                "minItems": 4
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "MultiPolygon",
+        "description": "MultiPolygon Model"
+      },
+      "OutputFormatEnum": {
+        "type": "string",
+        "enum": [
+          "geojson",
+          "gtiff",
+          "netcdf"
+        ],
+        "title": "OutputFormatEnum"
+      },
+      "ParameterDimension": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the parameter for which to loop the multiple values",
+            "examples": [
+              "spatial_extent"
+            ]
+          },
+          "values": {
+            "items": {},
+            "type": "array",
+            "minItems": 1,
+            "title": "Values",
+            "description": "List of values for which to create a processing job",
+            "examples": [
+              [
+                {
+                  "coordinates": [
+                    [
+                      [
+                        4.813414938308839,
+                        51.231275511382016
+                      ],
+                      [
+                        4.968699285344775,
+                        51.231275511382016
+                      ],
+                      [
+                        4.968699285344775,
+                        51.12105211672323
+                      ],
+                      [
+                        4.78903622852087,
+                        51.123264199758346
+                      ],
+                      [
+                        4.813414938308839,
+                        51.231275511382016
+                      ]
+                    ]
+                  ],
+                  "type": "Polygon"
+                },
+                {
+                  "coordinates": [
+                    [
+                      [
+                        4.836037011633863,
+                        51.331277680080774
+                      ],
+                      [
+                        4.968699285344775,
+                        51.34099814769344
+                      ],
+                      [
+                        4.968699285344775,
+                        51.231275511382016
+                      ],
+                      [
+                        4.813414938308839,
+                        51.231275511382016
+                      ],
+                      [
+                        4.836037011633863,
+                        51.331277680080774
+                      ]
+                    ]
+                  ],
+                  "type": "Polygon"
+                }
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "values"
+        ],
+        "title": "ParameterDimension"
+      },
+      "Point": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "Point",
+            "title": "Type"
+          },
+          "coordinates": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Position2D"
+              },
+              {
+                "$ref": "#/components/schemas/Position3D"
+              }
+            ],
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "Point",
+        "description": "Point Model"
+      },
+      "Polygon": {
+        "properties": {
+          "bbox": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 6,
+                "minItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "type": {
+            "type": "string",
+            "const": "Polygon",
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Position2D"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Position3D"
+                  }
+                ]
+              },
+              "type": "array",
+              "minItems": 4
+            },
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "Polygon",
+        "description": "Polygon Model"
+      },
+      "Position2D": {
+        "prefixItems": [
+          {
+            "type": "number",
+            "title": "Longitude"
+          },
+          {
+            "type": "number",
+            "title": "Latitude"
+          }
+        ],
+        "type": "array",
+        "maxItems": 2,
+        "minItems": 2
+      },
+      "Position3D": {
+        "prefixItems": [
+          {
+            "type": "number",
+            "title": "Longitude"
+          },
+          {
+            "type": "number",
+            "title": "Latitude"
+          },
+          {
+            "type": "number",
+            "title": "Altitude"
+          }
+        ],
+        "type": "array",
+        "maxItems": 3,
+        "minItems": 3
+      },
+      "ProcessTypeEnum": {
+        "type": "string",
+        "enum": [
+          "openeo",
+          "ogc_api_process"
+        ],
+        "title": "ProcessTypeEnum"
+      },
+      "ProcessingJob": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier of the processing job",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the job",
+            "examples": [
+              "Test Processing Job"
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that was executed",
+            "examples": [
+              "openeo"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProcessingStatusEnum",
+            "description": "Current status of the processing job",
+            "examples": [
+              "running"
+            ]
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "JSON representing the parameters for the service execution",
+            "examples": [
+              {
+                "param1": "value1",
+                "param2": "value2"
+              }
+            ]
+          },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created",
+            "description": "Creation time of the processing job"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated",
+            "description": "Timestamp representing the last time that the job details were updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "label",
+          "status",
+          "parameters",
+          "service",
+          "created",
+          "updated"
+        ],
+        "title": "ProcessingJob"
+      },
+      "ProcessingJobSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier of the processing job",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the job",
+            "examples": [
+              "Test Processing Job"
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that was executed",
+            "examples": [
+              "openeo"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProcessingStatusEnum",
+            "description": "Current status of the processing job",
+            "examples": [
+              "running"
+            ]
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "JSON representing the parameters for the service execution",
+            "examples": [
+              {
+                "param1": "value1",
+                "param2": "value2"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "label",
+          "status",
+          "parameters"
+        ],
+        "title": "ProcessingJobSummary"
+      },
+      "ProcessingStatusEnum": {
+        "type": "string",
+        "enum": [
+          "created",
+          "queued",
+          "running",
+          "finished",
+          "canceled",
+          "failed",
+          "unknown"
+        ],
+        "title": "ProcessingStatusEnum"
+      },
+      "Provider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Provider",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#provider-object"
+      },
+      "Range": {
+        "properties": {
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Maximum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minimum",
+          "maximum"
+        ],
+        "title": "Range",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#stats-object"
+      },
+      "ServiceDetails": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint",
+            "description": "URL to the endpoint where the service is hosted. For openEO, this is the openEO backend. For OGC API Processes, this field should include the base URL of the platform API",
+            "examples": [
+              "https://openeofed.dataspace.copernicus.eu"
+            ]
+          },
+          "application": {
+            "type": "string",
+            "title": "Application",
+            "description": "Path to the application that needs to be executed. For openEO this is referring to the public URL of the UDP (JSON) to execute. For OGC API Processes, this field should include the URL path pointing to the hosted service.",
+            "examples": [
+              "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/2ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/variabilitymap.json"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint",
+          "application"
+        ],
+        "title": "ServiceDetails"
+      },
+      "SpatialExtent": {
+        "properties": {
+          "bbox": {
+            "items": {
+              "anyOf": [
+                {
+                  "prefixItems": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "array",
+                  "maxItems": 4,
+                  "minItems": 4
+                },
+                {
+                  "prefixItems": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    },
+                    {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    }
+                  ],
+                  "type": "array",
+                  "maxItems": 6,
+                  "minItems": 6
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Bbox"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bbox"
+        ],
+        "title": "SpatialExtent",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#spatial-extent-object"
+      },
+      "TileRequest": {
+        "properties": {
+          "aoi": {
+            "$ref": "#/components/schemas/Polygon",
+            "description": "Polygon representing the area of interest for which the tiling grid should be calculated"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/GridTypeEnum",
+            "description": "Identifier of the grid system that needs to be used to split up the area of interest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aoi",
+          "grid"
+        ],
+        "title": "TileRequest"
+      },
+      "TimeInterval": {
+        "properties": {
+          "interval": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interval"
+        ],
+        "title": "TimeInterval",
+        "description": "https://github.com/radiantearth/stac-spec/blob/v1.0.0/collection-spec/collection-spec.md#temporal-extent-object"
+      },
+      "UpscalingTask": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier of the upscaling task",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the upscaling task",
+            "examples": [
+              "Test Upscaling Task"
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that was executed",
+            "examples": [
+              "openeo"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProcessingStatusEnum",
+            "description": "Status of the processing of the upscaling task",
+            "examples": [
+              "running"
+            ]
+          },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created",
+            "description": "Creation time of the processing job"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated",
+            "description": "Timestamp representing the last time that the job details were updated"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessingJobSummary"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "description": "List of processing jobs that were launched with the upscaling request",
+            "examples": [
+              [
+                {
+                  "id": 1,
+                  "label": "openeo",
+                  "parameters": {
+                    "param1": "value1",
+                    "param2": "value2"
+                  },
+                  "status": "finished",
+                  "title": "Upscaling Job 1"
+                },
+                {
+                  "id": 1,
+                  "label": "openeo",
+                  "parameters": {
+                    "param1": "value1",
+                    "param2": "value2"
+                  },
+                  "status": "running",
+                  "title": "Upscaling Job 2"
+                }
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "label",
+          "status",
+          "service",
+          "created",
+          "updated",
+          "jobs"
+        ],
+        "title": "UpscalingTask"
+      },
+      "UpscalingTaskRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the job to execute"
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that will be executed"
+          },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "JSON representing the parameters for the service execution"
+          },
+          "format": {
+            "$ref": "#/components/schemas/OutputFormatEnum",
+            "description": "Expected format of the output results"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/ParameterDimension",
+            "description": "Parameter upon which the upscaling job should be executed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "label",
+          "service",
+          "parameters",
+          "format",
+          "dimension"
+        ],
+        "title": "UpscalingTaskRequest"
+      },
+      "UpscalingTaskSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Unique identifier of the upscaling task",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the upscaling task",
+            "examples": [
+              "Test Upscaling Task"
+            ]
+          },
+          "label": {
+            "$ref": "#/components/schemas/ProcessTypeEnum",
+            "description": "Label that is representing the type of the service that was executed",
+            "examples": [
+              "openeo"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProcessingStatusEnum",
+            "description": "Status of the processing of the upscaling task",
+            "examples": [
+              "running"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "label",
+          "status"
+        ],
+        "title": "UpscalingTaskSummary"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2AuthorizationCodeBearer": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "scopes": {},
+            "authorizationUrl": "https://auth.dev.apex.esa.int/realms/apex/protocol/openid-connect/auth",
+            "tokenUrl": "https://auth.dev.apex.esa.int/realms/apex/protocol/openid-connect/token"
+          }
+        }
+      }
+    }
+  }
+}
