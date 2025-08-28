@@ -1,0 +1,28 @@
+site_name: APEx Dispatch API
+theme:
+  name: material
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - diagrams
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - Contributing: contributing.md
+  - Architecture: architecture.md
+
+plugins:
+  - search
+  - mkdocs-jupyter
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
