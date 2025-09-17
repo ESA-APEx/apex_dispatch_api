@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     )
     env: str = Field(default="development", json_schema_extra={"env": "APP_ENV"})
 
+    cors_allowed_origins: str = Field(
+        default="", json_schema_extra={"env": "CORS_ALLOWED_ORIGINS"}
+    )
+
     # Keycloak / OIDC
     keycloak_host: str = Field(
         default=str("localhost"),

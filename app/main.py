@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware.correlation_id import add_correlation_id
 from app.platforms.dispatcher import load_processing_platforms
@@ -16,6 +17,14 @@ app = FastAPI(
     title=settings.app_name,
     description=settings.app_description,
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.middleware("http")(add_correlation_id)
