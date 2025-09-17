@@ -3,7 +3,6 @@ from fastapi import Body, APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user_id
 from app.database.db import get_db
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
@@ -100,7 +99,7 @@ async def create_unit_job(
         ),
     ],
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    user: str = "ge-poc",
 ) -> ProcessingJobSummary:
     """Create a new processing job with the provided data."""
     try:
@@ -119,9 +118,7 @@ async def create_unit_job(
     responses={404: {"description": "Processing job not found"}},
 )
 async def get_job(
-    job_id: int,
-    db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    job_id: int, db: Session = Depends(get_db), user: str = "ge-poc"
 ) -> ProcessingJob:
     job = get_processing_job_by_user_id(db, job_id, user)
     if not job:
@@ -141,7 +138,7 @@ async def get_job(
 async def get_job_results(
     job_id: int,
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    user: str = "ge-poc",
 ) -> Collection | None:
     try:
         result = get_processing_job_results(db, job_id, user)

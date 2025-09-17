@@ -10,7 +10,6 @@ from app.schemas.jobs_status import JobsStatusResponse
 from app.schemas.websockets import WSStatusMessage
 from app.services.processing import get_processing_jobs_by_user_id
 from app.services.upscaling import get_upscaling_tasks_by_user_id
-from app.auth import get_current_user_id, websocket_authenticate
 
 router = APIRouter()
 
@@ -22,7 +21,7 @@ router = APIRouter()
 )
 async def get_jobs_status(
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    user: str = "ge-poc",
 ) -> JobsStatusResponse:
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
@@ -45,7 +44,9 @@ async def ws_jobs_status(
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
 
-    user = await websocket_authenticate(websocket)
+    user = "ge-poc"
+    await websocket.accept()
+
     if not user:
         return
 
