@@ -13,7 +13,20 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     """
 
     def execute_job(
-        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+        self,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
+    ) -> str:
+        raise NotImplementedError("OGC API Process job execution not implemented yet.")
+
+    def execute_synchronous_job(
+        self,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
     ) -> str:
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
 

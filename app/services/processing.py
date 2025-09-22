@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from loguru import logger
 from app.database.models.processing_job import (
@@ -156,4 +156,20 @@ def get_processing_job_by_user_id(
         parameters=json.loads(record.parameters or "{}"),
         created=record.created,
         updated=record.updated,
+    )
+
+
+def create_synchronous_job(
+    user: str,
+    request: BaseJobRequest,
+) -> Any:
+    logger.info(f"Creating synchronous job for {user} with summary: {request}")
+
+    platform = get_processing_platform(request.label)
+
+    return platform.execute_synchronous_job(
+        title=request.title,
+        details=request.service,
+        parameters=request.parameters,
+        format=request.format,
     )

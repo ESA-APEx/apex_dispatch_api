@@ -143,21 +143,30 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         return process_id
 
+    def _build_datacube(
+        self, title: str, details: ServiceDetails, parameters: dict
+    ) -> openeo.DataCube:
+        process_id = self._get_process_id(details.application)
+
+        logger.debug(
+            f"Executing OpenEO job with title={title}, service={details}, "
+            f"process_id={process_id}, parameters={parameters}"
+        )
+
+        connection = self._setup_connection(details.endpoint)
+        return connection.datacube_from_process(
+            process_id=process_id, namespace=details.application, **parameters
+        )
+
     def execute_job(
-        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+        self,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
     ) -> str:
         try:
-            process_id = self._get_process_id(details.application)
-
-            logger.debug(
-                f"Executing OpenEO job with title={title}, service={details}, "
-                f"process_id={process_id}, parameters={parameters}"
-            )
-
-            connection = self._setup_connection(details.endpoint)
-            service = connection.datacube_from_process(
-                process_id=process_id, namespace=details.application, **parameters
-            )
+            service = self._build_datacube(title, details, parameters)
             job = service.create_job(title=title, out_format=format)
             job.start()
 
@@ -165,6 +174,21 @@ class OpenEOPlatform(BaseProcessingPlatform):
         except Exception as e:
             logger.exception("Failed to execute openEO job")
             raise SystemError("Failed to execute openEO job") from e
+
+    def execute_synchronous_job(
+        self,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
+    ) -> str:
+        try:
+            service = self._build_datacube(title, details, parameters)
+            job = service.create_job(title=title, out_format=format)
+            return job.execute()
+        except Exception as e:
+            logger.exception("Failed to execute openEO sync request")
+            raise SystemError("Failed to execute openEO sync request") from e
 
     def _map_openeo_status(self, status: str) -> ProcessingStatusEnum:
         """
