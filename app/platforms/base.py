@@ -41,7 +41,8 @@ class BaseProcessingPlatform(ABC):
         format: OutputFormatEnum,
     ) -> Any:
         """
-        Execute a processing job synchronously on the platform with the given service ID and parameters.
+        Execute a processing job synchronously on the platform with the given service ID and
+        parameters.
 
         :param title: The title of the job to be executed.
         :param details: The service details containing the service ID and application.

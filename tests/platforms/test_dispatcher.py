@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -19,6 +20,11 @@ class DummyPlatform(BaseProcessingPlatform):
         self, title: str, details: dict, parameters: dict
     ) -> ProcessingJobSummary:
         return ProcessingJobSummary(id="dummy-job-id", title=title, status="created")
+
+    def execute_synchronous_job(
+        self, title: str, details: dict, parameters: dict
+    ) -> Any:
+        return {"result": "success"}
 
     def get_job_status(self, job_id, details):
         return ProcessingStatusEnum.FINISHED

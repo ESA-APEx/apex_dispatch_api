@@ -13,6 +13,7 @@ from app.schemas.unit_job import (
 )
 from app.services.processing import (
     create_processing_job,
+    create_synchronous_job,
     get_processing_job_results,
     get_job_status,
     get_processing_job_by_user_id,
@@ -343,3 +344,27 @@ def test_get_processing_job_by_user_id_returns_none(mock_get_job, fake_db_sessio
 
     mock_get_job.assert_called_once_with(fake_db_session, 1, "user1")
     assert result is None
+
+
+@patch("app.services.processing.get_processing_platform")
+def test_create_synchronous_job_calls_platform_execute(
+    mock_get_platform, fake_sync_job_response
+):
+
+    fake_job = make_job_request()
+
+    fake_platform = MagicMock()
+    fake_platform.execute_synchronous_job.return_value = fake_sync_job_response
+    mock_get_platform.return_value = fake_platform
+
+    result = create_synchronous_job("foobar", fake_job)
+
+    mock_get_platform.assert_called_once_with(fake_job.label)
+
+    fake_platform.execute_synchronous_job.assert_called_once_with(
+        title=fake_job.title,
+        details=fake_job.service,
+        parameters=fake_job.parameters,
+        format=fake_job.format,
+    )
+    assert result == fake_sync_job_response

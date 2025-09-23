@@ -194,3 +194,41 @@ def test_get_job_results_error(mock_connection, platform):
         platform.get_job_results("job123", details)
 
     assert "Failed to fetch result url" in str(exc_info.value)
+
+
+@patch("app.platforms.implementations.openeo.openeo.connect")
+@patch.object(OpenEOPlatform, "_get_process_id", return_value="process123")
+def test_execute_sync_job_success(
+    mock_pid, mock_connect, fake_sync_job_response, platform, service_details
+):
+    mock_connection = MagicMock()
+    mock_connect.return_value = mock_connection
+    mock_connection.datacube_from_process.return_value.execute.return_value = (
+        fake_sync_job_response
+    )
+
+    result = platform.execute_synchronous_job(
+        title="Test Job",
+        details=service_details,
+        parameters={"param1": "value1"},
+        format=OutputFormatEnum.GEOTIFF,
+    )
+
+    assert result == fake_sync_job_response
+    mock_connect.assert_called_once_with(service_details.endpoint)
+
+
+@patch("app.platforms.implementations.openeo.openeo.connect")
+@patch.object(
+    OpenEOPlatform, "_get_process_id", side_effect=ValueError("Invalid process")
+)
+def test_execute_sync_job_process_id_failure(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(SystemError, match="Failed to execute openEO sync request"):
+        platform.execute_synchronous_job(
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )

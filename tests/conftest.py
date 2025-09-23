@@ -183,3 +183,8 @@ def fake_result():
             ),
         ),
     )
+
+
+@pytest.fixture
+def fake_sync_job_response():
+    return {"result": "success"}

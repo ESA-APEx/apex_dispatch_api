@@ -1,24 +1,16 @@
 from typing import Annotated, Any
-from fastapi import Body, APIRouter, Depends, HTTPException, status
+from fastapi import Body, APIRouter, HTTPException, status
 from loguru import logger
-from sqlalchemy.orm import Session
 
-from app.database.db import get_db
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
-    ProcessingJob,
-    ProcessingJobSummary,
     ServiceDetails,
 )
 from app.services.processing import (
-    create_processing_job,
     create_synchronous_job,
-    get_processing_job_by_user_id,
-    get_processing_job_results,
 )
 
-from stac_pydantic import Collection
 
 # from app.auth import get_current_user
 

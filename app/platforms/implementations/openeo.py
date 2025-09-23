@@ -183,9 +183,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         format: OutputFormatEnum,
     ) -> str:
         try:
-            service = self._build_datacube(title, details, parameters)
-            job = service.create_job(title=title, out_format=format)
-            return job.execute()
+            return self._build_datacube(title, details, parameters).execute()
         except Exception as e:
             logger.exception("Failed to execute openEO sync request")
             raise SystemError("Failed to execute openEO sync request") from e
