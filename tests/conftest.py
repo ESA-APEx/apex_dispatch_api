@@ -63,6 +63,7 @@ def fake_processing_job_summary():
         label=ProcessTypeEnum.OPENEO,
         status=ProcessingStatusEnum.CREATED,
         parameters={"param1": "value1", "param2": "value2"},
+        service=ServiceDetails(endpoint="foo", application="bar"),
     )
 
 
@@ -70,7 +71,6 @@ def fake_processing_job_summary():
 def fake_processing_job(fake_processing_job_summary, fake_processing_job_request):
     return ProcessingJob(
         **(fake_processing_job_summary.model_dump()),
-        service=fake_processing_job_request.service,
         created=datetime.now(),
         updated=datetime.now()
     )
