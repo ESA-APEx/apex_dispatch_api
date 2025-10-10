@@ -6,6 +6,7 @@ from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJobSummary,
+    ServiceDetails,
 )
 from app.services.upscaling import (
     _get_upscale_status,
@@ -24,6 +25,7 @@ def make_job(status: ProcessingStatusEnum) -> ProcessingJobSummary:
         status=status,
         label=ProcessTypeEnum.OPENEO,
         parameters={"param1": "value1", "param2": "value2"},
+        service=ServiceDetails(endpoint="foo.bar", application="my-app"),
     )
 
 

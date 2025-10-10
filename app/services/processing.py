@@ -67,6 +67,7 @@ def create_processing_job(
         label=request.label,
         status=record.status,
         parameters=request.parameters,
+        service=request.service,
     )
 
 
@@ -131,6 +132,7 @@ def get_processing_jobs_by_user_id(
                 label=record.label,
                 status=record.status,
                 parameters=json.loads(record.parameters),
+                service=ServiceDetails.model_validate_json(record.service or "{}"),
             )
         )
     return jobs

@@ -26,7 +26,11 @@ class UpscalingTaskSummary(BaseModel):
 
 class UpscalingTaskDetails(BaseModel):
     service: ServiceDetails = Field(
-        ..., description="Details of the service to be executed"
+        ...,
+        description="Details of the service to be executed",
+        examples=[
+            ServiceDetails(endpoint="https://platform.eo/", application="my-app")
+        ],
     )
     created: datetime = Field(..., description="Creation time of the processing job")
     updated: datetime = Field(
@@ -44,6 +48,9 @@ class UpscalingTaskDetails(BaseModel):
                     label=ProcessTypeEnum.OPENEO,
                     status=ProcessingStatusEnum.FINISHED,
                     parameters={"param1": "value1", "param2": "value2"},
+                    service=ServiceDetails(
+                        endpoint="https://platform.eo/", application="my-app"
+                    ),
                 ),
                 ProcessingJobSummary(
                     id=1,
@@ -51,6 +58,9 @@ class UpscalingTaskDetails(BaseModel):
                     label=ProcessTypeEnum.OPENEO,
                     status=ProcessingStatusEnum.RUNNING,
                     parameters={"param1": "value1", "param2": "value2"},
+                    service=ServiceDetails(
+                        endpoint="https://platform.eo/", application="my-app"
+                    ),
                 ),
             ]
         ],

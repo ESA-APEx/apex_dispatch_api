@@ -63,6 +63,7 @@ def test_create_processing_job_calls_platform_execute(
         label=ProcessTypeEnum.OPENEO,
         status=ProcessingStatusEnum.CREATED,
         parameters=fake_job.parameters,
+        service=fake_job.service,
     )
     fake_record = ProcessingJobRecord(
         id=fake_result,
@@ -108,6 +109,7 @@ def test_create_processing_job_calls_platform_execute_failure(
         label=ProcessTypeEnum.OPENEO,
         status=ProcessingStatusEnum.CREATED,
         parameters=fake_job.parameters,
+        service=fake_job.service,
     )
     fake_record = ProcessingJobRecord(
         id=fake_result,
@@ -166,7 +168,7 @@ def test_get_processing_jobs_with_active_and_inactive_statuses(
         title="Finished Job",
         status=ProcessingStatusEnum.FAILED,
         parameters="{}",
-        service=json.dumps({"foo": "bar"}),
+        service=json.dumps({"application": "foo", "endpoint": "bar"}),
     )
     mock_get_jobs.return_value = [fake_processing_job_record, inactive_job]
     mock_get_job_status.return_value = ProcessingStatusEnum.RUNNING
@@ -222,7 +224,7 @@ def test_get_processing_jobs_with_finished_statuses(
         label=ProcessTypeEnum.OGC_API_PROCESS,
         title="Finished Job",
         status=ProcessingStatusEnum.FINISHED,
-        service=json.dumps({"foo": "bar"}),
+        service=json.dumps({"application": "foo", "endpoint": "bar"}),
         parameters="{}",
     )
     finished_job_result = ProcessingJobRecord(
@@ -231,7 +233,7 @@ def test_get_processing_jobs_with_finished_statuses(
         label=ProcessTypeEnum.OGC_API_PROCESS,
         title="Finished Job",
         status=ProcessingStatusEnum.FINISHED,
-        service=json.dumps({"foo": "bar"}),
+        service=json.dumps({"application": "foo", "endpoint": "bar"}),
         parameters="{}",
     )
     mock_get_jobs.return_value = [finished_job_no_result, finished_job_result]

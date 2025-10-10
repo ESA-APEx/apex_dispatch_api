@@ -42,6 +42,9 @@ class ProcessingJobSummary(BaseModel):
         description="Current status of the processing job",
         examples=[ProcessingStatusEnum.RUNNING],
     )
+    service: ServiceDetails = Field(
+        ..., description="Details of the service to be executed"
+    )
     parameters: dict = Field(
         ...,
         description="JSON representing the parameters for the service execution",
@@ -50,9 +53,6 @@ class ProcessingJobSummary(BaseModel):
 
 
 class ProcessingJobDetails(BaseModel):
-    service: ServiceDetails = Field(
-        ..., description="Details of the service to be executed"
-    )
     created: datetime = Field(..., description="Creation time of the processing job")
     updated: datetime = Field(
         ...,
