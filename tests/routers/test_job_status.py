@@ -28,6 +28,48 @@ def test_unit_jobs_get_200(
     ).model_dump_json(indent=1)
 
 
+@patch("app.routers.jobs_status.get_processing_jobs_by_user_id")
+@patch("app.routers.jobs_status.get_upscaling_tasks_by_user_id")
+def test_unit_jobs_get_only_processing_200(
+    mock_get_upscaling_tasks,
+    mock_get_processing_jobs,
+    client,
+    fake_processing_job_summary,
+    fake_upscaling_task_summary,
+):
+
+    mock_get_processing_jobs.return_value = [fake_processing_job_summary]
+    mock_get_upscaling_tasks.return_value = [fake_upscaling_task_summary]
+
+    r = client.get("/jobs_status?filter=processing")
+    assert r.status_code == 200
+    assert json.dumps(r.json(), indent=1) == JobsStatusResponse(
+        upscaling_tasks=[],
+        processing_jobs=[fake_processing_job_summary],
+    ).model_dump_json(indent=1)
+
+
+@patch("app.routers.jobs_status.get_processing_jobs_by_user_id")
+@patch("app.routers.jobs_status.get_upscaling_tasks_by_user_id")
+def test_unit_jobs_get_only_upscaling_200(
+    mock_get_upscaling_tasks,
+    mock_get_processing_jobs,
+    client,
+    fake_processing_job_summary,
+    fake_upscaling_task_summary,
+):
+
+    mock_get_processing_jobs.return_value = [fake_processing_job_summary]
+    mock_get_upscaling_tasks.return_value = [fake_upscaling_task_summary]
+
+    r = client.get("/jobs_status?filter=upscaling")
+    assert r.status_code == 200
+    assert json.dumps(r.json(), indent=1) == JobsStatusResponse(
+        upscaling_tasks=[fake_upscaling_task_summary],
+        processing_jobs=[],
+    ).model_dump_json(indent=1)
+
+
 @pytest.mark.asyncio
 @patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.jobs_status.get_jobs_status", new_callable=AsyncMock)
