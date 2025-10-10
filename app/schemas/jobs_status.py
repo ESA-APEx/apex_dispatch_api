@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List
 from pydantic import BaseModel, Field
 
@@ -12,3 +13,8 @@ class JobsStatusResponse(BaseModel):
     processing_jobs: List[ProcessingJobSummary] = Field(
         ..., description="List of processing jobs that are available for the user"
     )
+
+
+class JobsFilter(str, Enum):
+    upscaling = "upscaling"
+    processing = "processing"

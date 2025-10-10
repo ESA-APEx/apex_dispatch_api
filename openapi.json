@@ -156,6 +156,31 @@
         "summary": "Get a list of all upscaling tasks & processing jobs for the authenticated user",
         "description": "Return combined list of upscaling tasks and processing jobs for the authenticated user.",
         "operationId": "get_jobs_status_jobs_status_get",
+        "security": [
+          {
+            "OAuth2AuthorizationCodeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/JobsFilter"
+              },
+              "description": "Filter jobs: upscaling, processing. Can be provided multiple times.",
+              "default": [
+                "upscaling",
+                "processing"
+              ],
+              "title": "Filter"
+            },
+            "description": "Filter jobs: upscaling, processing. Can be provided multiple times."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -166,13 +191,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "OAuth2AuthorizationCodeBearer": []
-          }
-        ]
+        }
       }
     },
     "/unit_jobs": {
@@ -971,6 +1001,14 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JobsFilter": {
+        "type": "string",
+        "enum": [
+          "upscaling",
+          "processing"
+        ],
+        "title": "JobsFilter"
       },
       "JobsStatusResponse": {
         "properties": {
