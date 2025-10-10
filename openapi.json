@@ -1756,6 +1756,10 @@
               "running"
             ]
           },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
           "parameters": {
             "additionalProperties": true,
             "type": "object",
@@ -1767,10 +1771,6 @@
                 "param2": "value2"
               }
             ]
-          },
-          "service": {
-            "$ref": "#/components/schemas/ServiceDetails",
-            "description": "Details of the service to be executed"
           },
           "created": {
             "type": "string",
@@ -1791,8 +1791,8 @@
           "title",
           "label",
           "status",
-          "parameters",
           "service",
+          "parameters",
           "created",
           "updated"
         ],
@@ -1830,6 +1830,10 @@
               "running"
             ]
           },
+          "service": {
+            "$ref": "#/components/schemas/ServiceDetails",
+            "description": "Details of the service to be executed"
+          },
           "parameters": {
             "additionalProperties": true,
             "type": "object",
@@ -1849,6 +1853,7 @@
           "title",
           "label",
           "status",
+          "service",
           "parameters"
         ],
         "title": "ProcessingJobSummary"
@@ -2197,7 +2202,13 @@
           },
           "service": {
             "$ref": "#/components/schemas/ServiceDetails",
-            "description": "Details of the service to be executed"
+            "description": "Details of the service to be executed",
+            "examples": [
+              {
+                "application": "my-app",
+                "endpoint": "https://platform.eo/"
+              }
+            ]
           },
           "created": {
             "type": "string",
@@ -2227,6 +2238,10 @@
                     "param1": "value1",
                     "param2": "value2"
                   },
+                  "service": {
+                    "application": "my-app",
+                    "endpoint": "https://platform.eo/"
+                  },
                   "status": "finished",
                   "title": "Upscaling Job 1"
                 },
@@ -2236,6 +2251,10 @@
                   "parameters": {
                     "param1": "value1",
                     "param2": "value2"
+                  },
+                  "service": {
+                    "application": "my-app",
+                    "endpoint": "https://platform.eo/"
                   },
                   "status": "running",
                   "title": "Upscaling Job 2"
