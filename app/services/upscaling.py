@@ -3,6 +3,7 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_id
 from app.database.models.upscaling_task import (
     UpscalingTaskRecord,
     get_upscale_task_by_user_id,
@@ -29,8 +30,8 @@ INACTIVE_TASK_STATUSES = {
 }
 
 
-def create_upscaling_processing_jobs(
-    database: Session, user: str, request: UpscalingTaskRequest, upscaling_task_id: int
+async def create_upscaling_processing_jobs(
+    token: str, database: Session, request: UpscalingTaskRequest, upscaling_task_id: int
 ) -> List[ProcessingJobSummary]:
     jobs: List[ProcessingJobSummary] = []
 
@@ -44,9 +45,9 @@ def create_upscaling_processing_jobs(
             f"Creating processing job with id {idx}: {request.dimension.name}={value}"
         )
         jobs.append(
-            create_processing_job(
+            await create_processing_job(
+                token=token,
                 database=database,
-                user=user,
                 request=BaseJobRequest(
                     title=f"{request.title} - Processing Job {idx + 1}",
                     label=request.label,
@@ -61,9 +62,9 @@ def create_upscaling_processing_jobs(
 
 
 def create_upscaling_task(
-    database: Session, user: str, request: UpscalingTaskRequest
+    token: str, database: Session, request: UpscalingTaskRequest
 ) -> UpscalingTaskSummary:
-
+    user = get_current_user_id(token)
     logger.info(f"Saving upscaling job for {user} to the database")
     record = UpscalingTaskRecord(
         title=request.title,
@@ -107,16 +108,16 @@ def _refresh_record_status(
     return record
 
 
-def get_upscaling_task_by_user_id(
-    database: Session, task_id: int, user_id: str
+async def get_upscaling_task_by_user_id(
+    token: str, database: Session, task_id: int
 ) -> Optional[UpscalingTask]:
-
-    logger.info(f"Retrieving upscaling task with ID {task_id} for user {user_id}")
-    record = get_upscale_task_by_user_id(database, task_id, user_id)
+    user = get_current_user_id(token)
+    logger.info(f"Retrieving upscaling task with ID {task_id} for user {user}")
+    record = get_upscale_task_by_user_id(database, task_id, user)
     if not record:
         return None
 
-    jobs = get_processing_jobs_by_user_id(database, user_id, record.id)
+    jobs = await get_processing_jobs_by_user_id(token, database, record.id)
     if record.status not in INACTIVE_TASK_STATUSES:
         record = _refresh_record_status(database, record, jobs)
 
@@ -132,18 +133,18 @@ def get_upscaling_task_by_user_id(
     )
 
 
-def get_upscaling_tasks_by_user_id(
-    database: Session, user_id: str
+async def get_upscaling_tasks_by_user_id(
+    token: str, database: Session
 ) -> List[UpscalingTaskSummary]:
-
-    logger.info(f"Retrieving upscaling tasks for user {user_id}")
+    user = get_current_user_id(token)
+    logger.info(f"Retrieving upscaling tasks for user {user}")
 
     tasks: List[UpscalingTaskSummary] = []
-    records = get_upscale_tasks_by_user_id(database, user_id)
+    records = get_upscale_tasks_by_user_id(database, user)
 
     for record in records:
         if record.status not in INACTIVE_TASK_STATUSES:
-            jobs = get_processing_jobs_by_user_id(database, user_id, record.id)
+            jobs = await get_processing_jobs_by_user_id(token, database, record.id)
             record = _refresh_record_status(database, record, jobs)
         tasks.append(
             UpscalingTaskSummary(

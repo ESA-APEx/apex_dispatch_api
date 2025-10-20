@@ -12,19 +12,26 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     This class handles the execution of processing jobs on the OGC API Process platform.
     """
 
-    def execute_job(
-        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    async def execute_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
     ) -> str:
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
 
-    def get_job_status(
-        self, job_id: str, details: ServiceDetails
+    async def get_job_status(
+        self, user_token: str, job_id: str, details: ServiceDetails
     ) -> ProcessingStatusEnum:
         raise NotImplementedError(
             "OGC API Process job status retrieval not implemented yet."
         )
 
-    def get_job_results(self, job_id: str, details: ServiceDetails) -> Collection:
+    async def get_job_results(
+        self, user_token: str, job_id: str, details: ServiceDetails
+    ) -> Collection:
         raise NotImplementedError(
             "OGC API Process job result retrieval not implemented yet."
         )

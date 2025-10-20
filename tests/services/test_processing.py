@@ -1,5 +1,5 @@
 import json
-from unittest.mock import ANY, patch, MagicMock
+from unittest.mock import ANY, AsyncMock, patch, MagicMock
 
 import pytest
 
@@ -48,10 +48,12 @@ def make_job_record(status, service_details) -> ProcessingJobRecord:
     )
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.save_job_to_db")
 @patch("app.services.processing.get_processing_platform")
-def test_create_processing_job_calls_platform_execute(
-    mock_get_platform, mock_save_job_to_db, fake_db_session
+@patch("app.services.processing.get_current_user_id")
+async def test_create_processing_job_calls_platform_execute(
+    mock_current_user, mock_get_platform, mock_save_job_to_db, fake_db_session
 ):
 
     # Arrange
@@ -73,15 +75,20 @@ def test_create_processing_job_calls_platform_execute(
     )
     fake_platform = MagicMock()
 
-    fake_platform.execute_job.return_value = fake_result
+    fake_platform.execute_job = AsyncMock(return_value=fake_result)
     mock_get_platform.return_value = fake_platform
 
     mock_save_job_to_db.return_value = fake_record
 
-    result = create_processing_job(fake_db_session, "foobar", fake_job, None)
+    mock_current_user.return_value = "foobar"
+
+    result = await create_processing_job(
+        "foobar-token", fake_db_session, fake_job, None
+    )
 
     mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
+        user_token="foobar-token",
         title=fake_job.title,
         details=fake_job.service,
         parameters=fake_job.parameters,
@@ -94,10 +101,12 @@ def test_create_processing_job_calls_platform_execute(
     assert result == fake_summary
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.save_job_to_db")
 @patch("app.services.processing.get_processing_platform")
-def test_create_processing_job_calls_platform_execute_failure(
-    mock_get_platform, mock_save_job_to_db, fake_db_session
+@patch("app.services.processing.get_current_user_id")
+async def test_create_processing_job_calls_platform_execute_failure(
+    mock_current_user, mock_get_platform, mock_save_job_to_db, fake_db_session
 ):
 
     # Arrange
@@ -119,42 +128,51 @@ def test_create_processing_job_calls_platform_execute_failure(
     )
     fake_platform = MagicMock()
 
-    fake_platform.execute_job.side_effect = Exception(
+    fake_platform.execute_job.side_effect = SystemError(
         "Could not authenticate with platform"
     )
     mock_get_platform.return_value = fake_platform
 
     mock_save_job_to_db.return_value = fake_record
 
-    result = create_processing_job(fake_db_session, "foobar", fake_job, None)
+    mock_current_user.return_value = "foobar"
+
+    with pytest.raises(SystemError):
+        await create_processing_job("foobar-token", fake_db_session, fake_job, None)
 
     mock_get_platform.assert_called_once_with(fake_job.label)
     fake_platform.execute_job.assert_called_once_with(
+        user_token="foobar-token",
         title=fake_job.title,
         details=fake_job.service,
         parameters=fake_job.parameters,
         format=fake_job.format,
     )
-    mock_save_job_to_db.assert_called_once()
-    args, _ = mock_save_job_to_db.call_args
-    saved_record = args[1]
-    assert saved_record.status == ProcessingStatusEnum.FAILED
-    assert result == fake_summary
+    mock_save_job_to_db.assert_not_called()
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.get_processing_platform")
-def test_create_processing_job_platform_raises(mock_get_platform, fake_db_session):
+@patch("app.services.processing.get_current_user_id")
+async def test_create_processing_job_platform_raises(
+    mock_current_user, mock_get_platform, fake_db_session
+):
     fake_summary = make_job_request()
     mock_get_platform.side_effect = ValueError("Unsupported platform")
 
+    mock_current_user.return_value = "foobar"
+
     with pytest.raises(ValueError, match="Unsupported platform"):
-        create_processing_job(fake_db_session, "foobar", fake_summary, None)
+        await create_processing_job("foobar-token", fake_db_session, fake_summary, None)
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.update_job_status_by_id")
 @patch("app.services.processing.get_job_status")
 @patch("app.services.processing.get_jobs_by_user_id")
-def test_get_processing_jobs_with_active_and_inactive_statuses(
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_jobs_with_active_and_inactive_statuses(
+    mock_current_user,
     mock_get_jobs,
     mock_get_job_status,
     mock_update_job_status,
@@ -173,7 +191,9 @@ def test_get_processing_jobs_with_active_and_inactive_statuses(
     mock_get_jobs.return_value = [fake_processing_job_record, inactive_job]
     mock_get_job_status.return_value = ProcessingStatusEnum.RUNNING
 
-    results = get_processing_jobs_by_user_id(fake_db_session, "user1")
+    mock_current_user.return_value = "foobar"
+
+    results = await get_processing_jobs_by_user_id("foobar-token", fake_db_session)
 
     assert len(results) == 2
     assert isinstance(results[0], ProcessingJobSummary)
@@ -181,16 +201,21 @@ def test_get_processing_jobs_with_active_and_inactive_statuses(
     assert results[1].status == ProcessingStatusEnum.FAILED
 
     # Active job should be refreshed
-    mock_get_job_status.assert_called_once_with(fake_processing_job_record)
+    mock_get_job_status.assert_called_once_with(
+        "foobar-token", fake_processing_job_record
+    )
     mock_update_job_status.assert_called_once_with(
         ANY, fake_processing_job_record.id, ProcessingStatusEnum.RUNNING
     )
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.update_job_status_by_id")
 @patch("app.services.processing.get_job_status")
 @patch("app.services.processing.get_jobs_by_user_id")
-def test_get_processing_jobs_no_updates(
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_jobs_no_updates(
+    mock_current_user,
     mock_get_jobs,
     mock_get_job_status,
     mock_update_job_status,
@@ -200,19 +225,26 @@ def test_get_processing_jobs_no_updates(
     mock_get_jobs.return_value = [fake_processing_job_record]
     mock_get_job_status.return_value = fake_processing_job_record.status
 
-    results = get_processing_jobs_by_user_id(fake_db_session, "user1")
+    mock_current_user.return_value = "foobar"
+
+    results = await get_processing_jobs_by_user_id("foobar-token", fake_db_session)
 
     assert len(results) == 1
     assert results[0].status == fake_processing_job_record.status
 
     # Active job should be refreshed
-    mock_get_job_status.assert_called_once_with(fake_processing_job_record)
+    mock_get_job_status.assert_called_once_with(
+        "foobar-token", fake_processing_job_record
+    )
     mock_update_job_status.assert_not_called()
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.get_processing_job_results")
 @patch("app.services.processing.get_jobs_by_user_id")
-def test_get_processing_jobs_with_finished_statuses(
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_jobs_with_finished_statuses(
+    mock_current_user,
     mock_get_jobs,
     mock_get_jobs_results,
     fake_db_session,
@@ -238,27 +270,36 @@ def test_get_processing_jobs_with_finished_statuses(
     )
     mock_get_jobs.return_value = [finished_job_no_result, finished_job_result]
     mock_get_jobs_results.return_value = fake_result
-    results = get_processing_jobs_by_user_id(fake_db_session, "user1")
+
+    mock_current_user.return_value = "foobar"
+
+    results = await get_processing_jobs_by_user_id("foobar-token", fake_db_session)
 
     assert len(results) == 2
     assert isinstance(results[0], ProcessingJobSummary)
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.get_processing_platform")
-def test_get_job_status_from_platform(mock_get_platform, fake_processing_job_record):
+async def test_get_job_status_from_platform(
+    mock_get_platform, fake_processing_job_record
+):
 
     fake_platform = MagicMock()
-    fake_platform.get_job_status.return_value = ProcessingStatusEnum.QUEUED
+    fake_platform.get_job_status = AsyncMock(return_value=ProcessingStatusEnum.QUEUED)
     mock_get_platform.return_value = fake_platform
 
-    status = get_job_status(fake_processing_job_record)
+    status = await get_job_status("foobar-token", fake_processing_job_record)
 
     assert status == ProcessingStatusEnum.QUEUED
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.get_job_by_user_id")
 @patch("app.services.processing.get_processing_platform")
-def test_get_job_result_from_platform(
+@patch("app.services.processing.get_current_user_id")
+async def test_get_job_result_from_platform(
+    mock_current_user,
     mock_get_platform,
     mock_get_job_by_user_id,
     fake_processing_job_record,
@@ -267,19 +308,48 @@ def test_get_job_result_from_platform(
 ):
 
     fake_platform = MagicMock()
-    fake_platform.get_job_results.return_value = fake_result
+    fake_platform.get_job_results = AsyncMock(return_value=fake_result)
     mock_get_platform.return_value = fake_platform
     mock_get_job_by_user_id.return_value = fake_processing_job_record
 
-    result = get_processing_job_results(fake_db_session, 1, "foobar")
+    mock_current_user.return_value = "foobar"
+
+    result = await get_processing_job_results("foobar-token", fake_db_session, 1)
 
     assert result == fake_result
 
 
+@pytest.mark.asyncio
+@patch("app.services.processing.get_job_by_user_id")
+@patch("app.services.processing.get_processing_platform")
+@patch("app.services.processing.get_current_user_id")
+async def test_get_job_result_from_platform_not_found(
+    mock_current_user,
+    mock_get_platform,
+    mock_get_job_by_user_id,
+    fake_processing_job_record,
+    fake_db_session,
+    fake_result,
+):
+
+    fake_platform = MagicMock()
+    fake_platform.get_job_results = AsyncMock(return_value=fake_result)
+    mock_get_platform.return_value = fake_platform
+    mock_get_job_by_user_id.return_value = None
+
+    mock_current_user.return_value = "foobar"
+
+    result = await get_processing_job_results("foobar-token", fake_db_session, 1)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
 @patch("app.services.processing._refresh_job_status")
 @patch("app.services.processing.get_job_by_user_id")
-def test_get_processing_job_by_user_id_active_status(
-    mock_get_job, mock_refresh_status, fake_db_session
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_job_by_user_id_active_status(
+    mock_current_user, mock_get_job, mock_refresh_status, fake_db_session
 ):
 
     fake_service_details = {
@@ -292,9 +362,11 @@ def test_get_processing_job_by_user_id_active_status(
     mock_get_job.return_value = fake_result
     mock_refresh_status.return_value = fake_result
 
-    result = get_processing_job_by_user_id(fake_db_session, 1, "user1")
+    mock_current_user.return_value = "foobar"
 
-    mock_get_job.assert_called_once_with(fake_db_session, 1, "user1")
+    result = await get_processing_job_by_user_id("foobar-token", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
     mock_refresh_status.assert_called_once()
     assert isinstance(result, ProcessingJob)
     assert result.id == 1
@@ -306,10 +378,12 @@ def test_get_processing_job_by_user_id_active_status(
     assert result.parameters == {"param1": "value1"}
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing._refresh_job_status")
 @patch("app.services.processing.get_job_by_user_id")
-def test_get_processing_job_by_user_id_inactive_status(
-    mock_get_job, mock_refresh_status, fake_db_session
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_job_by_user_id_inactive_status(
+    mock_current_user, mock_get_job, mock_refresh_status, fake_db_session
 ):
 
     fake_service_details = {
@@ -322,9 +396,11 @@ def test_get_processing_job_by_user_id_inactive_status(
     mock_get_job.return_value = fake_result
     mock_refresh_status.return_value = fake_result
 
-    result = get_processing_job_by_user_id(fake_db_session, 1, "user1")
+    mock_current_user.return_value = "foobar"
 
-    mock_get_job.assert_called_once_with(fake_db_session, 1, "user1")
+    result = await get_processing_job_by_user_id("foobar-token", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
     mock_refresh_status.assert_not_called()
     assert isinstance(result, ProcessingJob)
     assert result.id == 1
@@ -336,12 +412,18 @@ def test_get_processing_job_by_user_id_inactive_status(
     assert result.parameters == {"param1": "value1"}
 
 
+@pytest.mark.asyncio
 @patch("app.services.processing.get_job_by_user_id")
-def test_get_processing_job_by_user_id_returns_none(mock_get_job, fake_db_session):
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_job_by_user_id_returns_none(
+    mock_current_user, mock_get_job, fake_db_session
+):
 
     mock_get_job.return_value = None
 
-    result = get_processing_job_by_user_id(fake_db_session, 1, "user1")
+    mock_current_user.return_value = "foobar"
 
-    mock_get_job.assert_called_once_with(fake_db_session, 1, "user1")
+    result = await get_processing_job_by_user_id("foobar-user", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
     assert result is None

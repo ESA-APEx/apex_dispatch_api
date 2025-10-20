@@ -11,7 +11,7 @@ from app.schemas.jobs_status import JobsFilter, JobsStatusResponse
 from app.schemas.websockets import WSStatusMessage
 from app.services.processing import get_processing_jobs_by_user_id
 from app.services.upscaling import get_upscaling_tasks_by_user_id
-from app.auth import get_current_user_id, websocket_authenticate
+from app.auth import oauth2_scheme, websocket_authenticate
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ DEFAULT_FILTERS = [JobsFilter.upscaling, JobsFilter.processing]
 )
 async def get_jobs_status(
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    token: str = Depends(oauth2_scheme),
     filter: List[JobsFilter] = Query(
         DEFAULT_FILTERS,
         description="Filter jobs: upscaling, processing. Can be provided multiple times.",
@@ -34,14 +34,14 @@ async def get_jobs_status(
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
-    logger.debug(f"Fetching jobs list for user {user}")
+    logger.debug(f"Fetching jobs list")
     upscaling_tasks = (
-        get_upscaling_tasks_by_user_id(db, user)
+        await get_upscaling_tasks_by_user_id(token, db)
         if JobsFilter.upscaling in filter
         else []
     )
     processing_jobs = (
-        get_processing_jobs_by_user_id(db, user)
+        await get_processing_jobs_by_user_id(token, db)
         if JobsFilter.processing in filter
         else []
     )
@@ -63,8 +63,8 @@ async def ws_jobs_status(
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
 
-    user = await websocket_authenticate(websocket)
-    if not user:
+    token = await websocket_authenticate(websocket)
+    if not token:
         return
 
     await websocket.send_json(
@@ -80,7 +80,7 @@ async def ws_jobs_status(
                         message="Starting retrieval of status",
                     ).model_dump()
                 )
-                status = await get_jobs_status(db, user, filter=filter)
+                status = await get_jobs_status(db, token, filter=filter)
                 await websocket.send_json(
                     WSStatusMessage(
                         type="status",
@@ -90,7 +90,7 @@ async def ws_jobs_status(
                 await asyncio.sleep(interval)
 
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for user {user}")
+        logger.info("WebSocket disconnected")
     except Exception as e:
         logger.exception(f"Error in jobs_status_ws: {e}")
         await websocket.close(code=1011, reason="Error in job status websocket: {e}")

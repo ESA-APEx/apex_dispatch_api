@@ -1,6 +1,8 @@
 from datetime import datetime
 from unittest.mock import call, patch
 
+import pytest
+
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.schemas.enum import ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
@@ -42,38 +44,45 @@ def make_upscaling_record(status: ProcessingJobSummary) -> UpscalingTaskRecord:
 
 
 @patch("app.services.upscaling.save_upscaling_task_to_db")
+@patch("app.services.upscaling.get_current_user_id")
 def test_create_upscaling_task_creates_task(
+    mock_current_user,
     mock_save_upscaling_task,
     fake_upscaling_task_request,
     fake_upscaling_task_record,
     fake_upscaling_task_summary,
     fake_db_session,
 ):
-    user = "foobar"
+    mock_current_user.return_value = "foobar"
     mock_save_upscaling_task.return_value = fake_upscaling_task_record
-    result = create_upscaling_task(fake_db_session, user, fake_upscaling_task_request)
+    result = create_upscaling_task(
+        "foobar-token", fake_db_session, fake_upscaling_task_request
+    )
     mock_save_upscaling_task.assert_called_once()
     assert result == fake_upscaling_task_summary
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling.create_processing_job")
-def test_create_upscaling_task_creates_jobs(
+@patch("app.services.upscaling.get_current_user_id")
+async def test_create_upscaling_task_creates_jobs(
+    mock_current_user,
     mock_create_processing_job,
     fake_upscaling_task_request,
     fake_upscaling_task_record,
     fake_processing_job_summary,
     fake_db_session,
 ):
-    user = "foobar"
+    mock_current_user.return_value = "foobar"
     mock_create_processing_job.return_value = fake_processing_job_summary
-    result = create_upscaling_processing_jobs(
-        fake_db_session, user, fake_upscaling_task_request, 1
+    result = await create_upscaling_processing_jobs(
+        "foobar-token", fake_db_session, fake_upscaling_task_request, 1
     )
 
     expected_calls = [
         call(
+            token="foobar-token",
             database=fake_db_session,
-            user=user,
             request=BaseJobRequest(
                 title=f"{fake_upscaling_task_request.title} - Processing Job {idx + 1}",
                 label=fake_upscaling_task_request.label,
@@ -162,25 +171,33 @@ def test_refresh_does_not_update_if_same(
     mock_update.assert_not_called()
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling.get_processing_jobs_by_user_id")
 @patch("app.services.upscaling.get_upscale_task_by_user_id")
 @patch("app.services.upscaling.update_upscale_task_status_by_id")
-def test_returns_none_if_task_not_found(
-    mock_update, mock_get_task, mock_get_jobs, fake_db_session
+@patch("app.services.upscaling.get_current_user_id")
+async def test_returns_none_if_task_not_found(
+    mock_current_user, mock_update, mock_get_task, mock_get_jobs, fake_db_session
 ):
     mock_get_task.return_value = None
+    mock_current_user.return_value = "foobar"
 
-    result = get_upscaling_task_by_user_id(fake_db_session, task_id=123, user_id="foo")
+    result = await get_upscaling_task_by_user_id(
+        token="foobar-token", database=fake_db_session, task_id=123
+    )
 
     assert result is None
     mock_get_jobs.assert_not_called()
     mock_update.assert_not_called()
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling.get_processing_jobs_by_user_id")
 @patch("app.services.upscaling.get_upscale_task_by_user_id")
 @patch("app.services.upscaling._refresh_record_status")
-def test_get_task_refreshes_status_if_active(
+@patch("app.services.upscaling.get_current_user_id")
+async def test_get_task_refreshes_status_if_active(
+    mock_current_user,
     mock_refresh,
     mock_get_task,
     mock_get_jobs,
@@ -192,63 +209,77 @@ def test_get_task_refreshes_status_if_active(
     mock_get_jobs.return_value = [make_job(ProcessingStatusEnum.RUNNING)]
     mock_refresh.return_value = mock_record
 
-    result = get_upscaling_task_by_user_id(fake_db_session, 1, "user1")
+    mock_current_user.return_value = "foobar"
+
+    result = await get_upscaling_task_by_user_id("foobar-token", fake_db_session, 1)
 
     assert result.id == mock_record.id
     mock_refresh.assert_called_once()
     mock_get_jobs.assert_called_once()
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling.get_processing_jobs_by_user_id")
 @patch("app.services.upscaling.get_upscale_task_by_user_id")
 @patch("app.services.upscaling._refresh_record_status")
-def test_get_task_skips_refresh_if_inactive(
-    mock_refresh, mock_get_task, mock_get_jobs, fake_db_session
+@patch("app.services.upscaling.get_current_user_id")
+async def test_get_task_skips_refresh_if_inactive(
+    mock_current_user, mock_refresh, mock_get_task, mock_get_jobs, fake_db_session
 ):
     mock_record = make_upscaling_record(ProcessingStatusEnum.FINISHED)
     mock_get_task.return_value = mock_record
     mock_get_jobs.return_value = [make_job(ProcessingStatusEnum.FINISHED)]
 
-    result = get_upscaling_task_by_user_id(fake_db_session, 2, "user1")
+    mock_current_user.return_value = "foobar"
+
+    result = await get_upscaling_task_by_user_id("foobar-token", fake_db_session, 2)
 
     assert result.id == mock_record.id
     mock_refresh.assert_not_called()
     mock_get_jobs.assert_called_once()
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling._refresh_record_status")
 @patch("app.services.upscaling.get_processing_jobs_by_user_id")
 @patch("app.services.upscaling.get_upscale_tasks_by_user_id")
-def test_get_upscaling_tasks_refreshes_active(
-    mock_get_tasks, mock_get_jobs, mock_refresh, fake_db_session
+@patch("app.services.upscaling.get_current_user_id")
+async def test_get_upscaling_tasks_refreshes_active(
+    mock_current_user, mock_get_tasks, mock_get_jobs, mock_refresh, fake_db_session
 ):
     record = make_upscaling_record(ProcessingStatusEnum.RUNNING)
     mock_get_tasks.return_value = [record]
     mock_get_jobs.return_value = [make_job(ProcessingStatusEnum.RUNNING)]
     mock_refresh.return_value = record
 
-    result = get_upscaling_tasks_by_user_id(fake_db_session, "user1")
+    mock_current_user.return_value = "foobar"
+
+    result = await get_upscaling_tasks_by_user_id("foobar-token", fake_db_session)
 
     assert len(result) == 1
     assert result[0].id == record.id
     assert result[0].status == record.status
 
-    mock_get_jobs.assert_called_once_with(fake_db_session, "user1", 1)
+    mock_get_jobs.assert_called_once_with("foobar-token", fake_db_session, 1)
     mock_refresh.assert_called_once_with(
         fake_db_session, record, mock_get_jobs.return_value
     )
 
 
+@pytest.mark.asyncio
 @patch("app.services.upscaling._refresh_record_status")
 @patch("app.services.upscaling.get_processing_jobs_by_user_id")
 @patch("app.services.upscaling.get_upscale_tasks_by_user_id")
-def test_get_upscaling_tasks_skips_inactive(
-    mock_get_tasks, mock_get_jobs, mock_refresh, fake_db_session
+@patch("app.services.upscaling.get_current_user_id")
+async def test_get_upscaling_tasks_skips_inactive(
+    mock_current_user, mock_get_tasks, mock_get_jobs, mock_refresh, fake_db_session
 ):
     record = make_upscaling_record(ProcessingStatusEnum.FINISHED)
     mock_get_tasks.return_value = [record]
 
-    result = get_upscaling_tasks_by_user_id(fake_db_session, "user1")
+    mock_current_user.return_value = "foobar"
+
+    result = await get_upscaling_tasks_by_user_id("foobar-token", fake_db_session)
 
     assert len(result) == 1
     assert result[0].id == record.id

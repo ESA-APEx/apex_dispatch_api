@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from stac_pydantic import Collection
 from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
 
-from app.auth import get_current_user_id
+from app.auth import get_current_user_id, oauth2_scheme
 from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
@@ -30,8 +30,13 @@ def fake_get_current_user_id():
     return "foobar"
 
 
+def fake_user_token():
+    return "foobar_token"
+
+
 @pytest.fixture
 def client():
+    app.dependency_overrides[oauth2_scheme] = fake_user_token
     app.dependency_overrides[get_current_user_id] = fake_get_current_user_id
     with TestClient(app) as c:
         yield c

@@ -35,5 +35,11 @@ class Settings(BaseSettings):
         extra="allow",
     )
 
+    # openEO
+    openeo_enable_user_credentials: bool = Field(
+        default=False,
+        json_schema_extra={"env": "OPENEO_ENABLE_USER_CREDENTIALS"},
+    )
+
 
 settings = Settings()

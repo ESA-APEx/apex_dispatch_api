@@ -1,7 +1,7 @@
 import json
 from unittest.mock import AsyncMock, patch
 
-from fastapi import WebSocketDisconnect
+from fastapi import HTTPException, WebSocketDisconnect
 import pytest
 
 
@@ -38,6 +38,22 @@ def test_upscaling_task_create_500(
     assert r.status_code == 500
     assert "could not launch the upscale task" in r.json().get("detail", "").lower()
 
+@patch("app.routers.upscale_tasks.create_upscaling_task")
+def test_upscaling_task_create_http_error(
+    mock_create_upscaling_task,
+    client,
+    fake_upscaling_task_request,
+):
+
+    mock_create_upscaling_task.side_effect = HTTPException(
+        status_code=503, detail="Oops, service unavailable"
+    )
+
+
+    r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
+    assert r.status_code == 503
+    assert "service unavailable" in r.json().get("detail", "").lower()
+
 
 @patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
 def test_upscaling_task_get_task_200(
@@ -65,6 +81,28 @@ def test_upscaling_task_get_task_404(mock_get_upscale_task, client):
     assert "upscale task 1 not found" in r.json().get("detail", "").lower()
 
 
+@patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
+def test_upscaling_task_get_task_500(mock_get_upscale_task, client):
+
+    mock_get_upscale_task.side_effect = SystemError("Database connection lost")
+
+    r = client.get("/upscale_tasks/1")
+    assert r.status_code == 500
+    assert "database connection lost" in r.json().get("detail", "").lower()
+
+
+@patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
+def test_upscaling_task_get_task_http_error(mock_get_upscale_task, client):
+
+    mock_get_upscale_task.side_effect = HTTPException(
+        status_code=503, detail="Oops, service unavailable"
+    )
+
+    r = client.get("/upscale_tasks/1")
+    assert r.status_code == 503
+    assert "service unavailable" in r.json().get("detail", "").lower()
+
+
 @pytest.mark.asyncio
 @patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.upscale_tasks.get_upscale_task", new_callable=AsyncMock)
@@ -74,7 +112,9 @@ async def test_ws_jobs_status(
     mock_get_user_id.return_value = "foobar"
     mock_get_task_status.return_value = fake_upscaling_task
 
-    with client.websocket_connect("/ws/upscale_tasks/1?interval=1&token=123") as websocket:
+    with client.websocket_connect(
+        "/ws/upscale_tasks/1?interval=1&token=123"
+    ) as websocket:
         websocket.receive_json()
         websocket.receive_json()
         data = websocket.receive_json()

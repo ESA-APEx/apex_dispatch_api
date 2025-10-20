@@ -71,16 +71,13 @@ def test_unit_jobs_get_only_upscaling_200(
 
 
 @pytest.mark.asyncio
-@patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.jobs_status.get_jobs_status", new_callable=AsyncMock)
 async def test_ws_jobs_status(
     mock_get_jobs_status,
-    mock_get_user_id,
     client,
     fake_processing_job_summary,
     fake_upscaling_task_summary,
 ):
-    mock_get_user_id.return_value = "foobar"
     mock_get_jobs_status.return_value = JobsStatusResponse(
         upscaling_tasks=[fake_upscaling_task_summary],
         processing_jobs=[fake_processing_job_summary],
@@ -97,12 +94,8 @@ async def test_ws_jobs_status(
 
 
 @pytest.mark.asyncio
-@patch("app.auth.get_current_user_id", new_callable=AsyncMock)
 @patch("app.routers.jobs_status.get_jobs_status", new_callable=AsyncMock)
-async def test_ws_jobs_status_closes_on_error(
-    mock_get_jobs_status, mock_get_user_id, client
-):
-    mock_get_user_id.return_value = "foobar"
+async def test_ws_jobs_status_closes_on_error(mock_get_jobs_status, client):
     mock_get_jobs_status.side_effect = RuntimeError("Database connection lost")
 
     with client.websocket_connect("/ws/jobs_status?token=123") as websocket:
