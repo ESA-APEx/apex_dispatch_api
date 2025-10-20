@@ -32,6 +32,7 @@ def test_unit_jobs_create_500(
     assert r.status_code == 500
     assert "could not launch the job" in r.json().get("detail", "").lower()
 
+
 @patch("app.routers.unit_jobs.create_processing_job")
 def test_unit_jobs_create_http_error(
     mock_create_processing_job,
@@ -46,6 +47,7 @@ def test_unit_jobs_create_http_error(
     r = client.post("/unit_jobs", json=fake_processing_job_request.model_dump())
     assert r.status_code == 503
     assert "service unavailable" in r.json().get("detail", "").lower()
+
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
 def test_unit_jobs_get_job_200(
