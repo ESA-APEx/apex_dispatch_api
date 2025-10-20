@@ -38,6 +38,7 @@ def test_upscaling_task_create_500(
     assert r.status_code == 500
     assert "could not launch the upscale task" in r.json().get("detail", "").lower()
 
+
 @patch("app.routers.upscale_tasks.create_upscaling_task")
 def test_upscaling_task_create_http_error(
     mock_create_upscaling_task,
@@ -48,7 +49,6 @@ def test_upscaling_task_create_http_error(
     mock_create_upscaling_task.side_effect = HTTPException(
         status_code=503, detail="Oops, service unavailable"
     )
-
 
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
     assert r.status_code == 503

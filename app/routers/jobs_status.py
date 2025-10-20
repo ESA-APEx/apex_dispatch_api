@@ -34,7 +34,7 @@ async def get_jobs_status(
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
-    logger.debug(f"Fetching jobs list")
+    logger.debug("Fetching jobs list")
     upscaling_tasks = (
         await get_upscaling_tasks_by_user_id(token, db)
         if JobsFilter.upscaling in filter
