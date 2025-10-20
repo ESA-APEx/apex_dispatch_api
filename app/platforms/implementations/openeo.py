@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+from typing import Any
 import urllib
 import jwt
 
@@ -9,6 +10,8 @@ import openeo
 import requests
 from dotenv import load_dotenv
 
+from app.auth import exchange_token_for_provider
+from app.config.settings import settings
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
@@ -22,6 +25,12 @@ BACKEND_AUTH_ENV_MAP = {
     "openeo.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
     "openeofed.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
     "openeo.vito.be": "OPENEO_AUTH_CLIENT_CREDENTIALS_OPENEO_VITO",
+}
+
+BACKEND_PROVIDER_ID_MAP = {
+    "openeo.dataspace.copernicus.eu": "esa-eoiam",
+    "openeofed.dataspace.copernicus.eu": "esa-eoiam",
+    "openeo.vito.be": "egi",
 }
 
 
@@ -63,7 +72,37 @@ class OpenEOPlatform(BaseProcessingPlatform):
             logger.warning("No JWT bearer token found in connection.")
             return True
 
-    def _setup_connection(self, url: str) -> openeo.Connection:
+    async def _authenticate_user(
+        self, user_token: str, url: str, connection: openeo.Connection
+    ) -> openeo.Connection:
+        """
+        Authenticate the connection using the user's token.
+        This method can be used to set the user's token for the connection.
+        """
+        if settings.openeo_enable_user_credentials:
+            logger.debug("Using user credentials for OpenEO connection authentication")
+            provider = self._get_backend_config(BACKEND_PROVIDER_ID_MAP, url)
+            platform_token = await exchange_token_for_provider(
+                initial_token=user_token, provider=provider
+            )
+            connection.authenticate_bearer_token(
+                bearer_token=platform_token["access_token"]
+            )
+        else:
+            logger.debug(
+                "Using client credentials for OpenEO connection authentication"
+            )
+            provider_id, client_id, client_secret = self._get_client_credentials(url)
+
+            connection.authenticate_oidc_client_credentials(
+                provider_id=provider_id,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+
+        return connection
+
+    async def _setup_connection(self, user_token: str, url: str) -> openeo.Connection:
         """
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
@@ -76,15 +115,25 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         logger.debug(f"Setting up OpenEO connection to {url}")
         connection = openeo.connect(url)
-        provider_id, client_id, client_secret = self._get_client_credentials(url)
-
-        connection.authenticate_oidc_client_credentials(
-            provider_id=provider_id,
-            client_id=client_id,
-            client_secret=client_secret,
-        )
+        connection = await self._authenticate_user(user_token, url, connection)
         self._connection_cache[url] = connection
         return connection
+
+    def _get_backend_config(self, map: Any, url: str) -> str:
+        """
+        Get the authentication provider for the OpenEO backend.
+
+        :param url: The URL of the OpenEO backend.
+        :return: The name of the authentication provider.
+        """
+        if not re.match(r"https?://", url):
+            url = f"https://{url}"
+
+        hostname = urllib.parse.urlparse(url).hostname
+        if not hostname or hostname not in map:
+            raise ValueError(f"Unsupported backend: {url} (hostname={hostname})")
+
+        return map[hostname]
 
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
@@ -94,7 +143,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :param url: The URL of the OpenEO backend.
         :return: A tuple containing provider ID, client ID, and client secret.
         """
-        env_var = self._get_client_credentials_env_var(url)
+        env_var = self._get_backend_config(BACKEND_AUTH_ENV_MAP, url)
         credentials_str = os.getenv(env_var)
 
         if not credentials_str:
@@ -108,19 +157,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
             )
         provider_id, client_id, client_secret = parts
         return provider_id, client_id, client_secret
-
-    def _get_client_credentials_env_var(self, url: str) -> str:
-        """
-        Get client credentials env var name for a given backend URL.
-        """
-        if not re.match(r"https?://", url):
-            url = f"https://{url}"
-
-        hostname = urllib.parse.urlparse(url).hostname
-        if not hostname or hostname not in BACKEND_AUTH_ENV_MAP:
-            raise ValueError(f"Unsupported backend: {url} (hostname={hostname})")
-
-        return BACKEND_AUTH_ENV_MAP[hostname]
 
     def _get_process_id(self, url: str) -> str:
         """
@@ -143,28 +179,29 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         return process_id
 
-    def execute_job(
-        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    async def execute_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
     ) -> str:
-        try:
-            process_id = self._get_process_id(details.application)
+        process_id = self._get_process_id(details.application)
 
-            logger.debug(
-                f"Executing OpenEO job with title={title}, service={details}, "
-                f"process_id={process_id}, parameters={parameters}"
-            )
+        logger.debug(
+            f"Executing OpenEO job with title={title}, service={details}, "
+            f"process_id={process_id}, parameters={parameters}"
+        )
 
-            connection = self._setup_connection(details.endpoint)
-            service = connection.datacube_from_process(
-                process_id=process_id, namespace=details.application, **parameters
-            )
-            job = service.create_job(title=title, out_format=format)
-            job.start()
+        connection = await self._setup_connection(user_token, details.endpoint)
+        service = connection.datacube_from_process(
+            process_id=process_id, namespace=details.application, **parameters
+        )
+        job = service.create_job(title=title, out_format=format)
+        job.start()
 
-            return job.job_id
-        except Exception as e:
-            logger.exception("Failed to execute openEO job")
-            raise SystemError("Failed to execute openEO job") from e
+        return job.job_id
 
     def _map_openeo_status(self, status: str) -> ProcessingStatusEnum:
         """
@@ -191,30 +228,18 @@ class OpenEOPlatform(BaseProcessingPlatform):
             logger.warning("Mapping of unknown openEO status: %r", status)
             return ProcessingStatusEnum.UNKNOWN
 
-    def get_job_status(
-        self, job_id: str, details: ServiceDetails
+    async def get_job_status(
+        self, user_token: str, job_id: str, details: ServiceDetails
     ) -> ProcessingStatusEnum:
-        try:
-            logger.debug(f"Fetching job status for openEO job with ID {job_id}")
-            connection = self._setup_connection(details.endpoint)
-            job = connection.job(job_id)
-            return self._map_openeo_status(job.status())
-        except Exception as e:
-            logger.exception(f"Failed to fetch status for openEO job with ID {job_id}")
-            raise SystemError(
-                f"Failed to fetch status openEO job with ID {job_id}"
-            ) from e
+        logger.debug(f"Fetching job status for openEO job with ID {job_id}")
+        connection = await self._setup_connection(user_token, details.endpoint)
+        job = connection.job(job_id)
+        return self._map_openeo_status(job.status())
 
-    def get_job_results(self, job_id: str, details: ServiceDetails) -> Collection:
-        try:
-            logger.debug(f"Fetching job result for openEO job with ID {job_id}")
-            connection = self._setup_connection(details.endpoint)
-            job = connection.job(job_id)
-            return Collection(**job.get_results().get_metadata())
-        except Exception as e:
-            logger.exception(
-                f"Failed to fetch result url for for openEO job with ID {job_id}"
-            )
-            raise SystemError(
-                f"Failed to fetch result url for openEO job with ID {job_id}"
-            ) from e
+    async def get_job_results(
+        self, user_token: str, job_id: str, details: ServiceDetails
+    ) -> Collection:
+        logger.debug(f"Fetching job result for openEO job with ID {job_id}")
+        connection = await self._setup_connection(user_token, details.endpoint)
+        job = connection.job(job_id)
+        return Collection(**job.get_results().get_metadata())

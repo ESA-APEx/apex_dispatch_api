@@ -14,7 +14,7 @@ from fastapi import (
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user_id, websocket_authenticate
+from app.auth import oauth2_scheme, websocket_authenticate
 from app.database.db import SessionLocal, get_db
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
@@ -107,21 +107,23 @@ async def create_upscale_task(
     ],
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    token: str = Depends(oauth2_scheme),
 ) -> UpscalingTaskSummary:
     """Create a new upscaling job with the provided data."""
     try:
-        task = create_upscaling_task(db, user, payload)
+        task = create_upscaling_task(token, db, payload)
         background_tasks.add_task(
             create_upscaling_processing_jobs,
+            token=token,
             database=db,
-            user=user,
             request=payload,
             upscaling_task_id=task.id,
         )
         return task
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        logger.exception(f"Error creating upscale task for user {user}: {e}")
+        logger.exception(f"Error creating upscale task: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the upscale task: {e}",
@@ -136,16 +138,25 @@ async def create_upscale_task(
 async def get_upscale_task(
     task_id: int,
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    token: str = Depends(oauth2_scheme),
 ) -> UpscalingTask:
-    job = get_upscaling_task_by_user_id(db, task_id, user)
-    if not job:
-        logger.error(f"Upscale task {task_id} not found for user {user}")
+    try:
+        job = await get_upscaling_task_by_user_id(token, db, task_id)
+        if not job:
+            logger.error(f"Upscale task {task_id} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Upscale task {task_id} not found",
+            )
+        return job
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception(f"Error retrieving upscale task {task_id}: {e}")
         raise HTTPException(
-            status_code=404,
-            detail=f"Upscale task {task_id} not found",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving the upscale task {task_id}: {e}",
         )
-    return job
 
 
 @router.websocket(
@@ -156,11 +167,11 @@ async def ws_task_status(
     task_id: int,
     interval: int = 10,
 ):
-    user = await websocket_authenticate(websocket)
-    if not user:
+    token = await websocket_authenticate(websocket)
+    if not token:
         return
 
-    logger.info("WebSocket connected", extra={"user": user, "task_id": task_id})
+    logger.info("WebSocket connected", extra={"token": token, "task_id": task_id})
 
     try:
         await websocket.send_json(
@@ -177,7 +188,7 @@ async def ws_task_status(
                         message="Starting retrieval of status",
                     ).model_dump()
                 )
-                status = await get_upscale_task(task_id, db, user)
+                status = await get_upscale_task(task_id, db, token)
                 if not status:
                     await websocket.send_json(
                         WSTaskStatusMessage(
@@ -200,7 +211,7 @@ async def ws_task_status(
                 await asyncio.sleep(interval)
 
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for user {user}")
+        logger.info("WebSocket disconnected")
     except Exception as e:
         logger.exception(f"Error in upscaling task status websocket: {e}")
         await websocket.close(code=1011, reason=f"Error in job status websocket: {e}")

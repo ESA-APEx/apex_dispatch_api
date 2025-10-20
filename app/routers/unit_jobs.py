@@ -3,7 +3,7 @@ from fastapi import Body, APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user_id
+from app.auth import oauth2_scheme
 from app.database.db import get_db
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
@@ -100,13 +100,15 @@ async def create_unit_job(
         ),
     ],
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    token: str = Depends(oauth2_scheme),
 ) -> ProcessingJobSummary:
     """Create a new processing job with the provided data."""
     try:
-        return create_processing_job(db, user, payload)
+        return await create_processing_job(token, db, payload)
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        logger.exception(f"Error creating processing job for user {user}: {e}")
+        logger.exception(f"Error creating processing job: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the processing job: {e}",
@@ -119,18 +121,25 @@ async def create_unit_job(
     responses={404: {"description": "Processing job not found"}},
 )
 async def get_job(
-    job_id: int,
-    db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> ProcessingJob:
-    job = get_processing_job_by_user_id(db, job_id, user)
-    if not job:
-        logger.error(f"Processing job {job_id} not found for user {user}")
+    try:
+        job = await get_processing_job_by_user_id(token, db, job_id)
+        if not job:
+            logger.error(f"Processing job {job_id} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Processing job {job_id} not found",
+            )
+        return job
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception(f"Error retrieving processing job {job_id}: {e}")
         raise HTTPException(
-            status_code=404,
-            detail=f"Processing job {job_id} not found",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving processing job {job_id}: {e}",
         )
-    return job
 
 
 @router.get(
@@ -139,16 +148,12 @@ async def get_job(
     responses={404: {"description": "Processing job not found"}},
 )
 async def get_job_results(
-    job_id: int,
-    db: Session = Depends(get_db),
-    user: str = Depends(get_current_user_id),
+    job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> Collection | None:
     try:
-        result = get_processing_job_results(db, job_id, user)
+        result = await get_processing_job_results(token, db, job_id)
         if not result:
-            logger.error(
-                f"Result for processing job {job_id} not found for user {user}"
-            )
+            logger.error(f"Result for processing job {job_id} not found")
             raise HTTPException(
                 status_code=404,
                 detail=f"Result for processing job {job_id} not found",
@@ -157,8 +162,8 @@ async def get_job_results(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.exception(f"Error creating processing job for user {user}: {e}")
+        logger.exception(f"Error getting results for processing job {job_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while creating the processing job: {e}",
+            detail=f"An error occurred while retrieving results for processing job {job_id}: {e}",
         )

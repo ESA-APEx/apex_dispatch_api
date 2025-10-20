@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
 
+from fastapi import HTTPException
+
 
 @patch("app.routers.unit_jobs.create_processing_job")
 def test_unit_jobs_create_201(
@@ -30,6 +32,20 @@ def test_unit_jobs_create_500(
     assert r.status_code == 500
     assert "could not launch the job" in r.json().get("detail", "").lower()
 
+@patch("app.routers.unit_jobs.create_processing_job")
+def test_unit_jobs_create_http_error(
+    mock_create_processing_job,
+    client,
+    fake_processing_job_request,
+):
+
+    mock_create_processing_job.side_effect = HTTPException(
+        status_code=503, detail="Oops, service unavailable"
+    )
+
+    r = client.post("/unit_jobs", json=fake_processing_job_request.model_dump())
+    assert r.status_code == 503
+    assert "service unavailable" in r.json().get("detail", "").lower()
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
 def test_unit_jobs_get_job_200(
@@ -55,6 +71,28 @@ def test_unit_jobs_get_job_404(mock_get_processing_job, client):
     r = client.get("/unit_jobs/1")
     assert r.status_code == 404
     assert "processing job 1 not found" in r.json().get("detail", "").lower()
+
+
+@patch("app.routers.unit_jobs.get_processing_job_by_user_id")
+def test_unit_jobs_get_job_500(mock_get_processing_job, client):
+
+    mock_get_processing_job.side_effect = RuntimeError("Database connection lost")
+
+    r = client.get("/unit_jobs/1")
+    assert r.status_code == 500
+    assert "database connection lost" in r.json().get("detail", "").lower()
+
+
+@patch("app.routers.unit_jobs.get_processing_job_by_user_id")
+def test_unit_jobs_get_job_http_error(mock_get_processing_job, client):
+
+    mock_get_processing_job.side_effect = HTTPException(
+        status_code=503, detail="Oops, service unavailable"
+    )
+
+    r = client.get("/unit_jobs/1")
+    assert r.status_code == 503
+    assert "service unavailable" in r.json().get("detail", "").lower()
 
 
 @patch("app.routers.unit_jobs.get_processing_job_results")

@@ -2,6 +2,7 @@ import json
 from typing import List, Optional
 
 from loguru import logger
+from app.auth import get_current_user_id
 from app.database.models.processing_job import (
     ProcessingJobRecord,
     get_job_by_user_id,
@@ -29,26 +30,24 @@ INACTIVE_JOB_STATUSES = {
 }
 
 
-def create_processing_job(
+async def create_processing_job(
+    token: str,
     database: Session,
-    user: str,
     request: BaseJobRequest,
     upscaling_task_id: int | None = None,
 ) -> ProcessingJobSummary:
+    user = get_current_user_id(token)
     logger.info(f"Creating processing job for {user} with summary: {request}")
 
     platform = get_processing_platform(request.label)
 
-    try:
-        job_id = platform.execute_job(
-            title=request.title,
-            details=request.service,
-            parameters=request.parameters,
-            format=request.format,
-        )
-    except Exception:
-        job_id = None
-        logger.exception(f"Could not create processing job for user {user}")
+    job_id = await platform.execute_job(
+        user_token=token,
+        title=request.title,
+        details=request.service,
+        parameters=request.parameters,
+        format=request.format,
+    )
 
     record = ProcessingJobRecord(
         title=request.title,
@@ -71,23 +70,28 @@ def create_processing_job(
     )
 
 
-def get_job_status(job: ProcessingJobRecord) -> ProcessingStatusEnum:
+async def get_job_status(token: str, job: ProcessingJobRecord) -> ProcessingStatusEnum:
     logger.info(
         f"Retrieving job status for job: {job.platform_job_id} (current: {job.status})"
     )
     platform = get_processing_platform(job.label)
     details = ServiceDetails.model_validate_json(job.service)
     return (
-        platform.get_job_status(job.platform_job_id, details)
+        await platform.get_job_status(
+            user_token=token, job_id=job.platform_job_id, details=details
+        )
         if job.platform_job_id
         else job.status
     )
 
 
-def get_processing_job_results(
-    database: Session, job_id: int, user_id: str
+async def get_processing_job_results(
+    token: str,
+    database: Session,
+    job_id: int,
 ) -> Collection | None:
-    record = get_job_by_user_id(database, job_id, user_id)
+    user = get_current_user_id(token)
+    record = get_job_by_user_id(database, job_id, user)
     if not record:
         return None
 
@@ -95,35 +99,39 @@ def get_processing_job_results(
     platform = get_processing_platform(record.label)
     details = ServiceDetails.model_validate_json(record.service)
     return (
-        platform.get_job_results(record.platform_job_id, details)
+        await platform.get_job_results(
+            user_token=token, job_id=record.platform_job_id, details=details
+        )
         if record.platform_job_id
         else None
     )
 
 
-def _refresh_job_status(
+async def _refresh_job_status(
+    token: str,
     database: Session,
     record: ProcessingJobRecord,
 ) -> ProcessingJobRecord:
-    new_status = get_job_status(record)
+    new_status = await get_job_status(token, record)
     if new_status != record.status:
         update_job_status_by_id(database, record.id, new_status)
         record.status = new_status
     return record
 
 
-def get_processing_jobs_by_user_id(
-    database: Session, user_id: str, upscaling_task_id: int | None = None
+async def get_processing_jobs_by_user_id(
+    token: str, database: Session, upscaling_task_id: int | None = None
 ) -> List[ProcessingJobSummary]:
-    logger.info(f"Retrieving processing jobs for user {user_id}")
+    user = get_current_user_id(token)
+    logger.info(f"Retrieving processing jobs for user {user}")
 
     jobs: List[ProcessingJobSummary] = []
-    records = get_jobs_by_user_id(database, user_id, upscaling_task_id)
+    records = get_jobs_by_user_id(database, user, upscaling_task_id)
 
     for record in records:
         # Only check status for active jobs
         if record.status not in INACTIVE_JOB_STATUSES:
-            record = _refresh_job_status(database, record)
+            record = await _refresh_job_status(token, database, record)
 
         jobs.append(
             ProcessingJobSummary(
@@ -138,16 +146,19 @@ def get_processing_jobs_by_user_id(
     return jobs
 
 
-def get_processing_job_by_user_id(
-    database: Session, job_id: int, user_id: str
+async def get_processing_job_by_user_id(
+    token: str,
+    database: Session,
+    job_id: int,
 ) -> Optional[ProcessingJob]:
-    logger.info(f"Retrieving processing job with ID {job_id} for user {user_id}")
-    record = get_job_by_user_id(database, job_id, user_id)
+    user = get_current_user_id(token)
+    logger.info(f"Retrieving processing job with ID {job_id} for user {user}")
+    record = get_job_by_user_id(database, job_id, user)
     if not record:
         return None
 
     if record.status not in INACTIVE_JOB_STATUSES:
-        record = _refresh_job_status(database, record)
+        record = await _refresh_job_status(token, database, record)
 
     return ProcessingJob(
         id=record.id,

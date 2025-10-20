@@ -13,12 +13,18 @@ class BaseProcessingPlatform(ABC):
     """
 
     @abstractmethod
-    def execute_job(
-        self, title: str, details: ServiceDetails, parameters: dict, format: OutputFormatEnum
+    async def execute_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
     ) -> str:
         """
         Execute a processing job on the platform with the given service ID and parameters.
 
+        :param user_token: The access token of the user executing the job.
         :param title: The title of the job to be executed.
         :param details: The service details containing the service ID and application.
         :param parameters: The parameters required for the job execution.
@@ -28,12 +34,13 @@ class BaseProcessingPlatform(ABC):
         pass
 
     @abstractmethod
-    def get_job_status(
-        self, job_id: str, details: ServiceDetails
+    async def get_job_status(
+        self, user_token: str, job_id: str, details: ServiceDetails
     ) -> ProcessingStatusEnum:
         """
         Retrieve the job status of a processing job that is running on the platform.
 
+        :param user_token: The access token of the user executing the job.
         :param job_id: The ID of the job on the platform
         :param details: The service details containing the service ID and application.
         :return: Return the processing status
@@ -41,10 +48,13 @@ class BaseProcessingPlatform(ABC):
         pass
 
     @abstractmethod
-    def get_job_results(self, job_id: str, details: ServiceDetails) -> Collection:
+    async def get_job_results(
+        self, user_token: str, job_id: str, details: ServiceDetails
+    ) -> Collection:
         """
         Retrieve the job results of a processing job that is running on the platform.
 
+        :param user_token: The access token of the user executing the job.
         :param job_id: The ID of the job on the platform
         :param details: The service details containing the service ID and application.
         :return: STAC collection representing the results.
