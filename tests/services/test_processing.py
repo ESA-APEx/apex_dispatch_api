@@ -152,6 +152,60 @@ async def test_create_processing_job_calls_platform_execute_failure(
 
 
 @pytest.mark.asyncio
+@patch("app.services.processing.save_job_to_db")
+@patch("app.services.processing.get_processing_platform")
+@patch("app.services.processing.get_current_user_id")
+async def test_create_processing_job_calls_platform_execute_failure_save_when_upscaling(
+    mock_current_user, mock_get_platform, mock_save_job_to_db, fake_db_session
+):
+
+    # Arrange
+    fake_job = make_job_request()
+    fake_result = 1
+    fake_summary = ProcessingJobSummary(
+        id=fake_result,
+        title=fake_job.title,
+        label=ProcessTypeEnum.OPENEO,
+        status=ProcessingStatusEnum.CREATED,
+        parameters=fake_job.parameters,
+        service=fake_job.service,
+    )
+    fake_record = ProcessingJobRecord(
+        id=fake_result,
+        title=fake_summary.title,
+        label=ProcessTypeEnum.OPENEO,
+        status=ProcessingStatusEnum.CREATED,
+    )
+    fake_platform = MagicMock()
+
+    fake_platform.execute_job.side_effect = SystemError(
+        "Could not authenticate with platform"
+    )
+    mock_get_platform.return_value = fake_platform
+
+    mock_save_job_to_db.return_value = fake_record
+
+    mock_current_user.return_value = "foobar"
+
+    result = await create_processing_job("foobar-token", fake_db_session, fake_job, 1)
+
+    mock_get_platform.assert_called_once_with(fake_job.label)
+    fake_platform.execute_job.assert_called_once_with(
+        user_token="foobar-token",
+        title=fake_job.title,
+        details=fake_job.service,
+        parameters=fake_job.parameters,
+        format=fake_job.format,
+    )
+
+    mock_save_job_to_db.assert_called_once()
+    args, _ = mock_save_job_to_db.call_args
+    saved_record = args[1]
+    assert saved_record.status == ProcessingStatusEnum.FAILED
+    assert result == fake_summary
+
+
+@pytest.mark.asyncio
 @patch("app.services.processing.get_processing_platform")
 @patch("app.services.processing.get_current_user_id")
 async def test_create_processing_job_platform_raises(
