@@ -47,27 +47,9 @@ docker run -d --name postgres -p 5432:5432 \
 ```
 
 
-### Configure environment variables
+### Configure the environment
 
-Create a `.env` file in the root directory and define your environment variables. For example:
-
-```
-APP_NAME="APEx Dispatch API"
-APP_DESCRIPTION="APEx Dispatch Service API to run jobs and upscaling tasks"
-APP_HOST=0.0.0.0
-APP_PORT=8000
-APP_ENV=development
-
-# Keycloak
-KEYCLOAK_HOST=auth.dev.apex.esa.int
-KEYCLOAK_REALM=apex
-
-# Database
-DATABASE_URL=postgresql+psycopg2://testuser:secret@localhost:5432/testdb
-
-# AUTH
-OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED="CDSE/<client-id>/<client-secret>"
-```
+Create a `.env` file in the root directory of the project and set the necessary environment variables as described in the [Environment Configuration](environment.md) documentation.
 
 ### Apply Database Migrations
 Ensure your database schema is up-to-date by running:
