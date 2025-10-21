@@ -1,37 +1,20 @@
 import datetime
-import os
-import re
-from typing import Any
-import urllib
-import jwt
 
-from loguru import logger
+import jwt
 import openeo
 import requests
 from dotenv import load_dotenv
-
-from app.auth import exchange_token_for_provider
-from app.config.settings import settings
-from app.platforms.base import BaseProcessingPlatform
-from app.platforms.dispatcher import register_platform
-from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
-from app.schemas.unit_job import ServiceDetails
+from loguru import logger
 from stac_pydantic import Collection
 
+from app.auth import exchange_token_for_provider
+from app.config.settings import OpenEOAuthMethod, settings
+from app.platforms.base import BaseProcessingPlatform
+from app.platforms.dispatcher import register_platform
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.unit_job import ServiceDetails
+
 load_dotenv()
-
-# Constants
-BACKEND_AUTH_ENV_MAP = {
-    "openeo.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
-    "openeofed.dataspace.copernicus.eu": "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED",
-    "openeo.vito.be": "OPENEO_AUTH_CLIENT_CREDENTIALS_OPENEO_VITO",
-}
-
-BACKEND_PROVIDER_ID_MAP = {
-    "openeo.dataspace.copernicus.eu": "esa-eoiam",
-    "openeofed.dataspace.copernicus.eu": "esa-eoiam",
-    "openeo.vito.be": "egi",
-}
 
 
 @register_platform(ProcessTypeEnum.OPENEO)
@@ -72,6 +55,28 @@ class OpenEOPlatform(BaseProcessingPlatform):
             logger.warning("No JWT bearer token found in connection.")
             return True
 
+    async def _get_bearer_token(self, user_token: str, url: str) -> str:
+        """
+        Retrieve the bearer token for the OpenEO backend. This is done  by exchanging the user's
+        token for a platform-specific token using the configured token provider.
+
+        :param url: The URL of the OpenEO backend.
+        :return: The bearer token as a string.
+        """
+
+        provider = settings.openeo_backend_config[url].token_provider
+        token_prefix = settings.openeo_backend_config[url].token_prefix
+
+        if not provider or not token_prefix:
+            raise ValueError(
+                f"Backend '{url}' must define 'token_provider' and 'token_prefix'"
+            )
+
+        platform_token = await exchange_token_for_provider(
+            initial_token=user_token, provider=provider
+        )
+        return f"{token_prefix}/{platform_token['access_token']}"
+
     async def _authenticate_user(
         self, user_token: str, url: str, connection: openeo.Connection
     ) -> openeo.Connection:
@@ -79,16 +84,15 @@ class OpenEOPlatform(BaseProcessingPlatform):
         Authenticate the connection using the user's token.
         This method can be used to set the user's token for the connection.
         """
-        if settings.openeo_enable_user_credentials:
+
+        if url not in settings.openeo_backend_config:
+            raise ValueError(f"No OpenEO backend configuration found for URL: {url}")
+
+        if settings.openeo_auth_method == OpenEOAuthMethod.USER_CREDENTIALS:
             logger.debug("Using user credentials for OpenEO connection authentication")
-            provider = self._get_backend_config(BACKEND_PROVIDER_ID_MAP, url)
-            platform_token = await exchange_token_for_provider(
-                initial_token=user_token, provider=provider
-            )
-            connection.authenticate_bearer_token(
-                bearer_token=platform_token["access_token"]
-            )
-        else:
+            bearer_token = await self._get_bearer_token(user_token, url)
+            connection.authenticate_bearer_token(bearer_token=bearer_token)
+        elif settings.openeo_auth_method == OpenEOAuthMethod.CLIENT_CREDENTIALS:
             logger.debug(
                 "Using client credentials for OpenEO connection authentication"
             )
@@ -98,6 +102,10 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 provider_id=provider_id,
                 client_id=client_id,
                 client_secret=client_secret,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported OpenEO authentication method: {settings.openeo_auth_method}"
             )
 
         return connection
@@ -119,22 +127,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
         self._connection_cache[url] = connection
         return connection
 
-    def _get_backend_config(self, map: Any, url: str) -> str:
-        """
-        Get the authentication provider for the OpenEO backend.
-
-        :param url: The URL of the OpenEO backend.
-        :return: The name of the authentication provider.
-        """
-        if not re.match(r"https?://", url):
-            url = f"https://{url}"
-
-        hostname = urllib.parse.urlparse(url).hostname
-        if not hostname or hostname not in map:
-            raise ValueError(f"Unsupported backend: {url} (hostname={hostname})")
-
-        return map[hostname]
-
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
         Get client credentials for the OpenEO backend.
@@ -143,16 +135,17 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :param url: The URL of the OpenEO backend.
         :return: A tuple containing provider ID, client ID, and client secret.
         """
-        env_var = self._get_backend_config(BACKEND_AUTH_ENV_MAP, url)
-        credentials_str = os.getenv(env_var)
+        credentials_str = settings.openeo_backend_config[url].client_credentials
 
         if not credentials_str:
-            raise ValueError(f"Environment variable {env_var} not set.")
+            raise ValueError(
+                f"Client credentials not configured for OpenEO backend at {url}"
+            )
 
         parts = credentials_str.split("/", 2)
         if len(parts) != 3:
             raise ValueError(
-                f"Invalid client credentials format in {env_var},"
+                f"Invalid client credentials format for {url},"
                 "expected 'provider_id/client_id/client_secret'."
             )
         provider_id, client_id, client_secret = parts

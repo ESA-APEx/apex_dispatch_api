@@ -39,26 +39,48 @@ async def create_processing_job(
     user = get_current_user_id(token)
     logger.info(f"Creating processing job for {user} with summary: {request}")
 
-    platform = get_processing_platform(request.label)
+    try:
+        platform = get_processing_platform(request.label)
 
-    job_id = await platform.execute_job(
-        user_token=token,
-        title=request.title,
-        details=request.service,
-        parameters=request.parameters,
-        format=request.format,
-    )
+        job_id = await platform.execute_job(
+            user_token=token,
+            title=request.title,
+            details=request.service,
+            parameters=request.parameters,
+            format=request.format,
+        )
 
-    record = ProcessingJobRecord(
-        title=request.title,
-        label=request.label,
-        status=ProcessingStatusEnum.CREATED if job_id else ProcessingStatusEnum.FAILED,
-        user_id=user,
-        platform_job_id=job_id,
-        parameters=json.dumps(request.parameters),
-        service=request.service.model_dump_json(),
-        upscaling_task_id=upscaling_task_id,
-    )
+        record = ProcessingJobRecord(
+            title=request.title,
+            label=request.label,
+            status=(
+                ProcessingStatusEnum.CREATED if job_id else ProcessingStatusEnum.FAILED
+            ),
+            user_id=user,
+            platform_job_id=job_id,
+            parameters=json.dumps(request.parameters),
+            service=request.service.model_dump_json(),
+            upscaling_task_id=upscaling_task_id,
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating processing job: {e}")
+
+        if upscaling_task_id:
+            # Do create the record in case of upscaling task to mark it as failed
+            record = ProcessingJobRecord(
+                title=request.title,
+                label=request.label,
+                status=ProcessingStatusEnum.FAILED,
+                user_id=user,
+                platform_job_id=None,
+                parameters=json.dumps(request.parameters),
+                service=request.service.model_dump_json(),
+                upscaling_task_id=upscaling_task_id,
+            )
+        else:
+            raise e
+
     record = save_job_to_db(database, record)
     return ProcessingJobSummary(
         id=record.id,

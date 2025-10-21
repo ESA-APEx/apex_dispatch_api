@@ -7,9 +7,8 @@ import pytest
 import requests
 
 from app.config.settings import settings
+from app.config.openeo.settings import OpenEOBackendConfig, OpenEOAuthMethod
 from app.platforms.implementations.openeo import (
-    BACKEND_AUTH_ENV_MAP,
-    BACKEND_PROVIDER_ID_MAP,
     OpenEOPlatform,
 )
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
@@ -38,9 +37,17 @@ def platform():
 
 @pytest.fixture(autouse=True)
 def mock_env(monkeypatch):
-    # Default environment variable for CDSEFED credentials
-    monkeypatch.setenv(
-        "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED", "provider123/client123/secret123"
+    settings.openeo_backend_config["https://openeo.dataspace.copernicus.eu"] = (
+        OpenEOBackendConfig(
+            client_credentials="cdse-provider123/cdse-client123/cdse-secret123",
+            token_prefix="cdse-prefix",
+            token_provider="cdse-provider",
+        )
+    )
+    settings.openeo_backend_config["https://openeo.vito.be"] = OpenEOBackendConfig(
+        client_credentials="vito-provider123/vito-client123/vito-secret123",
+        token_prefix="vito-prefix",
+        token_provider="vito-provider",
     )
 
 
@@ -54,33 +61,7 @@ def service_details():
 
 def test_get_client_credentials_success(platform):
     creds = platform._get_client_credentials("https://openeo.dataspace.copernicus.eu")
-    assert creds == ("provider123", "client123", "secret123")
-
-
-def test_get_client_credentials_missing_env(platform, monkeypatch):
-    monkeypatch.delenv("OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED")
-    with pytest.raises(ValueError, match="not set"):
-        platform._get_client_credentials("https://openeo.dataspace.copernicus.eu")
-
-
-def test_get_client_credentials_invalid_format(platform, monkeypatch):
-    monkeypatch.setenv("OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED", "invalid_format")
-    with pytest.raises(ValueError, match="Invalid client credentials format"):
-        platform._get_client_credentials("https://openeo.dataspace.copernicus.eu")
-
-
-def test_get_client_credentials_env_var_success(platform):
-    env_var = platform._get_backend_config(
-        BACKEND_AUTH_ENV_MAP, "https://openeo.dataspace.copernicus.eu"
-    )
-    assert env_var == "OPENEO_AUTH_CLIENT_CREDENTIALS_CDSEFED"
-
-
-def test_get_client_credentials_env_var_unsupported_backend(platform):
-    with pytest.raises(ValueError, match="Unsupported backend"):
-        platform._get_backend_config(
-            BACKEND_AUTH_ENV_MAP, "https://unsupported.example.com"
-        )
+    assert creds == ("cdse-provider123", "cdse-client123", "cdse-secret123")
 
 
 @patch("app.platforms.implementations.openeo.requests.get")
@@ -258,11 +239,9 @@ def test_connection_expired_no_bearer(platform):
     "app.platforms.implementations.openeo.exchange_token_for_provider",
     new_callable=AsyncMock,
 )
-async def test_authenticate_user_with_user_credentials(
-    mock_exchange, platform, monkeypatch
-):
+async def test_authenticate_user_with_user_credentials(mock_exchange, platform):
     # enable user credentials path
-    monkeypatch.setattr(settings, "openeo_enable_user_credentials", True)
+    settings.openeo_auth_method = OpenEOAuthMethod.USER_CREDENTIALS
 
     # set up a fake connection with the expected method
     conn = MagicMock()
@@ -272,15 +251,15 @@ async def test_authenticate_user_with_user_credentials(
     mock_exchange.return_value = {"access_token": "exchanged-token"}
 
     # choose a url that maps via BACKEND_PROVIDER_ID_MAP (hostname only)
-    url = "https://openeo.vito.be/some/path"
+    url = "https://openeo.vito.be"
     returned = await platform._authenticate_user("user-token", url, conn)
 
     # assertions
     mock_exchange.assert_awaited_once_with(
-        initial_token="user-token", provider=BACKEND_PROVIDER_ID_MAP["openeo.vito.be"]
+        initial_token="user-token", provider="vito-provider"
     )
     conn.authenticate_bearer_token.assert_called_once_with(
-        bearer_token="exchanged-token"
+        bearer_token="vito-prefix/exchanged-token"
     )
     assert returned is conn
 
@@ -294,18 +273,11 @@ async def test_authenticate_user_with_client_credentials(
     mock_exchange, monkeypatch, platform
 ):
     # disable user credentials path -> use client credentials
-    monkeypatch.setattr(settings, "openeo_enable_user_credentials", False)
+    settings.openeo_auth_method = OpenEOAuthMethod.CLIENT_CREDENTIALS
 
     # prepare fake connection and spy method
     conn = MagicMock()
     conn.authenticate_oidc_client_credentials = MagicMock()
-
-    # patch _get_client_credentials to avoid env dependency
-    monkeypatch.setattr(
-        OpenEOPlatform,
-        "_get_client_credentials",
-        lambda self, url: ("prov-id", "client-id", "client-secret"),
-    )
 
     # ensure the exchange mock exists but is not awaited
     url = "https://openeo.vito.be"
@@ -313,7 +285,9 @@ async def test_authenticate_user_with_client_credentials(
 
     # client creds path should be used
     conn.authenticate_oidc_client_credentials.assert_called_once_with(
-        provider_id="prov-id", client_id="client-id", client_secret="client-secret"
+        provider_id="vito-provider123",
+        client_id="vito-client123",
+        client_secret="vito-secret123",
     )
     # token-exchange should not be awaited
     mock_exchange.assert_not_awaited()
