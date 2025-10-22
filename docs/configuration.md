@@ -28,15 +28,20 @@ Here is an example of how to structure this configuration:
 ```json
 {
   "https://openeo.backend1.com": {
+    "auth_method": "CLIENT_CREDENTIALS",
     "client_credentials": "oidc_provider/client_id/secret_secret",
+  },
+ "https://openeo.backend2.com": {
+    "auth_method": "USER_CREDENTIALS",
     "token_provider": "backend",
     "token_prefix": "oidc/backend"
-  },
+  }, 
   ...
 }
 ```
 Each backend configuration can include the following fields:
 
+- `auth_method`: The authentication method to use for the openEO backend. This value can either be `USER_CREDENTIALS` or `CLIENT_CREDENTIALS`. The default value is set to `USER_CREDENTIALS`.
 - `client_credentials`: The client credentials for authenticating with the openEO backend. This is required if the `OPENEO_AUTH_METHOD` is set to `CLIENT_CREDENTIALS`. It is a single string in the format `oidc_provider/client_id/client_secret` that should be split into its components when used.
 - `token_provider`: The provider refers to the OIDC IDP alias that needs to be used to exchange the incoming token to an external token. This is required if the `OPENEO_AUTH_METHOD` is set to `USER_CREDENTIALS`. For example, if you have a Keycloak setup with an IDP alias `openeo-idp`, you would set this field to `openeo-idp`. This means that when a user authenticates with their token, the Dispatcher will use the `openeo-idp` to exchange the user's token for a token that is valid for the openEO backend.
 - `token_prefix`: An optional prefix to be added to the token when authenticating (e.g., "CDSE"). The prefix is required by some backends to identify the token type. This will be prepended to the exchanged token when authenticating with the openEO backend.
@@ -64,5 +69,5 @@ KEYCLOAK_CLIENT_SECRET=apex-client-secret
 
 # openEO Settings
 OPENEO_AUTH_METHOD=USER_CREDENTIALS
-OPENEO_BACKENDS='{"https://openeo.backend1.com" {"client_credentials": "oidc_provider/client_id/secret_secret", "token_provider": "backend", "token_prefix": "oidc/backend"}}'
+OPENEO_BACKENDS='{"https://openeo.backend1.com" {"auth_method": "CLIENT_CREDENTIALS", "client_credentials": "oidc_provider/client_id/secret_secret"}, "https://openeo.backend2.com" {"auth_method": "USER_CREDENTIALS",  "token_provider": "backend", "token_prefix": "oidc/backend"}}'
 ```

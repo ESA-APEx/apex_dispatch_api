@@ -88,11 +88,17 @@ class OpenEOPlatform(BaseProcessingPlatform):
         if url not in settings.openeo_backend_config:
             raise ValueError(f"No OpenEO backend configuration found for URL: {url}")
 
-        if settings.openeo_auth_method == OpenEOAuthMethod.USER_CREDENTIALS:
+        if (
+            settings.openeo_backend_config[url].auth_method
+            == OpenEOAuthMethod.USER_CREDENTIALS
+        ):
             logger.debug("Using user credentials for OpenEO connection authentication")
             bearer_token = await self._get_bearer_token(user_token, url)
             connection.authenticate_bearer_token(bearer_token=bearer_token)
-        elif settings.openeo_auth_method == OpenEOAuthMethod.CLIENT_CREDENTIALS:
+        elif (
+            settings.openeo_backend_config[url].auth_method
+            == OpenEOAuthMethod.CLIENT_CREDENTIALS
+        ):
             logger.debug(
                 "Using client credentials for OpenEO connection authentication"
             )
@@ -105,7 +111,8 @@ class OpenEOPlatform(BaseProcessingPlatform):
             )
         else:
             raise ValueError(
-                f"Unsupported OpenEO authentication method: {settings.openeo_auth_method}"
+                "Unsupported OpenEO authentication method: "
+                f"{settings.openeo_backend_config[url].auth_method}"
             )
 
         return connection

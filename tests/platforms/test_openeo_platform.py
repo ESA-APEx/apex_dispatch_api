@@ -240,8 +240,10 @@ def test_connection_expired_no_bearer(platform):
     new_callable=AsyncMock,
 )
 async def test_authenticate_user_with_user_credentials(mock_exchange, platform):
+    url = "https://openeo.vito.be"
+
     # enable user credentials path
-    settings.openeo_auth_method = OpenEOAuthMethod.USER_CREDENTIALS
+    settings.openeo_backend_config[url].auth_method = OpenEOAuthMethod.USER_CREDENTIALS
 
     # set up a fake connection with the expected method
     conn = MagicMock()
@@ -251,7 +253,6 @@ async def test_authenticate_user_with_user_credentials(mock_exchange, platform):
     mock_exchange.return_value = {"access_token": "exchanged-token"}
 
     # choose a url that maps via BACKEND_PROVIDER_ID_MAP (hostname only)
-    url = "https://openeo.vito.be"
     returned = await platform._authenticate_user("user-token", url, conn)
 
     # assertions
@@ -272,15 +273,17 @@ async def test_authenticate_user_with_user_credentials(mock_exchange, platform):
 async def test_authenticate_user_with_client_credentials(
     mock_exchange, monkeypatch, platform
 ):
+    url = "https://openeo.vito.be"
     # disable user credentials path -> use client credentials
-    settings.openeo_auth_method = OpenEOAuthMethod.CLIENT_CREDENTIALS
+    settings.openeo_backend_config[url].auth_method = (
+        OpenEOAuthMethod.CLIENT_CREDENTIALS
+    )
 
     # prepare fake connection and spy method
     conn = MagicMock()
     conn.authenticate_oidc_client_credentials = MagicMock()
 
     # ensure the exchange mock exists but is not awaited
-    url = "https://openeo.vito.be"
     returned = await platform._authenticate_user("user-token", url, conn)
 
     # client creds path should be used

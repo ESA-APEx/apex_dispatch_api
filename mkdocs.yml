@@ -9,6 +9,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting_started.md
+  - Configuration: configuration.md
   - Contributing: contributing.md
   - Architecture: architecture.md
 
