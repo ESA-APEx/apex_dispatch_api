@@ -1,0 +1,44 @@
+replicaCount: 1
+
+image:
+  repository: apex-dispatch-api
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+ingress:
+  enabled: true
+  annotations: {}
+  hosts:
+    - host: apex-dispatch-api.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+app:
+  name: "APEx Dispatch API"
+  environment: "development"
+  corsAllowedOrigins: "*"
+
+keycloak:
+  host: "auth.dev.apex.esa.int"
+  realm: "apex"
+  
+secrets:
+  create: false
+  name: apex-dispatch-api-secrets
+  KEYCLOAK_CLIENT_ID: ""
+  KEYCLOAK_CLIENT_SECRET: ""
+  DATABASE_URL: ""
+  OPENEO_BACKENDS: ""
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
