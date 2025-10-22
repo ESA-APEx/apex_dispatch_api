@@ -49,7 +49,7 @@ docker run -d --name postgres -p 5432:5432 \
 
 ### Configure the environment
 
-Create a `.env` file in the root directory of the project and set the necessary environment variables as described in the [Environment Configuration](environment.md) documentation.
+Create a `.env` file in the root directory of the project and set the necessary environment variables as described in the [Environment Configuration](configuration.md) documentation.
 
 ### Apply Database Migrations
 Ensure your database schema is up-to-date by running:

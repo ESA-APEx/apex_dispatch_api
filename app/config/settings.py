@@ -41,11 +41,6 @@ class Settings(BaseSettings):
     )
 
     # openEO Settings
-    openeo_auth_method: OpenEOAuthMethod = Field(
-        default=OpenEOAuthMethod.USER_CREDENTIALS,
-        json_schema_extra={"env": "OPENEO_AUTH_METHOD"},
-    )
-
     openeo_backends: str | None = Field(
         default="", json_schema_extra={"env": "OPENEO_BACKENDS"}
     )
@@ -60,21 +55,21 @@ class Settings(BaseSettings):
         required_fields = []
         if self.openeo_backends:
 
-            if self.openeo_auth_method == OpenEOAuthMethod.CLIENT_CREDENTIALS:
-                required_fields = ["client_credentials"]
-            elif self.openeo_auth_method == OpenEOAuthMethod.USER_CREDENTIALS:
-                required_fields = ["token_provider"]
-
             try:
                 raw = json.loads(self.openeo_backends)
                 for host, cfg in raw.items():
                     backend = OpenEOBackendConfig(**cfg)
 
+                    if backend.auth_method == OpenEOAuthMethod.CLIENT_CREDENTIALS:
+                        required_fields = ["client_credentials"]
+                    elif backend.auth_method == OpenEOAuthMethod.USER_CREDENTIALS:
+                        required_fields = ["token_provider"]
+
                     for field in required_fields:
                         if not getattr(backend, field, None):
                             raise ValueError(
                                 f"Backend '{host}' must define '{field}' when "
-                                f"OPENEO_AUTH_METHOD={self.openeo_auth_method}"
+                                f"OPENEO_AUTH_METHOD={backend.auth_method}"
                             )
                     self.openeo_backend_config[host] = OpenEOBackendConfig(**cfg)
             except Exception:
