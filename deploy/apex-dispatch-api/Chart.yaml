@@ -1,0 +1,6 @@
+apiVersion: v2
+name: apex-dispatch-api
+description: APEx Dispatch API
+type: application
+version: 0.1.0
+appVersion: "latest"
