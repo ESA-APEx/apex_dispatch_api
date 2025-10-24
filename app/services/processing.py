@@ -1,6 +1,7 @@
 import json
 from typing import List, Optional
 
+from fastapi import Response
 from loguru import logger
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
@@ -191,4 +192,21 @@ async def get_processing_job_by_user_id(
         parameters=json.loads(record.parameters or "{}"),
         created=record.created,
         updated=record.updated,
+    )
+
+
+async def create_synchronous_job(
+    user_token: str,
+    request: BaseJobRequest,
+) -> Response:
+    logger.info(f"Creating synchronous job with summary: {request}")
+
+    platform = get_processing_platform(request.label)
+
+    return await platform.execute_synchronous_job(
+        user_token=user_token,
+        title=request.title,
+        details=request.service,
+        parameters=request.parameters,
+        format=request.format,
     )

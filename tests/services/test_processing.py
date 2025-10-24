@@ -13,6 +13,7 @@ from app.schemas.unit_job import (
 )
 from app.services.processing import (
     create_processing_job,
+    create_synchronous_job,
     get_processing_job_results,
     get_job_status,
     get_processing_job_by_user_id,
@@ -481,3 +482,55 @@ async def test_get_processing_job_by_user_id_returns_none(
 
     mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
     assert result is None
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.get_processing_platform")
+async def test_create_sync_job_calls_platform_execute(
+    mock_get_platform, fake_sync_response, fake_processing_job_request
+):
+
+    # Arrange
+    fake_platform = MagicMock()
+
+    fake_platform.execute_synchronous_job = AsyncMock(return_value=fake_sync_response)
+    mock_get_platform.return_value = fake_platform
+
+    result = await create_synchronous_job("foobar-token", fake_processing_job_request)
+
+    mock_get_platform.assert_called_once_with(fake_processing_job_request.label)
+    fake_platform.execute_synchronous_job.assert_called_once_with(
+        user_token="foobar-token",
+        title=fake_processing_job_request.title,
+        details=fake_processing_job_request.service,
+        parameters=fake_processing_job_request.parameters,
+        format=fake_processing_job_request.format,
+    )
+    assert result == fake_sync_response
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.get_processing_platform")
+async def test_create_sync_job_calls_platform_execute_failure(
+    mock_get_platform, fake_sync_response, fake_processing_job_request
+):
+
+    # Arrange
+    fake_platform = MagicMock()
+
+    fake_platform.execute_synchronous_job.side_effect = SystemError(
+        "Could not authenticate with platform"
+    )
+    mock_get_platform.return_value = fake_platform
+
+    with pytest.raises(SystemError):
+        await create_synchronous_job("foobar-token", fake_processing_job_request)
+
+    mock_get_platform.assert_called_once_with(fake_processing_job_request.label)
+    fake_platform.execute_synchronous_job.assert_called_once_with(
+        user_token="foobar-token",
+        title=fake_processing_job_request.title,
+        details=fake_processing_job_request.service,
+        parameters=fake_processing_job_request.parameters,
+        format=fake_processing_job_request.format,
+    )

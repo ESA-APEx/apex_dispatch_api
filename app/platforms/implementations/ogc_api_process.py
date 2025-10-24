@@ -1,3 +1,4 @@
+from fastapi import Response
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
@@ -20,6 +21,16 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         parameters: dict,
         format: OutputFormatEnum,
     ) -> str:
+        raise NotImplementedError("OGC API Process job execution not implemented yet.")
+
+    async def execute_synchronous_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
+    ) -> Response:
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
 
     async def get_job_status(
