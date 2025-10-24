@@ -1,5 +1,6 @@
 import datetime
 
+from fastapi import Response
 import jwt
 import openeo
 import requests
@@ -179,14 +180,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         return process_id
 
-    async def execute_job(
-        self,
-        user_token: str,
-        title: str,
-        details: ServiceDetails,
-        parameters: dict,
-        format: OutputFormatEnum,
-    ) -> str:
+    async def _build_datacube(
+        self, user_token: str, title: str, details: ServiceDetails, parameters: dict
+    ) -> openeo.DataCube:
         process_id = self._get_process_id(details.application)
 
         logger.debug(
@@ -195,13 +191,41 @@ class OpenEOPlatform(BaseProcessingPlatform):
         )
 
         connection = await self._setup_connection(user_token, details.endpoint)
-        service = connection.datacube_from_process(
+        return connection.datacube_from_process(
             process_id=process_id, namespace=details.application, **parameters
         )
+
+    async def execute_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
+    ) -> str:
+        service = await self._build_datacube(user_token, title, details, parameters)
         job = service.create_job(title=title, out_format=format)
+        logger.info(f"Executing OpenEO batch job with title={title}")
         job.start()
 
         return job.job_id
+
+    async def execute_synchronous_job(
+        self,
+        user_token: str,
+        title: str,
+        details: ServiceDetails,
+        parameters: dict,
+        format: OutputFormatEnum,
+    ) -> Response:
+        service = await self._build_datacube(user_token, title, details, parameters)
+        logger.info("Executing synchronous OpenEO job")
+        response = service.execute(auto_decode=False)
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            media_type=response.headers.get("Content-Type"),
+        )
 
     def _map_openeo_status(self, status: str) -> ProcessingStatusEnum:
         """

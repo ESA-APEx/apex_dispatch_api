@@ -9,6 +9,8 @@ from app.schemas.unit_job import ProcessingJobSummary
 
 from stac_pydantic import Collection
 
+from tests.conftest import fake_sync_response
+
 
 class DummyPlatform(BaseProcessingPlatform):
     def __init__(self, result: Collection = None):
@@ -19,6 +21,9 @@ class DummyPlatform(BaseProcessingPlatform):
         self, title: str, details: dict, parameters: dict
     ) -> ProcessingJobSummary:
         return ProcessingJobSummary(id="dummy-job-id", title=title, status="created")
+
+    def execute_synchronous_job(self, user_token, title, details, parameters, format):
+        return fake_sync_response()
 
     def get_job_status(self, job_id, details):
         return ProcessingStatusEnum.FINISHED

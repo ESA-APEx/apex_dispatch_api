@@ -1,4 +1,5 @@
 import datetime
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -377,3 +378,30 @@ async def test_setup_connection_propagates_auth_error(
 
     # authenticate failed, connection must not be cached
     assert url not in platform._connection_cache
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(OpenEOPlatform, "_get_process_id", return_value="process123")
+async def test_execute_sync_job_success(
+    mock_pid, mock_connect, platform, service_details
+):
+    mock_response = MagicMock()
+    mock_response.content = '{"id": "foobar"}'
+    mock_response.status_code = 200
+    mock_connection = MagicMock()
+    mock_connect.return_value = mock_connection
+    mock_connection.datacube_from_process.return_value.execute.return_value = (
+        mock_response
+    )
+    response = await platform.execute_synchronous_job(
+        user_token="fake_token",
+        title="Test Job",
+        details=service_details,
+        parameters={"param1": "value1"},
+        format=OutputFormatEnum.GEOTIFF,
+    )
+
+    assert response.status_code == mock_response.status_code
+    assert json.loads(response.body) == json.loads(mock_response.content)
+    mock_connect.assert_called_once_with("fake_token", service_details.endpoint)

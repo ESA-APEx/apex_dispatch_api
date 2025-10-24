@@ -1,6 +1,7 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
+from fastapi import Response
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -187,4 +188,13 @@ def fake_result():
                 interval=[["2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"]]
             ),
         ),
+    )
+
+
+@pytest.fixture
+def fake_sync_response():
+    return Response(
+        content='{"status":"success","data":{"message":"Synchronous job completed successfully."}}',
+        media_type="application/json",
+        status_code=200,
     )
