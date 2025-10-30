@@ -1,0 +1,60 @@
+version: "3.9"
+
+volumes:
+  db-data-perf:
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: perf_user
+      POSTGRES_PASSWORD: perf_pass
+      POSTGRES_DB: perf_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data-perf:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U perf_user -d perf_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: apex-dispatch-api:perf
+    restart: unless-stopped
+    environment:
+      APP_ENV: development
+      KEYCLOAK_HOST: ${KEYCLOAK_HOST}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      DATABASE_URL: postgresql+psycopg2://perf_user:perf_pass@db:5432/perf_db
+      OPENEO_BACKENDS: ${OPENEO_BACKENDS_PERFOMANCE}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    healthcheck:
+      # adjust path if your health endpoint differs
+      test: ["CMD-SHELL", "curl -f http://localhost:${APP_PORT:-8000}/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    image: apex-dispatch-api:perf
+    environment:
+      DATABASE_URL: postgresql+psycopg2://perf_user:perf_pass@db:5432/perf_db
+    depends_on:
+      db:
+        condition: service_healthy
+    # run the migration only after the app is reachable, then exit
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "alembic upgrade head"
