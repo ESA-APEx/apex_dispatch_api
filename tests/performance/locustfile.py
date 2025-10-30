@@ -38,7 +38,9 @@ class DispatchUser(HttpUser):
             "label": "openeo",
             "service": {
                 "endpoint": "https://openeo.vito.be",
-                "application": "https://openeo.vito.be/openeo/1.2/processes/u:ff5c137fbbbf409d14a99875b97109874058056a9a02193e6fde8217d2f1f3e8@egi.eu/timeseries_graph",
+                "application": "https://openeo.vito.be/openeo/1.2/processes/"
+                + "u:ff5c137fbbbf409d14a99875b97109874058056a9a02193e6fde8217d2f1f3e8@egi.eu/"
+                + "timeseries_graph",
             },
             "format": "json",
             "parameters": {
