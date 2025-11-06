@@ -1,8 +1,10 @@
+alembic
 cryptography
 fastapi
 flake8
 geojson_pydantic
 httpx
+locust
 loguru
 mkdocs 
 mkdocs-jupyter
