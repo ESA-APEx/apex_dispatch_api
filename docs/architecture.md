@@ -122,9 +122,34 @@ Authentication and authorization are critical components of the APEx Dispatch AP
 In this scenario, all jobs are executed on the external platforms using a generic APEx service account that has access to them. This means that each job or upscaling task triggered through the API is executed on the platform under the APEx account, rather than the actual user’s identity. However, the Dispatch API maintains the link between the platform job ID and the user who initiated the request in its database.
 
 ```mermaid
-flowchart LR
-    C["Alice"] -- Request job---> D["APEx Dispatch API"]
-    D--Launch job as user APEx -->P1[Platform ]
+sequenceDiagram
+    participant UI as Client (UI)
+    box APEx
+        participant APEX_KEYCLOAK as APEx Keycloak
+        participant API as APEx Dispatch API
+    end
+    box Platform
+        participant EXTERNAL_KEYCLOAK as Platform Keycloak
+        participant EXTERNAL_API as Platform API
+    end
+
+    %% Flow
+    Note over UI,APEX_KEYCLOAK: Step 1 — User Authentication
+    UI->>APEX_KEYCLOAK: Authenticate user (OIDC login)
+    APEX_KEYCLOAK-->>UI: Return APEx user access token
+
+    Note over UI,API: Step 2 — Call APEx API with token
+    UI->>API: Request (Authorization: Bearer user_token)
+
+    Note over API,EXTERNAL_KEYCLOAK: Step 3 — Token Exchange
+    API->>APEX_KEYCLOAK: Initiate token exchange
+    APEX_KEYCLOAK->>EXTERNAL_KEYCLOAK: Request platform access token (via token exchange)
+    EXTERNAL_KEYCLOAK-->>APEX_KEYCLOAK: Return platform access token
+    APEX_KEYCLOAK-->>API: Return platform access token
+
+    Note over API,EXTERNAL_API: Step 4 — Access Platform Resource
+    API->>EXTERNAL_API: Invoke job (Authorization: Bearer platform_token)
+    EXTERNAL_API-->>API: Job accepted/response
 ```
 
 **Pros:**
@@ -157,3 +182,33 @@ flowchart LR
 
 * Propagating user identity across platforms is a technical challenge and currently lacks a proven, ready-to-use solution.
 * May require modifications on the target platform to support user impersonation, depending on the chosen implementation strategy.
+
+
+#### Implementation: OIDC Token Exchange via APEx Keycloak
+The APEx Dispatch API implements user impersonation by utilising the OpenID Connect (OIDC) Token Exchange flow, which is facilitated through the APEx Keycloak instance. In this scenario, APEx Keycloak serves as an OIDC broker, interacting with external OIDC instances to enable secure and seamless user authentication across multiple platforms.
+
+To start, users authenticate via the standard login process through the APEx Keycloak. Leveraging the provided tools or scripts, the user’s APEx Keycloak access token is used to submit requests to the APEx Dispatch API by including their access token within the request headers. When the Dispatch API needs to interact with an external API, such as GEP’s OGC API - Process API or CDSE’s openEO API, it triggers a token exchange operation with the APEx Keycloak instance.
+
+```mermaid
+flowchart LR
+    C["Alice"] -- Request job---> D["APEx Dispatch API"]
+    D--Launch job as user APEx -->P1[Platform ]
+```
+
+Through this process, the APEx Keycloak uses the submitted user access token to issue an exchanged token corresponding to the external Identity Provider (IdP) of the target platform (e.g., GEP or CDSE). The resulting token functions as an external access token, recognised by the respective external platform and including the identity of the original requester. This token is then returned to the APEx Dispatch API.
+
+Upon receiving the exchanged token, the APEx Dispatch API proceeds to authenticate with the external API by presenting the external access token. This mechanism ensures that the external system accurately identifies the user, thereby maintaining continuity and integrity in user access and identity management across various platforms.
+
+##### Prerequisites
+The implementation of the Token Exchange process requires the following:
+
+* Every platform needs to be set up as an external IdP in APEx Keycloak, which includes creating a client on the external platform. 
+* The client used by the APEx Dispatch API must be authorised to perform token exchanges for the IdPs associated with supported platforms. This can be managed within the APEx Keycloak environment. 
+* For user token exchange, the user's account must be linked via the platform's IdP. Users can link their accounts through the APEx account dashboard or by signing into APEx with the corresponding external IdP.
+  
+##### Considerations
+The following considerations should be noted in this scenario:
+
+* This scenario requires the user to possess a valid account on the platform with appropriate authorisation to access various resources.
+* Each platform must be onboarded individually as an external identity provider.
+* The association between the user's account and the external platform is subject to expiration, requiring the user to periodically re-link their account.
