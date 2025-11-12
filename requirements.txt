@@ -18,6 +18,7 @@ pydantic
 pydantic-settings
 pydantic_core
 pyjwt
+pymysql
 pyproj
 pytest
 pytest-asyncio
