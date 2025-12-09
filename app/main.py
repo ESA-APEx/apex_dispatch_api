@@ -7,7 +7,15 @@ from app.platforms.dispatcher import load_processing_platforms
 from app.services.tiles.base import load_grids
 from app.config.logger import setup_logging
 from app.config.settings import settings
-from app.routers import jobs_status, unit_jobs, health, tiles, upscale_tasks, sync_jobs
+from app.routers import (
+    jobs_status,
+    unit_jobs,
+    health,
+    tiles,
+    upscale_tasks,
+    sync_jobs,
+    parameters,
+)
 
 setup_logging()
 
@@ -38,3 +46,4 @@ app.include_router(unit_jobs.router)
 app.include_router(sync_jobs.router)
 app.include_router(upscale_tasks.router)
 app.include_router(health.router)
+app.include_router(parameters.router)
