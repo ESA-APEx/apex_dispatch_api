@@ -1,7 +1,9 @@
+from typing import List
 from fastapi import Response
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
+from app.schemas.parameters import Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -45,4 +47,11 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> Collection:
         raise NotImplementedError(
             "OGC API Process job result retrieval not implemented yet."
+        )
+
+    async def get_service_parameters(
+        self, user_token: str, details: ServiceDetails
+    ) -> List[Parameter]:
+        raise NotImplementedError(
+            "OGC API Process service parameter retrieval not implemented yet."
         )
