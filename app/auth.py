@@ -6,6 +6,8 @@ from fastapi.security import OAuth2AuthorizationCodeBearer
 from jwt import PyJWKClient
 from loguru import logger
 
+from app.error import AuthException
+
 from .config.settings import settings
 
 # Keycloak OIDC info
@@ -37,9 +39,9 @@ def _decode_token(token: str):
         )
         return payload
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+        raise AuthException(
+            http_status=status.HTTP_401_UNAUTHORIZED,
+            message="Could not validate credentials!",
         )
 
 
