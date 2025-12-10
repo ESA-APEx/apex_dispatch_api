@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from app.database.db import SessionLocal, get_db
+from app.error import DispatcherException, ErrorResponse, InternalException
+from app.middleware.error_handling import get_dispatcher_error_response
 from app.schemas.jobs_status import JobsFilter, JobsStatusResponse
 from app.schemas.websockets import WSStatusMessage
 from app.services.processing import get_processing_jobs_by_user_id
@@ -22,6 +24,19 @@ DEFAULT_FILTERS = [JobsFilter.upscaling, JobsFilter.processing]
     "/jobs_status",
     tags=["Upscale Tasks", "Unit Jobs"],
     summary="Get a list of all upscaling tasks & processing jobs for the authenticated user",
+    responses={
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
+    },
 )
 async def get_jobs_status(
     db: Session = Depends(get_db),
@@ -34,21 +49,29 @@ async def get_jobs_status(
     """
     Return combined list of upscaling tasks and processing jobs for the authenticated user.
     """
-    logger.debug("Fetching jobs list")
-    upscaling_tasks = (
-        await get_upscaling_tasks_by_user_id(token, db)
-        if JobsFilter.upscaling in filter
-        else []
-    )
-    processing_jobs = (
-        await get_processing_jobs_by_user_id(token, db)
-        if JobsFilter.processing in filter
-        else []
-    )
-    return JobsStatusResponse(
-        upscaling_tasks=upscaling_tasks,
-        processing_jobs=processing_jobs,
-    )
+    try:
+        logger.debug("Fetching jobs list")
+        upscaling_tasks = (
+            await get_upscaling_tasks_by_user_id(token, db)
+            if JobsFilter.upscaling in filter
+            else []
+        )
+        processing_jobs = (
+            await get_processing_jobs_by_user_id(token, db)
+            if JobsFilter.processing in filter
+            else []
+        )
+        return JobsStatusResponse(
+            upscaling_tasks=upscaling_tasks,
+            processing_jobs=processing_jobs,
+        )
+    except DispatcherException as de:
+        raise de
+    except Exception as e:
+        logger.error(f"Error retrieving job status: {e}")
+        raise InternalException(
+            message="An error occurred while retrieving the job status."
+        )
 
 
 @router.websocket(
@@ -91,8 +114,18 @@ async def ws_jobs_status(
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
+    except DispatcherException as ae:
+        logger.error(f"Dispatcher exception detected: {ae.message}")
+        await websocket.send_json(
+            WSStatusMessage(type="error", message=ae.message).model_dump()
+        )
+        await websocket.close(code=1008, reason=ae.error_code)
     except Exception as e:
-        logger.exception(f"Error in jobs_status_ws: {e}")
-        await websocket.close(code=1011, reason="Error in job status websocket: {e}")
+        logger.error(f"Unexpected error occurred during websocket authentication: {e}")
+        await WSStatusMessage(
+            type="error",
+            message="Something went wrong during authentication. Please try again.",
+        ).model_dump()
+        await websocket.close(code=1008, reason="INTERNAL_ERROR")
     finally:
         db.close()
