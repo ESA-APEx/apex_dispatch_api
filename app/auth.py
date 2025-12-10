@@ -76,10 +76,12 @@ async def websocket_authenticate(websocket: WebSocket) -> str | None:
         return None
     except Exception as e:
         logger.error(f"Unexpected error occurred during websocket authentication: {e}")
-        await WSStatusMessage(
-            type="error",
-            message="Something went wrong during authentication. Please try again.",
-        ).model_dump()
+        await websocket.send_json(
+            WSStatusMessage(
+                type="error",
+                message="Something went wrong during authentication. Please try again.",
+            ).model_dump()
+        )
         await websocket.close(code=1008, reason="INTERNAL_ERROR")
         return None
 
@@ -160,7 +162,9 @@ async def exchange_token_for_provider(
         raise AuthException(
             http_status=client_status,
             message=(
-                f"Please link your account with {provider} in your <a href='https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/account'>Account Dashboard</a>"
+                f"Please link your account with {provider} in your "
+                "<a href='https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+                "account'>Account Dashboard</a>"
                 if body.get("error", "") == "not_linked"
                 else f"Could not authenticate with {provider}: {err}"
             ),

@@ -119,13 +119,15 @@ async def ws_jobs_status(
         await websocket.send_json(
             WSStatusMessage(type="error", message=ae.message).model_dump()
         )
-        await websocket.close(code=1008, reason=ae.error_code)
+        await websocket.close(code=1011, reason=ae.error_code)
     except Exception as e:
         logger.error(f"Unexpected error occurred during websocket : {e}")
-        await WSStatusMessage(
-            type="error",
-            message="An error occurred while monitoring the job status.",
-        ).model_dump()
-        await websocket.close(code=1008, reason="INTERNAL_ERROR")
+        await websocket.send_json(
+            WSStatusMessage(
+                type="error",
+                message="An error occurred while monitoring the job status.",
+            ).model_dump()
+        )
+        await websocket.close(code=1011, reason="INTERNAL_ERROR")
     finally:
         db.close()
