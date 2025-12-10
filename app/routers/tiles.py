@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, status, Body
 from geojson_pydantic import GeometryCollection, Polygon
 from loguru import logger
 
+from app.error import DispatcherException, ErrorResponse, InternalException
+from app.middleware.error_handling import get_dispatcher_error_response
 from app.schemas.tiles import GridTypeEnum, TileRequest
 from app.services.tiles.base import split_polygon_by_grid
 
@@ -54,7 +56,18 @@ router = APIRouter()
                     }
                 }
             },
-        }
+        },
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
     },
 )
 def split_in_tiles(
@@ -90,11 +103,12 @@ def split_in_tiles(
     try:
         logger.debug(f"Splitting tiles in a {payload.grid} formation")
         return split_polygon_by_grid(payload.aoi, payload.grid)
+    except DispatcherException as de:
+        raise de
     except Exception as e:
-        logger.exception(
-            f"An error occurred while calculating tiles for {payload.grid}"
+        logger.error(
+            f"An error occurred while calculating tiles for {payload.grid}: {e}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while calculating tiles for {payload.grid}: {e}",
+        raise InternalException(
+            message=f"An error occurred while calculating tiles for {payload.grid}"
         )

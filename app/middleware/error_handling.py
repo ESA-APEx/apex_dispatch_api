@@ -1,3 +1,4 @@
+from typing import Any
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -40,14 +41,23 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
+def _parse_validation_error(err: Any):
+    if "ctx" in err:
+        del err["ctx"]
+    return err
+
+
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
 
+    logger.error(f"Request validation error: {exc.__class__.__name__}: {exc}")
     content = ErrorResponse(
         error_code="VALIDATION_ERROR",
         message="Request validation failed.",
-        details={"errors": exc.errors()},
+        details={"errors": [_parse_validation_error(error) for error in exc.errors()]},
         request_id=correlation_id_ctx.get(),
     )
+
+    logger.error(content.dict())
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=content.dict()
