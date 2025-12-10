@@ -1,7 +1,7 @@
 from typing import Any, Dict
 import httpx
 import jwt
-from fastapi import Depends, HTTPException, WebSocket, status
+from fastapi import Depends, WebSocket, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jwt import PyJWKClient
 from loguru import logger
@@ -96,15 +96,15 @@ async def exchange_token_for_provider(
 
     :return: The token response (dict) on success.
 
-    :raise: Raises HTTPException with an appropriate status and message on error.
+    :raise: Raises AuthException with an appropriate status and message on error.
     """
     token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
 
     # Check if the necessary settings are in place
     if not settings.keycloak_client_id or not settings.keycloak_client_secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Token exchange not configured on the server (missing client credentials).",
+        raise AuthException(
+            http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Token exchange not configured on the server (missing client credentials).",
         )
 
     payload = {
