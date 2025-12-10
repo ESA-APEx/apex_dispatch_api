@@ -1,4 +1,5 @@
 from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.error import DispatcherException, ErrorResponse
 from app.middleware.correlation_id import correlation_id_ctx
@@ -33,11 +34,23 @@ async def generic_exception_handler(request: Request, exc: Exception):
         request_id=correlation_id_ctx.get(),
     )
 
-    # Log exception to server logs for debugging
-    print(f"[ERROR] Request ID: {exc}")
-
+    logger.exception(f"GenericException raised: {exc}")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=content.dict()
+    )
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+
+    content = ErrorResponse(
+        error_code="VALIDATION_ERROR",
+        message="Request validation failed.",
+        details={"errors": exc.errors()},
+        request_id=correlation_id_ctx.get(),
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=content.dict()
     )
 
 
@@ -47,5 +60,5 @@ def register_exception_handlers(app):
     """
 
     app.add_exception_handler(DispatcherException, dispatch_exception_handler)
-    # app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)
