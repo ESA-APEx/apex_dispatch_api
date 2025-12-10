@@ -56,6 +56,12 @@ class JobNotFoundException(DispatcherException):
     message: str = "The requested job was not found."
 
 
+class TaskNotFoundException(DispatcherException):
+    http_status: int = status.HTTP_404_NOT_FOUND
+    error_code: str = "TASK_NOT_FOUND"
+    message: str = "The requested task was not found."
+
+
 class InternalException(DispatcherException):
     http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     error_code: str = "INTERNAL_ERROR"

@@ -121,10 +121,10 @@ async def ws_jobs_status(
         )
         await websocket.close(code=1008, reason=ae.error_code)
     except Exception as e:
-        logger.error(f"Unexpected error occurred during websocket authentication: {e}")
+        logger.error(f"Unexpected error occurred during websocket : {e}")
         await WSStatusMessage(
             type="error",
-            message="Something went wrong during authentication. Please try again.",
+            message="An error occurred while monitoring the job status.",
         ).model_dump()
         await websocket.close(code=1008, reason="INTERNAL_ERROR")
     finally:
