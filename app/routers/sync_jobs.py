@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Body, APIRouter, Depends, HTTPException, Response, status
+from fastapi import Body, APIRouter, Depends, Response, status
 from loguru import logger
 
 from app.error import DispatcherException, ErrorResponse, InternalException

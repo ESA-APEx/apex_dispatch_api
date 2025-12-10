@@ -6,7 +6,6 @@ from fastapi import (
     Body,
     APIRouter,
     Depends,
-    HTTPException,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -255,16 +254,18 @@ async def ws_task_status(
                 type="error", task_id=task_id, message=ae.message
             ).model_dump()
         )
-        await websocket.close(code=1008, reason=ae.error_code)
+        await websocket.close(code=1011, reason=ae.error_code)
     except Exception as e:
         logger.error(
             f"An error occurred while monitoring upscaling task {task_id}: {e}"
         )
-        await WSTaskStatusMessage(
-            type="error",
-            task_id=task_id,
-            message="An error occurred while monitoring upscaling task.",
-        ).model_dump()
-        await websocket.close(code=1008, reason="INTERNAL_ERROR")
+        await websocket.send_json(
+            WSTaskStatusMessage(
+                type="error",
+                task_id=task_id,
+                message="An error occurred while monitoring upscaling task.",
+            ).model_dump()
+        )
+        await websocket.close(code=1011, reason="INTERNAL_ERROR")
     finally:
         db.close()

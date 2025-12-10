@@ -1,12 +1,11 @@
 from typing import Annotated
-from fastapi import Body, APIRouter, Depends, HTTPException, status
+from fastapi import Body, APIRouter, Depends, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.auth import oauth2_scheme
 from app.database.db import get_db
 from app.error import (
-    AuthException,
     DispatcherException,
     ErrorResponse,
     InternalException,

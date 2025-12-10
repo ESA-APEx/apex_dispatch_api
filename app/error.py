@@ -45,7 +45,7 @@ class AuthException(DispatcherException):
     def __init__(
         self,
         http_status: Optional[int] = status.HTTP_401_UNAUTHORIZED,
-        message: Optional[Dict[str, Any]] = "Authentication failed.",
+        message: Optional[str] = "Authentication failed.",
     ):
         super().__init__(message, "AUTHENTICATION_FAILED", http_status)
 

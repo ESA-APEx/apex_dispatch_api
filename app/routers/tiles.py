@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, HTTPException, status, Body
+from fastapi import APIRouter, status, Body
 from geojson_pydantic import GeometryCollection, Polygon
 from loguru import logger
 
