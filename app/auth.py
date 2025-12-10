@@ -42,7 +42,7 @@ def _decode_token(token: str):
     except Exception:
         raise AuthException(
             http_status=status.HTTP_401_UNAUTHORIZED,
-            message="Could not validate credentials!",
+            message="Could not validate credentials. Please retry signing in.",
         )
 
 
