@@ -353,7 +353,7 @@ async def test_authenticate_user_config_unsupported_method(
 
     # ensure the exchange mock exists but is not awaited
     with pytest.raises(
-        ValueError, match="No OpenEO backend configuration found for URL"
+        ValueError, match="Unsupported OpenEO authentication method"
     ):
         await platform._authenticate_user("user-token", url, conn)
 
@@ -591,6 +591,11 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "optional": True,
             "default": ["2020-01-01", "2020-12-31"],
         },
+        {
+            "name": "string_test",
+            "description": "Test for a string parameter",
+            "schema": {"type": "string"},
+        },
     ]
     mock_udp_request.return_value.json.return_value = {
         "id": "process123",
@@ -623,6 +628,12 @@ async def test_get_parameters_success(mock_udp_request, platform):
             type=ParamTypeEnum.DATE_INTERVAL,
             optional=True,
             default=udp_params[2]["default"],
+        ),
+        Parameter(
+            name=udp_params[3]["name"],
+            description=udp_params[3]["description"],
+            type=ParamTypeEnum.STRING,
+            optional=False,
         ),
     ]
     assert result == parameters
