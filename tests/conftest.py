@@ -208,6 +208,7 @@ def fake_param_request():
         service=ServiceDetails(endpoint="foo", application="bar"),
     )
 
+
 @pytest.fixture
 def fake_parameter_result():
     return [
