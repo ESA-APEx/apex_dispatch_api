@@ -13,6 +13,7 @@ from app.platforms.implementations.openeo import (
     OpenEOPlatform,
 )
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
+from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -566,3 +567,88 @@ async def test_execute_sync_job_success(
     assert response.status_code == mock_response.status_code
     assert json.loads(response.body) == json.loads(mock_response.content)
     mock_connect.assert_called_once_with("fake_token", service_details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch("app.platforms.implementations.openeo.requests.get")
+async def test_get_parameters_success(mock_udp_request, platform):
+
+    udp_params = [
+        {
+            "name": "flag_test",
+            "description": "Test for a boolean flag parameter",
+            "schema": {"type": "boolean"},
+        },
+        {
+            "name": "bbox_test",
+            "description": "Test for a bbox parameter",
+            "schema": {"type": "object", "subtype": "bounding-box"},
+        },
+        {
+            "name": "date_test",
+            "description": "Test for a date parameter",
+            "schema": {"type": "array", "subtype": "temporal-interval"},
+            "optional": True,
+            "default": ["2020-01-01", "2020-12-31"],
+        },
+    ]
+    mock_udp_request.return_value.json.return_value = {
+        "id": "process123",
+        "parameters": udp_params,
+    }
+    mock_udp_request.return_value.raise_for_status.return_value = None
+    result = await platform.get_service_parameters(
+        user_token="fake_token",
+        details=ServiceDetails(
+            endpoint="https://openeo.dataspace.copernicus.eu",
+            application="https://foo.bar/process.json",
+        ),
+    )
+    parameters = [
+        Parameter(
+            name=udp_params[0]["name"],
+            description=udp_params[0]["description"],
+            type=ParamTypeEnum.BOOLEAN,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[1]["name"],
+            description=udp_params[1]["description"],
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[2]["name"],
+            description=udp_params[2]["description"],
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+            default=udp_params[2]["default"],
+        ),
+    ]
+    assert result == parameters
+
+
+@pytest.mark.asyncio
+@patch("app.platforms.implementations.openeo.requests.get")
+async def test_get_parameters_unsupported_type(mock_udp_request, platform):
+
+    mock_udp_request.return_value.json.return_value = {
+        "id": "process123",
+        "parameters": [
+            {
+                "name": "foobar_test",
+                "description": "Test for a foobar parameter",
+                "schema": {"type": "foobar"},
+            }
+        ],
+    }
+    mock_udp_request.return_value.raise_for_status.return_value = None
+
+    with pytest.raises(ValueError, match="Unsupported parameter schemas"):
+        await platform.get_service_parameters(
+            user_token="fake_token",
+            details=ServiceDetails(
+                endpoint="https://openeo.dataspace.copernicus.eu",
+                application="https://foo.bar/process.json",
+            ),
+        )
