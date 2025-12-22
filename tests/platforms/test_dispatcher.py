@@ -30,7 +30,7 @@ class DummyPlatform(BaseProcessingPlatform):
 
     def get_job_results(self, job_id, details):
         return self.fake_result
-    
+
     def get_service_parameters(self, user_token, details):
         return fake_parameter_result()
 

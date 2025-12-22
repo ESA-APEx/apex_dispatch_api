@@ -218,7 +218,8 @@ async def retrieve_service_parameters(
     payload: ParamRequest,
 ) -> List[Parameter]:
     logger.info(
-        f"Retrieving service parameters for service {payload.service.application} at {payload.service.endpoint}"
+        f"Retrieving service parameters for service {payload.service.application} at "
+        f"{payload.service.endpoint}"
     )
 
     platform = get_processing_platform(payload.label)
