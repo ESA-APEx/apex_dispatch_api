@@ -13,6 +13,7 @@ from app.platforms.implementations.openeo import (
     OpenEOPlatform,
 )
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
+from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 
@@ -235,6 +236,19 @@ def test_connection_expired_no_bearer(platform):
     assert platform._connection_expired(conn) is True
 
 
+@patch("app.platforms.implementations.openeo.jwt.decode")
+def test_connection_expired_exception(mock_decode, platform):
+    mock_decode.side_effect = jwt.DecodeError("Invalid token")
+    exp = int(
+        (
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        ).timestamp()
+    )
+    token = jwt.encode({"sub": "user", "exp": exp}, "secret", algorithm="HS256")
+    conn = _make_conn_with_token(token)
+    assert platform._connection_expired(conn) is True
+
+
 @pytest.mark.asyncio
 @patch(
     "app.platforms.implementations.openeo.exchange_token_for_provider",
@@ -296,6 +310,154 @@ async def test_authenticate_user_with_client_credentials(
     # token-exchange should not be awaited
     mock_exchange.assert_not_awaited()
     assert returned is conn
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_missing_url(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.foo.bar"
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(
+        ValueError, match="No OpenEO backend configuration found for URL"
+    ):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_unsupported_method(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.vito.be"
+    # disable user credentials path -> use client credentials
+    settings.openeo_backend_config[url].auth_method = "FOOBAR"
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(
+        ValueError, match="Unsupported OpenEO authentication method"
+    ):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_missing_credentials(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.vito.be"
+    # disable user credentials path -> use client credentials
+    settings.openeo_backend_config[url].auth_method = (
+        OpenEOAuthMethod.CLIENT_CREDENTIALS
+    )
+    settings.openeo_backend_config[url].client_credentials = None
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(
+        ValueError, match="Client credentials not configured for OpenEO backend"
+    ):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_format_issue_credentials(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.vito.be"
+    # disable user credentials path -> use client credentials
+    settings.openeo_backend_config[url].auth_method = (
+        OpenEOAuthMethod.CLIENT_CREDENTIALS
+    )
+    settings.openeo_backend_config[url].client_credentials = "foobar"
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(ValueError, match="Invalid client credentials format for"):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_missing_provider(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.vito.be"
+    # disable user credentials path -> use client credentials
+    settings.openeo_backend_config[url].token_provider = None
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(ValueError, match="must define"):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.openeo.exchange_token_for_provider",
+    new_callable=AsyncMock,
+)
+async def test_authenticate_user_config_missing_prefix(
+    mock_exchange, monkeypatch, platform
+):
+    url = "https://openeo.vito.be"
+    # disable user credentials path -> use client credentials
+    settings.openeo_backend_config[url].token_prefix = None
+
+    # prepare fake connection and spy method
+    conn = MagicMock()
+    conn.authenticate_oidc_client_credentials = MagicMock()
+
+    # ensure the exchange mock exists but is not awaited
+    with pytest.raises(ValueError, match="must define"):
+        await platform._authenticate_user("user-token", url, conn)
+
+    mock_exchange.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -405,3 +567,99 @@ async def test_execute_sync_job_success(
     assert response.status_code == mock_response.status_code
     assert json.loads(response.body) == json.loads(mock_response.content)
     mock_connect.assert_called_once_with("fake_token", service_details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch("app.platforms.implementations.openeo.requests.get")
+async def test_get_parameters_success(mock_udp_request, platform):
+
+    udp_params = [
+        {
+            "name": "flag_test",
+            "description": "Test for a boolean flag parameter",
+            "schema": {"type": "boolean"},
+        },
+        {
+            "name": "bbox_test",
+            "description": "Test for a bbox parameter",
+            "schema": {"type": "object", "subtype": "bounding-box"},
+        },
+        {
+            "name": "date_test",
+            "description": "Test for a date parameter",
+            "schema": {"type": "array", "subtype": "temporal-interval"},
+            "optional": True,
+            "default": ["2020-01-01", "2020-12-31"],
+        },
+        {
+            "name": "string_test",
+            "description": "Test for a string parameter",
+            "schema": {"type": "string"},
+        },
+    ]
+    mock_udp_request.return_value.json.return_value = {
+        "id": "process123",
+        "parameters": udp_params,
+    }
+    mock_udp_request.return_value.raise_for_status.return_value = None
+    result = await platform.get_service_parameters(
+        user_token="fake_token",
+        details=ServiceDetails(
+            endpoint="https://openeo.dataspace.copernicus.eu",
+            application="https://foo.bar/process.json",
+        ),
+    )
+    parameters = [
+        Parameter(
+            name=udp_params[0]["name"],
+            description=udp_params[0]["description"],
+            type=ParamTypeEnum.BOOLEAN,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[1]["name"],
+            description=udp_params[1]["description"],
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[2]["name"],
+            description=udp_params[2]["description"],
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+            default=udp_params[2]["default"],
+        ),
+        Parameter(
+            name=udp_params[3]["name"],
+            description=udp_params[3]["description"],
+            type=ParamTypeEnum.STRING,
+            optional=False,
+        ),
+    ]
+    assert result == parameters
+
+
+@pytest.mark.asyncio
+@patch("app.platforms.implementations.openeo.requests.get")
+async def test_get_parameters_unsupported_type(mock_udp_request, platform):
+
+    mock_udp_request.return_value.json.return_value = {
+        "id": "process123",
+        "parameters": [
+            {
+                "name": "foobar_test",
+                "description": "Test for a foobar parameter",
+                "schema": {"type": "foobar"},
+            }
+        ],
+    }
+    mock_udp_request.return_value.raise_for_status.return_value = None
+
+    with pytest.raises(ValueError, match="Unsupported parameter schemas"):
+        await platform.get_service_parameters(
+            user_token="fake_token",
+            details=ServiceDetails(
+                endpoint="https://openeo.dataspace.copernicus.eu",
+                application="https://foo.bar/process.json",
+            ),
+        )

@@ -103,5 +103,6 @@ async def test_ws_jobs_status_closes_on_error(mock_get_jobs_status, client):
             websocket.receive_json()
             websocket.receive_json()
             websocket.receive_json()
+            websocket.receive_json()
 
         assert exc_info.value.code == 1011

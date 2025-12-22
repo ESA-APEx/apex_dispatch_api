@@ -9,7 +9,7 @@ from app.schemas.unit_job import ProcessingJobSummary
 
 from stac_pydantic import Collection
 
-from tests.conftest import fake_sync_response
+from tests.conftest import fake_parameter_result, fake_sync_response
 
 
 class DummyPlatform(BaseProcessingPlatform):
@@ -30,6 +30,9 @@ class DummyPlatform(BaseProcessingPlatform):
 
     def get_job_results(self, job_id, details):
         return self.fake_result
+
+    def get_service_parameters(self, user_token, details):
+        return fake_parameter_result()
 
 
 @pytest.fixture(autouse=True)

@@ -1,10 +1,17 @@
 from typing import Annotated
-from fastapi import Body, APIRouter, Depends, HTTPException, status
+from fastapi import Body, APIRouter, Depends, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.auth import oauth2_scheme
 from app.database.db import get_db
+from app.error import (
+    DispatcherException,
+    ErrorResponse,
+    InternalException,
+    JobNotFoundException,
+)
+from app.middleware.error_handling import get_dispatcher_error_response
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
@@ -30,6 +37,19 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     tags=["Unit Jobs"],
     summary="Create a new processing job",
+    responses={
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
+    },
 )
 async def create_unit_job(
     payload: Annotated[
@@ -105,20 +125,42 @@ async def create_unit_job(
     """Create a new processing job with the provided data."""
     try:
         return await create_processing_job(token, db, payload)
-    except HTTPException as e:
-        raise e
+    except DispatcherException as de:
+        raise de
     except Exception as e:
-        logger.exception(f"Error creating processing job: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while creating the processing job: {e}",
+        logger.error(f"Error creating processing job: {e}")
+        raise InternalException(
+            message="An error occurred while creating processing job."
         )
 
 
 @router.get(
     "/unit_jobs/{job_id}",
     tags=["Unit Jobs"],
-    responses={404: {"description": "Processing job not found"}},
+    responses={
+        JobNotFoundException.http_status: {
+            "description": "Job not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        JobNotFoundException(), "request-id"
+                    )
+                }
+            },
+        },
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
+    },
 )
 async def get_job(
     job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
@@ -126,26 +168,44 @@ async def get_job(
     try:
         job = await get_processing_job_by_user_id(token, db, job_id)
         if not job:
-            logger.error(f"Processing job {job_id} not found")
-            raise HTTPException(
-                status_code=404,
-                detail=f"Processing job {job_id} not found",
-            )
+            raise JobNotFoundException()
         return job
-    except HTTPException as e:
-        raise e
+    except DispatcherException as de:
+        raise de
     except Exception as e:
-        logger.exception(f"Error retrieving processing job {job_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while retrieving processing job {job_id}: {e}",
+        logger.error(f"Error retrieving processing job {job_id}: {e}")
+        raise InternalException(
+            message="An error occurred while retrieving the processing job."
         )
 
 
 @router.get(
     "/unit_jobs/{job_id}/results",
     tags=["Unit Jobs"],
-    responses={404: {"description": "Processing job not found"}},
+    responses={
+        JobNotFoundException.http_status: {
+            "description": "Job not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        JobNotFoundException(), "request-id"
+                    )
+                }
+            },
+        },
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
+    },
 )
 async def get_job_results(
     job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
@@ -153,17 +213,12 @@ async def get_job_results(
     try:
         result = await get_processing_job_results(token, db, job_id)
         if not result:
-            logger.error(f"Result for processing job {job_id} not found")
-            raise HTTPException(
-                status_code=404,
-                detail=f"Result for processing job {job_id} not found",
-            )
+            raise JobNotFoundException()
         return result
-    except HTTPException as e:
-        raise e
+    except DispatcherException as de:
+        raise de
     except Exception as e:
-        logger.exception(f"Error getting results for processing job {job_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while retrieving results for processing job {job_id}: {e}",
+        logger.error(f"Error getting results for processing job {job_id}: {e}")
+        raise InternalException(
+            message="An error occurred while retrieving processing job results."
         )
