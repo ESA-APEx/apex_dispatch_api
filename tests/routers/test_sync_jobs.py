@@ -1,7 +1,9 @@
 import json
 from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import status
+
+from app.error import InternalException
 
 
 @patch("app.routers.sync_jobs.create_synchronous_job")
@@ -27,21 +29,19 @@ def test_sync_jobs_create_500(
     mock_create_sync_job.side_effect = SystemError("Could not launch the job")
 
     r = client.post("/sync_jobs", json=fake_processing_job_request.model_dump())
-    assert r.status_code == 500
-    assert "could not launch the job" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while creating the synchronous job." in r.json().get("message", "")
 
 
 @patch("app.routers.sync_jobs.create_synchronous_job")
-def test_sync_jobs_create_http_error(
+def test_sync_jobs_create_internal_error(
     mock_create_sync_job,
     client,
     fake_processing_job_request,
 ):
 
-    mock_create_sync_job.side_effect = HTTPException(
-        status_code=503, detail="Oops, service unavailable"
-    )
+    mock_create_sync_job.side_effect = InternalException()
 
     r = client.post("/sync_jobs", json=fake_processing_job_request.model_dump())
-    assert r.status_code == 503
-    assert "service unavailable" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An internal server error occurred." in r.json().get("message", "")
