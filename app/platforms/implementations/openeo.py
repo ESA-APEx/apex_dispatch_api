@@ -297,7 +297,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         return parameters
 
-    def _get_type_from_schemas(self, schemas: dict) -> ParamTypeEnum:
+    def _get_type_from_schemas(self, schemas: List[dict]) -> ParamTypeEnum:
         for schema in schemas:
             type = schema.get("type")
             subtype = schema.get("subtype")
