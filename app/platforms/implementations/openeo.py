@@ -307,6 +307,8 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 return ParamTypeEnum.BOUNDING_BOX
             elif type == "boolean":
                 return ParamTypeEnum.BOOLEAN
+            elif type == "string":
+                return ParamTypeEnum.STRING
 
         # If no matching schema found, raise an error
         raise ValueError(f"Unsupported parameter schemas: {schemas}")

@@ -10,6 +10,7 @@ class ParamTypeEnum(str, Enum):
     DATE_INTERVAL = "date-interval"
     BOUNDING_BOX = "bounding-box"
     BOOLEAN = "boolean"
+    STRING = "string"
 
 
 class ParamRequest(BaseModel):
