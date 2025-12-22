@@ -18,6 +18,7 @@ from app.services.processing import (
     get_job_status,
     get_processing_job_by_user_id,
     get_processing_jobs_by_user_id,
+    retrieve_service_parameters,
 )
 
 
@@ -534,3 +535,23 @@ async def test_create_sync_job_calls_platform_execute_failure(
         parameters=fake_processing_job_request.parameters,
         format=fake_processing_job_request.format,
     )
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.get_processing_platform")
+async def test_retrieve_service_parameters_success(
+    mock_get_platform, fake_parameter_result, fake_param_request
+):
+
+    fake_platform = MagicMock()
+    fake_platform.get_service_parameters = AsyncMock(return_value=fake_parameter_result)
+    mock_get_platform.return_value = fake_platform
+
+    result = await retrieve_service_parameters("foobar-token", fake_param_request)
+
+    mock_get_platform.assert_called_once_with(fake_param_request.label)
+    fake_platform.get_service_parameters.assert_called_once_with(
+        user_token="foobar-token",
+        details=fake_param_request.service,
+    )
+    assert result == fake_parameter_result
