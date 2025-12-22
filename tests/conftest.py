@@ -13,6 +13,7 @@ from app.database.models.processing_job import ProcessingJobRecord
 from app.database.models.upscaling_task import UpscalingTaskRecord
 from app.main import app
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.parameters import ParamRequest, ParamTypeEnum, Parameter
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -198,3 +199,28 @@ def fake_sync_response():
         media_type="application/json",
         status_code=200,
     )
+
+
+@pytest.fixture
+def fake_param_request():
+    return ParamRequest(
+        label=ProcessTypeEnum.OPENEO,
+        service=ServiceDetails(endpoint="foo", application="bar"),
+    )
+
+@pytest.fixture
+def fake_parameter_result():
+    return [
+        Parameter(
+            name="spatial_extent",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=True,
+            description="Spatial extent parameter",
+        ),
+        Parameter(
+            name="temporal_extent",
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+            description="Temporal extent parameter",
+        ),
+    ]
