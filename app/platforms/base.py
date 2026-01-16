@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 from fastapi import Response
 
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
+from app.schemas.parameters import Parameter
 from app.schemas.unit_job import ServiceDetails
 
 from stac_pydantic import Collection
@@ -81,5 +83,18 @@ class BaseProcessingPlatform(ABC):
         :param job_id: The ID of the job on the platform
         :param details: The service details containing the service ID and application.
         :return: STAC collection representing the results.
+        """
+        pass
+
+    @abstractmethod
+    async def get_service_parameters(
+        self, user_token: str, details: ServiceDetails
+    ) -> List[Parameter]:
+        """
+        Retrieve the parameters required for a specific processing service.
+
+        :param user_token: The access token of the user executing the job.
+        :param details: The service details containing the service ID and application.
+        :return: Response containing the service parameters.
         """
         pass

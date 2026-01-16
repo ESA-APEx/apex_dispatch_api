@@ -1,7 +1,9 @@
 import json
 from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import status
+
+from app.error import InternalException
 
 
 @patch("app.routers.unit_jobs.create_processing_job")
@@ -29,24 +31,24 @@ def test_unit_jobs_create_500(
     mock_create_processing_job.side_effect = SystemError("Could not launch the job")
 
     r = client.post("/unit_jobs", json=fake_processing_job_request.model_dump())
-    assert r.status_code == 500
-    assert "could not launch the job" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while creating processing job." in r.json().get(
+        "message", ""
+    )
 
 
 @patch("app.routers.unit_jobs.create_processing_job")
-def test_unit_jobs_create_http_error(
+def test_unit_jobs_create_internal_error(
     mock_create_processing_job,
     client,
     fake_processing_job_request,
 ):
 
-    mock_create_processing_job.side_effect = HTTPException(
-        status_code=503, detail="Oops, service unavailable"
-    )
+    mock_create_processing_job.side_effect = InternalException
 
     r = client.post("/unit_jobs", json=fake_processing_job_request.model_dump())
-    assert r.status_code == 503
-    assert "service unavailable" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An internal server error occurred." in r.json().get("message", "")
 
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
@@ -71,8 +73,8 @@ def test_unit_jobs_get_job_404(mock_get_processing_job, client):
     mock_get_processing_job.return_value = None
 
     r = client.get("/unit_jobs/1")
-    assert r.status_code == 404
-    assert "processing job 1 not found" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert "The requested job was not found." in r.json().get("message", "")
 
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
@@ -81,20 +83,20 @@ def test_unit_jobs_get_job_500(mock_get_processing_job, client):
     mock_get_processing_job.side_effect = RuntimeError("Database connection lost")
 
     r = client.get("/unit_jobs/1")
-    assert r.status_code == 500
-    assert "database connection lost" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while retrieving the processing job." in r.json().get(
+        "message", ""
+    )
 
 
 @patch("app.routers.unit_jobs.get_processing_job_by_user_id")
-def test_unit_jobs_get_job_http_error(mock_get_processing_job, client):
+def test_unit_jobs_get_job_internal_error(mock_get_processing_job, client):
 
-    mock_get_processing_job.side_effect = HTTPException(
-        status_code=503, detail="Oops, service unavailable"
-    )
+    mock_get_processing_job.side_effect = InternalException()
 
     r = client.get("/unit_jobs/1")
-    assert r.status_code == 503
-    assert "service unavailable" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An internal server error occurred." in r.json().get("message", "")
 
 
 @patch("app.routers.unit_jobs.get_processing_job_results")
@@ -119,8 +121,8 @@ def test_unit_jobs_get_job_results_404(mock_get_processing_job_results, client):
     mock_get_processing_job_results.return_value = None
 
     r = client.get("/unit_jobs/1/results")
-    assert r.status_code == 404
-    assert "result for processing job 1 not found" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert "The requested job was not found." in r.json().get("message", "")
 
 
 @patch("app.routers.unit_jobs.get_processing_job_results")
@@ -131,5 +133,7 @@ def test_unit_jobs_get_job_results_500(mock_get_processing_job_results, client):
     )
 
     r = client.get("/unit_jobs/1/results")
-    assert r.status_code == 500
-    assert "database connection lost" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while retrieving processing job results." in r.json().get(
+        "message", ""
+    )

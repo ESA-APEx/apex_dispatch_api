@@ -1,4 +1,5 @@
 import datetime
+from typing import List
 
 from fastapi import Response
 import jwt
@@ -13,6 +14,7 @@ from app.config.settings import OpenEOAuthMethod, settings
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 
 load_dotenv()
@@ -267,3 +269,46 @@ class OpenEOPlatform(BaseProcessingPlatform):
         connection = await self._setup_connection(user_token, details.endpoint)
         job = connection.job(job_id)
         return Collection(**job.get_results().get_metadata())
+
+    async def get_service_parameters(
+        self, user_token: str, details: ServiceDetails
+    ) -> List[Parameter]:
+        parameters = []
+        logger.debug(
+            f"Fetching service parameters for OpenEO service at {details.application}"
+        )
+        udp = requests.get(details.application)
+        udp.raise_for_status()
+        udp_params = udp.json().get("parameters", [])
+
+        for param in udp_params:
+            schemas = param.get("schema", {})
+            if not isinstance(schemas, list):
+                schemas = [schemas]
+            parameters.append(
+                Parameter(
+                    name=param.get("name"),
+                    description=param.get("description"),
+                    default=param.get("default"),
+                    optional=param.get("optional", False),
+                    type=self._get_type_from_schemas(schemas),
+                )
+            )
+
+        return parameters
+
+    def _get_type_from_schemas(self, schemas: List[dict]) -> ParamTypeEnum:
+        for schema in schemas:
+            type = schema.get("type")
+            subtype = schema.get("subtype")
+            if type == "array" and subtype == "temporal-interval":
+                return ParamTypeEnum.DATE_INTERVAL
+            elif subtype == "bounding-box":
+                return ParamTypeEnum.BOUNDING_BOX
+            elif type == "boolean":
+                return ParamTypeEnum.BOOLEAN
+            elif type == "string":
+                return ParamTypeEnum.STRING
+
+        # If no matching schema found, raise an error
+        raise ValueError(f"Unsupported parameter schemas: {schemas}")

@@ -35,7 +35,7 @@ def get_db():
         yield db
         db.commit()
     except Exception:
-        logger.exception("An error occurred during database retrieval")
+        logger.error("An error occurred during database retrieval")
         db.rollback()
         raise
     finally:

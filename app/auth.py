@@ -1,10 +1,13 @@
 from typing import Any, Dict
 import httpx
 import jwt
-from fastapi import Depends, HTTPException, WebSocket, status
+from fastapi import Depends, WebSocket, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jwt import PyJWKClient
 from loguru import logger
+
+from app.error import AuthException, DispatcherException
+from app.schemas.websockets import WSStatusMessage
 
 from .config.settings import settings
 
@@ -37,9 +40,9 @@ def _decode_token(token: str):
         )
         return payload
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+        raise AuthException(
+            http_status=status.HTTP_401_UNAUTHORIZED,
+            message="Could not validate credentials. Please retry signing in.",
         )
 
 
@@ -55,6 +58,7 @@ async def websocket_authenticate(websocket: WebSocket) -> str | None:
     """
     logger.debug("Authenticating websocket")
     token = websocket.query_params.get("token")
+
     if not token:
         logger.error("Token is missing from websocket authentication")
         await websocket.close(code=1008, reason="Missing token")
@@ -63,9 +67,22 @@ async def websocket_authenticate(websocket: WebSocket) -> str | None:
     try:
         await websocket.accept()
         return token
+    except DispatcherException as ae:
+        logger.error(f"Dispatcher exception detected: {ae.message}")
+        await websocket.send_json(
+            WSStatusMessage(type="error", message=ae.message).model_dump()
+        )
+        await websocket.close(code=1008, reason=ae.error_code)
+        return None
     except Exception as e:
-        logger.error(f"Invalid token in websocket authentication: {e}")
-        await websocket.close(code=1008, reason="Invalid token")
+        logger.error(f"Unexpected error occurred during websocket authentication: {e}")
+        await websocket.send_json(
+            WSStatusMessage(
+                type="error",
+                message="Something went wrong during authentication. Please try again.",
+            ).model_dump()
+        )
+        await websocket.close(code=1008, reason="INTERNAL_ERROR")
         return None
 
 
@@ -81,15 +98,15 @@ async def exchange_token_for_provider(
 
     :return: The token response (dict) on success.
 
-    :raise: Raises HTTPException with an appropriate status and message on error.
+    :raise: Raises AuthException with an appropriate status and message on error.
     """
     token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
 
     # Check if the necessary settings are in place
     if not settings.keycloak_client_id or not settings.keycloak_client_secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Token exchange not configured on the server (missing client credentials).",
+        raise AuthException(
+            http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Token exchange not configured on the server (missing client credentials).",
         )
 
     payload = {
@@ -105,9 +122,12 @@ async def exchange_token_for_provider(
             resp = await client.post(token_url, data=payload)
     except httpx.RequestError as exc:
         logger.error(f"Token exchange network error for provider={provider}: {exc}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to contact the identity provider for token exchange.",
+        raise AuthException(
+            http_status=status.HTTP_502_BAD_GATEWAY,
+            message=(
+                f"Could not authenticate with {provider}. Please contact APEx support or reach out "
+                "through the <a href='https://forum.apex.esa.int/'>APEx User Forum</a>."
+            ),
         )
 
     # Parse response
@@ -117,9 +137,12 @@ async def exchange_token_for_provider(
         logger.error(
             f"Token exchange invalid JSON response (status={resp.status_code})"
         )
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Invalid response from identity provider during token exchange.",
+        raise AuthException(
+            http_status=status.HTTP_502_BAD_GATEWAY,
+            message=(
+                f"Could not authenticate with {provider}. Please contact APEx support or reach out "
+                "through the <a href='https://forum.apex.esa.int/'>APEx User Forum</a>."
+            ),
         )
 
     if resp.status_code != 200:
@@ -136,7 +159,16 @@ async def exchange_token_for_provider(
             else status.HTTP_502_BAD_GATEWAY
         )
 
-        raise HTTPException(client_status, detail=body)
+        raise AuthException(
+            http_status=client_status,
+            message=(
+                f"Please link your account with {provider} in your "
+                "<a href='https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+                "account'>Account Dashboard</a>"
+                if body.get("error", "") == "not_linked"
+                else f"Could not authenticate with {provider}: {err}"
+            ),
+        )
 
     # Successful exchange, return token response (access_token, expires_in, etc.)
     return body

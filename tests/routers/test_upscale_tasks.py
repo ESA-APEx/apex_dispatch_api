@@ -1,8 +1,10 @@
 import json
 from unittest.mock import AsyncMock, patch
 
-from fastapi import HTTPException, WebSocketDisconnect
+from fastapi import WebSocketDisconnect, status
 import pytest
+
+from app.error import InternalException
 
 
 @patch("app.routers.upscale_tasks.create_upscaling_processing_jobs")
@@ -18,7 +20,7 @@ def test_upscaling_task_create_201(
     mock_create_upscaling_task.return_value = fake_upscaling_task_summary
 
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
-    assert r.status_code == 201
+    assert r.status_code == status.HTTP_201_CREATED
     assert r.json() == fake_upscaling_task_summary.model_dump()
     assert mock_create_processing_jobs.called_once()
 
@@ -30,29 +32,27 @@ def test_upscaling_task_create_500(
     fake_upscaling_task_request,
 ):
 
-    mock_create_upscaling_task.side_effect = SystemError(
-        "Could not launch the upscale task"
-    )
+    mock_create_upscaling_task.side_effect = SystemError("Database connection lost")
 
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
-    assert r.status_code == 500
-    assert "could not launch the upscale task" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while retrieving processing job results." in r.json().get(
+        "message", ""
+    )
 
 
 @patch("app.routers.upscale_tasks.create_upscaling_task")
-def test_upscaling_task_create_http_error(
+def test_upscaling_task_create_internal_error(
     mock_create_upscaling_task,
     client,
     fake_upscaling_task_request,
 ):
 
-    mock_create_upscaling_task.side_effect = HTTPException(
-        status_code=503, detail="Oops, service unavailable"
-    )
+    mock_create_upscaling_task.side_effect = InternalException()
 
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
-    assert r.status_code == 503
-    assert "service unavailable" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An internal server error occurred." in r.json().get("message", "")
 
 
 @patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
@@ -65,7 +65,7 @@ def test_upscaling_task_get_task_200(
     mock_get_upscale_task.return_value = fake_upscaling_task
 
     r = client.get("/upscale_tasks/1")
-    assert r.status_code == 200
+    assert r.status_code == status.HTTP_200_OK
     assert json.dumps(r.json(), indent=1) == fake_upscaling_task.model_dump_json(
         indent=1
     )
@@ -77,8 +77,8 @@ def test_upscaling_task_get_task_404(mock_get_upscale_task, client):
     mock_get_upscale_task.return_value = None
 
     r = client.get("/upscale_tasks/1")
-    assert r.status_code == 404
-    assert "upscale task 1 not found" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert "The requested task was not found." in r.json().get("message", "")
 
 
 @patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
@@ -87,20 +87,21 @@ def test_upscaling_task_get_task_500(mock_get_upscale_task, client):
     mock_get_upscale_task.side_effect = SystemError("Database connection lost")
 
     r = client.get("/upscale_tasks/1")
-    assert r.status_code == 500
-    assert "database connection lost" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while retrieving the upscale task" in r.json().get(
+        "message", ""
+    )
 
 
 @patch("app.routers.upscale_tasks.get_upscaling_task_by_user_id")
-def test_upscaling_task_get_task_http_error(mock_get_upscale_task, client):
+def test_upscaling_task_get_task_internal_error(mock_get_upscale_task, client):
 
-    mock_get_upscale_task.side_effect = HTTPException(
-        status_code=503, detail="Oops, service unavailable"
-    )
+    error = InternalException()
+    mock_get_upscale_task.side_effect = error
 
     r = client.get("/upscale_tasks/1")
-    assert r.status_code == 503
-    assert "service unavailable" in r.json().get("detail", "").lower()
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert error.message in r.json().get("message", "")
 
 
 @pytest.mark.asyncio
@@ -132,6 +133,7 @@ async def test_ws_jobs_status_closes_on_error(
 
     with client.websocket_connect("/ws/upscale_tasks/1?token=123") as websocket:
         with pytest.raises(WebSocketDisconnect) as exc_info:
+            websocket.receive_json()
             websocket.receive_json()
             websocket.receive_json()
             websocket.receive_json()

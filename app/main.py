@@ -2,11 +2,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware.correlation_id import add_correlation_id
+from app.middleware.error_handling import register_exception_handlers
 from app.platforms.dispatcher import load_processing_platforms
 from app.services.tiles.base import load_grids
 from app.config.logger import setup_logging
 from app.config.settings import settings
-from app.routers import jobs_status, unit_jobs, health, tiles, upscale_tasks, sync_jobs
+from app.routers import (
+    jobs_status,
+    unit_jobs,
+    health,
+    tiles,
+    upscale_tasks,
+    sync_jobs,
+    parameters,
+)
 
 setup_logging()
 
@@ -28,6 +37,7 @@ app.add_middleware(
 )
 
 app.middleware("http")(add_correlation_id)
+register_exception_handlers(app)
 
 # include routers
 app.include_router(tiles.router)
@@ -36,3 +46,4 @@ app.include_router(unit_jobs.router)
 app.include_router(sync_jobs.router)
 app.include_router(upscale_tasks.router)
 app.include_router(health.router)
+app.include_router(parameters.router)

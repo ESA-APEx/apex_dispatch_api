@@ -15,6 +15,7 @@ from app.platforms.dispatcher import get_processing_platform
 from sqlalchemy.orm import Session
 
 from app.schemas.enum import ProcessingStatusEnum
+from app.schemas.parameters import ParamRequest, Parameter
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -209,4 +210,21 @@ async def create_synchronous_job(
         details=request.service,
         parameters=request.parameters,
         format=request.format,
+    )
+
+
+async def retrieve_service_parameters(
+    user_token: str,
+    payload: ParamRequest,
+) -> List[Parameter]:
+    logger.info(
+        f"Retrieving service parameters for service {payload.service.application} at "
+        f"{payload.service.endpoint}"
+    )
+
+    platform = get_processing_platform(payload.label)
+
+    return await platform.get_service_parameters(
+        user_token=user_token,
+        details=payload.service,
     )
