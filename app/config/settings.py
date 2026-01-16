@@ -4,7 +4,7 @@ from typing import Dict
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.config.openeo.settings import OpenEOAuthMethod, OpenEOBackendConfig
+from app.config.schemas import AuthMethod, BackendAuthConfig
 
 
 class Settings(BaseSettings):
@@ -40,29 +40,28 @@ class Settings(BaseSettings):
         default="", json_schema_extra={"env": "KEYCLOAK_CLIENT_SECRET"}
     )
 
-    # openEO Settings
-    openeo_backends: str | None = Field(
-        default="", json_schema_extra={"env": "OPENEO_BACKENDS"}
+    # Backend auth configuration
+    backends: str | None = Field(
+        default="", json_schema_extra={"env": "BACKENDS"}
     )
+    backend_auth_config: Dict[str, BackendAuthConfig] = Field(default_factory=dict)
 
-    openeo_backend_config: Dict[str, OpenEOBackendConfig] = Field(default_factory=dict)
-
-    def load_openeo_backends_from_env(self):
+    def load_backends_auth_config(self):
         """
         Populate self.backends from BACKENDS_JSON if provided, otherwise keep defaults.
         BACKENDS_JSON should be a JSON object keyed by hostname with BackendConfig-like values.
         """
         required_fields = []
-        if self.openeo_backends:
+        if self.backends:
 
             try:
-                raw = json.loads(self.openeo_backends)
+                raw = json.loads(self.backends)
                 for host, cfg in raw.items():
-                    backend = OpenEOBackendConfig(**cfg)
+                    backend = BackendAuthConfig(**cfg)
 
-                    if backend.auth_method == OpenEOAuthMethod.CLIENT_CREDENTIALS:
+                    if backend.auth_method == AuthMethod.CLIENT_CREDENTIALS:
                         required_fields = ["client_credentials"]
-                    elif backend.auth_method == OpenEOAuthMethod.USER_CREDENTIALS:
+                    elif backend.auth_method == AuthMethod.USER_CREDENTIALS:
                         required_fields = ["token_provider"]
 
                     for field in required_fields:
@@ -71,11 +70,11 @@ class Settings(BaseSettings):
                                 f"Backend '{host}' must define '{field}' when "
                                 f"OPENEO_AUTH_METHOD={backend.auth_method}"
                             )
-                    self.openeo_backend_config[host] = OpenEOBackendConfig(**cfg)
+                    self.backend_auth_config[host] = BackendAuthConfig(**cfg)
             except Exception:
                 # Fall back or raise as appropriate
                 raise
 
 
 settings = Settings()
-settings.load_openeo_backends_from_env()
+settings.load_backends_auth_config()
