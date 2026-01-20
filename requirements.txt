@@ -30,3 +30,4 @@ stac-pydantic
 types-requests
 types-shapely
 uvicorn[standard]
+ogc-api-client @ git+https://github.com/EOEPCA/ogc-api-client.git@develop#subdirectory=src
