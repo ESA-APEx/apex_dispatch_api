@@ -68,7 +68,7 @@ class Settings(BaseSettings):
                         if not getattr(backend, field, None):
                             raise ValueError(
                                 f"Backend '{host}' must define '{field}' when "
-                                f"OPENEO_AUTH_METHOD={backend.auth_method}"
+                                f"AUTH_METHOD={backend.auth_method}"
                             )
                     self.backend_auth_config[host] = BackendAuthConfig(**cfg)
             except Exception:
