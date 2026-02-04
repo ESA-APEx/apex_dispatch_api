@@ -27,6 +27,21 @@ def split_by_20x20_km_grid(polygon: Polygon) -> GeometryCollection:
     )
 
 
+@register_grid(GridTypeEnum.KM_250)
+def split_by_250x250_km_grid(polygon: Polygon) -> GeometryCollection:
+    """
+    Split polygon into 250x250 km tiles.
+
+    :param polygon: The GeoJSON Polygon to split.
+    :return: A list of GeoJSON Polygons.
+    """
+    logger.debug("Splitting polygon in a 250x250km grid")
+
+    return GeometryCollection(
+        type="GeometryCollection", geometries=_split_by_km_grid(polygon, 250.0)
+    )
+
+
 def _split_by_km_grid(aoi: Polygon, cell_size_km: float) -> List[Geometry]:
     """
     Splits a polygon into a list of smaller polygons based on a square grid of given size in km.
