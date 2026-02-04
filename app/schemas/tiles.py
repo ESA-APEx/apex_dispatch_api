@@ -5,6 +5,7 @@ from geojson_pydantic import Polygon
 
 class GridTypeEnum(str, Enum):
     KM_20 = "20x20km"
+    KM_250 = "250x250km"
 
 
 class TileRequest(BaseModel):
