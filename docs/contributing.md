@@ -43,3 +43,19 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 The processing type, defined by `ProcessTypeEnum`, is the unique identifier for the platform implementation. It is used to distinguish between different platform implementations in the system. This value is used by the different request endpoints to determine which platform implementation to use for processing the request. To add a new platform implementation, you will need to define a new `ProcessTypeEnum` value in the `app/schemas/enum.py` file. This value should be unique and descriptive of the platform you are implementing.
 
 Once you have completed the above steps, the new platform implementation will be registered automatically and made available for use in the APEx Dispatch API. You can then proceed to implement the specific functionality required for your platform.
+
+### Best Practices
+
+#### Usage of dedicated client libraries
+
+When implementing a new platform, it is highly recommended to use dedicated client libraries for interacting with external services. This approach offers several advantages:
+- **Simplicity**: Client libraries often provide a higher-level abstraction over raw HTTP requests, making it easier to interact with the service.
+- **Error Handling**: Many client libraries come with built-in error handling mechanisms, reducing the need to implement custom error handling logic.
+- **Performance**: Client libraries may include optimizations for performance, such as connection pooling and efficient data serialization.
+- **Maintenance**: Using a well-maintained client library can reduce the maintenance burden, as updates and bug fixes are handled by the library maintainers.
+
+#### Dependency Management
+
+When adding new dependencies to the project, please ensure that they are declared in the `requirements.txt` file of the project. 
+This practice helps maintain a clear record of all dependencies required for the project and ensures that anyone working on the project can easily install the necessary packages.
+Additionally, this list of dependencies is used in the deployment process to set up the environment correctly.

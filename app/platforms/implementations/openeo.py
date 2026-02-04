@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 from loguru import logger
 from stac_pydantic import Collection
 
-from app.auth import exchange_token_for_provider
-from app.config.settings import OpenEOAuthMethod, settings
+from app.auth import exchange_token
+from app.config.schemas import AuthMethod
+from app.config.settings import settings
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
@@ -58,28 +59,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
             logger.warning("No JWT bearer token found in connection.")
             return True
 
-    async def _get_bearer_token(self, user_token: str, url: str) -> str:
-        """
-        Retrieve the bearer token for the OpenEO backend. This is done  by exchanging the user's
-        token for a platform-specific token using the configured token provider.
-
-        :param url: The URL of the OpenEO backend.
-        :return: The bearer token as a string.
-        """
-
-        provider = settings.openeo_backend_config[url].token_provider
-        token_prefix = settings.openeo_backend_config[url].token_prefix
-
-        if not provider or not token_prefix:
-            raise ValueError(
-                f"Backend '{url}' must define 'token_provider' and 'token_prefix'"
-            )
-
-        platform_token = await exchange_token_for_provider(
-            initial_token=user_token, provider=provider
-        )
-        return f"{token_prefix}/{platform_token['access_token']}"
-
     async def _authenticate_user(
         self, user_token: str, url: str, connection: openeo.Connection
     ) -> openeo.Connection:
@@ -88,19 +67,19 @@ class OpenEOPlatform(BaseProcessingPlatform):
         This method can be used to set the user's token for the connection.
         """
 
-        if url not in settings.openeo_backend_config:
+        if url not in settings.backend_auth_config:
             raise ValueError(f"No OpenEO backend configuration found for URL: {url}")
 
         if (
-            settings.openeo_backend_config[url].auth_method
-            == OpenEOAuthMethod.USER_CREDENTIALS
+            settings.backend_auth_config[url].auth_method
+            == AuthMethod.USER_CREDENTIALS
         ):
             logger.debug("Using user credentials for OpenEO connection authentication")
-            bearer_token = await self._get_bearer_token(user_token, url)
+            bearer_token = await exchange_token(user_token=user_token, url=url)
             connection.authenticate_bearer_token(bearer_token=bearer_token)
         elif (
-            settings.openeo_backend_config[url].auth_method
-            == OpenEOAuthMethod.CLIENT_CREDENTIALS
+            settings.backend_auth_config[url].auth_method
+            == AuthMethod.CLIENT_CREDENTIALS
         ):
             logger.debug(
                 "Using client credentials for OpenEO connection authentication"
@@ -115,7 +94,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         else:
             raise ValueError(
                 "Unsupported OpenEO authentication method: "
-                f"{settings.openeo_backend_config[url].auth_method}"
+                f"{settings.backend_auth_config[url].auth_method}"
             )
 
         return connection
@@ -145,7 +124,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         :param url: The URL of the OpenEO backend.
         :return: A tuple containing provider ID, client ID, and client secret.
         """
-        credentials_str = settings.openeo_backend_config[url].client_credentials
+        credentials_str = settings.backend_auth_config[url].client_credentials
 
         if not credentials_str:
             raise ValueError(

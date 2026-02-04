@@ -86,7 +86,35 @@ async def websocket_authenticate(websocket: WebSocket) -> str | None:
         return None
 
 
-async def exchange_token_for_provider(
+async def exchange_token(user_token: str, url: str) -> str:
+    """
+    Retrieve the exchanged token for accessing an external backend. This is done  by exchanging the
+    user's token for a platform-specific token using the configured token provider.
+
+    :param url: The URL of the backend for which to exchange the token. This URL should be
+    configured in the BACKEND_CONFIG environment variable.
+    :return: The bearer token as a string.
+    """
+
+    provider = settings.backend_auth_config[url].token_provider
+    token_prefix = settings.backend_auth_config[url].token_prefix
+
+    if not provider or not token_prefix:
+        raise ValueError(
+            f"Backend '{url}' must define 'token_provider' and 'token_prefix'"
+        )
+
+    platform_token = await _exchange_token_for_provider(
+        initial_token=user_token, provider=provider
+    )
+    return (
+        f"{token_prefix}/{platform_token['access_token']}"
+        if token_prefix
+        else platform_token["access_token"]
+    )
+
+
+async def _exchange_token_for_provider(
     initial_token: str, provider: str
 ) -> Dict[str, Any]:
     """
