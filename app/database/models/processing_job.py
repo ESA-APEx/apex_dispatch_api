@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.database.db import Base
@@ -18,15 +19,15 @@ class ProcessingJobRecord(Base):
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, index=True, autoincrement=True
     )
-    title: Mapped[str] = mapped_column(String, index=True)
+    title: Mapped[str] = mapped_column(String(255), index=True)
     label: Mapped[ProcessTypeEnum] = mapped_column(Enum(ProcessTypeEnum), index=True)
     status: Mapped[ProcessingStatusEnum] = mapped_column(
         Enum(ProcessingStatusEnum), index=True
     )
-    user_id: Mapped[str] = mapped_column(String, index=True)
-    platform_job_id: Mapped[Optional[str]] = mapped_column(String, index=True)
-    parameters: Mapped[str] = mapped_column(String, index=False)
-    service: Mapped[str] = mapped_column(String, index=True)
+    user_id: Mapped[str] = mapped_column(String(255), index=True)
+    platform_job_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    parameters: Mapped[str] = mapped_column(LONGTEXT())
+    service: Mapped[str] = mapped_column(LONGTEXT())
     created: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, index=True
     )
