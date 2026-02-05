@@ -31,6 +31,8 @@ jwks_client = PyJWKClient(JWKS_URL, cache_keys=True)
 
 def _decode_token(token: str):
     try:
+        logger.debug(f"Decoding token for user authentication: {token} with "
+                     f"issuer {KEYCLOAK_BASE_URL}")
         signing_key = jwks_client.get_signing_key_from_jwt(token).key
         payload = jwt.decode(
             token,
