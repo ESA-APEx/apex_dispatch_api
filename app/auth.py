@@ -12,16 +12,16 @@ from app.schemas.websockets import WSStatusMessage
 from .config.settings import settings
 
 # Keycloak OIDC info
-KEYCLOAK_BASE_URL = f"https://{settings.keycloak_host}/realms/{settings.keycloak_realm}"
+KEYCLOAK_BASE_URL = f"{settings.keycloak_host}/realms/{settings.keycloak_realm}"
 JWKS_URL = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/certs"
 ALGORITHM = "RS256"
 
 
 # Keycloak OIDC endpoints
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=f"https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+    authorizationUrl=f"{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
     "protocol/openid-connect/auth",
-    tokenUrl=f"https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+    tokenUrl=f"{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
     "protocol/openid-connect/token",
 )
 
@@ -191,7 +191,7 @@ async def _exchange_token_for_provider(
             http_status=client_status,
             message=(
                 f"Please link your account with {provider} in your "
-                "<a href='https://{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+                "<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
                 "account'>Account Dashboard</a>"
                 if body.get("error", "") == "not_linked"
                 else f"Could not authenticate with {provider}: {err}"
