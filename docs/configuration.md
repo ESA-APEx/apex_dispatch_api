@@ -12,7 +12,7 @@ Below are the key settings that can be adjusted to tailor the Dispatcher's behav
 | **Database Settings**    |                                                                    |                               |                   |
 | `DATABASE_URL`           | The database connection URL.                                       | Text                          | ""                |
 | **Keycloak Settings**    |                                                                    |                               |                   |
-| `KEYCLOAK_HOST`          | The hostname of the Keycloak server.                               | Text                          | localhost         |
+| `KEYCLOAK_HOST`          | The hostname and protocol of the Keycloak server.                  | Text                          | http://localhost  |
 | `KEYCLOAK_REALM`         | The Keycloak realm to use for authentication.                      | Text                          | ""                |
 | `KEYCLOAK_CLIENT_ID`     | The client ID registered in Keycloak.                              | Text                          | ""                |
 | `KEYCLOAK_CLIENT_SECRET` | The client secret for the Keycloak client.                         | Text                          | ""                |
@@ -60,7 +60,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 DATABASE_URL=sqlite:///:memory:
 
 # Keycloak Settings
-KEYCLOAK_HOST=localhost
+KEYCLOAK_HOST=http://localhost
 KEYCLOAK_REALM=apex
 KEYCLOAK_CLIENT_ID=apex-client-id
 KEYCLOAK_CLIENT_SECRET=apex-client-secret
