@@ -131,7 +131,7 @@ async def _exchange_token_for_provider(
     token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
 
     # Check if the necessary settings are in place
-    if not settings.keycloak_client_id or not settings.keycloak_client_secret:
+    if not settings.keycloak_client_id:
         raise AuthException(
             http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message="Token exchange not configured on the server (missing client credentials).",
