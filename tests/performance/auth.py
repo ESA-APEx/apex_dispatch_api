@@ -12,7 +12,7 @@ CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_PERFORMANCE_SECRET")
 
 
 def get_token_client_credentials():
-    url = f"https://{URL}/realms/{REALM}/protocol/openid-connect/token"
+    url = f"{URL}/realms/{REALM}/protocol/openid-connect/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": CLIENT_ID,
