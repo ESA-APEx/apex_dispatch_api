@@ -7,9 +7,12 @@ from app.schemas.unit_job import ServiceDetails
 
 
 class ParamTypeEnum(str, Enum):
+    DATETIME = "datetime"
     DATE_INTERVAL = "date-interval"
     BOUNDING_BOX = "bounding-box"
     BOOLEAN = "boolean"
+    INTEGER = "integer"
+    DOUBLE = "double"
     STRING = "string"
 
 
