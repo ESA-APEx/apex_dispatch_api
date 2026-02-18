@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
 
@@ -12,6 +13,13 @@ class ServiceDetails(BaseModel):
         "openEO backend. For OGC API Processes, this field should include the base URL of the "
         "platform API",
         examples=["https://openeofed.dataspace.copernicus.eu"],
+    )
+    namespace: Optional[str] = Field(
+        default=None,
+        description="Namespace under the endpoint where the service is hosted. For openEO, this field"
+        "is not set. For OGC API Processes, this field should include the namespace ID representing"
+        "under which the namespace-related API is deployed",
+        examples=["https://openeofed.dataspace.copernicus.eu"]
     )
     application: str = Field(
         ...,
