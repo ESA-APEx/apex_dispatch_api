@@ -1,0 +1,959 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../contributing/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Architecture - APEx Dispatch API</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture-overview" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="APEx Dispatch API" class="md-header__button md-logo" aria-label="APEx Dispatch API" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            APEx Dispatch API
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="APEx Dispatch API" class="md-nav__button md-logo" aria-label="APEx Dispatch API" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    APEx Dispatch API
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dispatch-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-job-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Job Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upscaling-task-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upscaling Task Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-retrieval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status Retrieval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication-and-authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication and Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication and Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#apex-service-account-current-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APEx Service Account (Current Implementation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-impersonation-preferred-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Impersonation (Preferred Approach)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="User Impersonation (Preferred Approach)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation-oidc-token-exchange-via-apex-keycloak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation: OIDC Token Exchange via APEx Keycloak
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation: OIDC Token Exchange via APEx Keycloak">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dispatch-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-job-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Job Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upscaling-task-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upscaling Task Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status-retrieval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status Retrieval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication-and-authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication and Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication and Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#apex-service-account-current-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APEx Service Account (Current Implementation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-impersonation-preferred-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Impersonation (Preferred Approach)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="User Impersonation (Preferred Approach)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation-oidc-token-exchange-via-apex-keycloak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation: OIDC Token Exchange via APEx Keycloak
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation: OIDC Token Exchange via APEx Keycloak">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="architecture-overview">Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h1>
+<p>The <strong>APEx Dispatch API</strong> acts as a <strong>broker service</strong> that allows clients to trigger job executions on external Earth Observation platforms.<br />
+Instead of interacting directly with platform-specific APIs, clients can use the <strong>uniform Dispatch API interface</strong>, while the dispatcher handles the translation and job management.</p>
+<h2 id="key-concepts">Key Concepts<a class="headerlink" href="#key-concepts" title="Permanent link">&para;</a></h2>
+<h3 id="dispatch-api">Dispatch API<a class="headerlink" href="#dispatch-api" title="Permanent link">&para;</a></h3>
+<p>The <strong>Dispatch API</strong> is the core component of the system. It acts as the entry point for clients who want to execute jobs or perform upscaling tasks. When a job request is submitted, the dispatcher takes care of translating it into a <strong>platform-specific request</strong> using standards such as <a href="https://openeo.org/">openEO</a> or <a href="https://ogcapi.ogc.org/processes/">OGC API – Processes</a> that is sent to an existing EO platform, such as CDSE or the Geohazard Exploitation Platform. Beyond handling the translation, the dispatcher is also responsible for storing all relevant job information, including metadata and references to the external platform where the job is ultimately executed.</p>
+<pre class="mermaid"><code>flowchart LR
+    C["Client"] --&gt; D["APEx Dispatch API"]
+    D-.-&gt;C
+    D--&gt;P1[Platform 1]
+    P1-.-&gt;D
+    D--&gt;P2[Platform 2]
+    P2-.-&gt;D
+    D--&gt;P3[Platform 3]
+    P3-.-&gt;D</code></pre>
+<h3 id="processing-job-execution">Processing Job Execution<a class="headerlink" href="#processing-job-execution" title="Permanent link">&para;</a></h3>
+<p>When a client wants to perform a task, it submits a job to the Dispatch API. A job request typically contains two main pieces of information: the service that needs to be executed and the parameters required for that service. Once received, the dispatcher forwards this request to the chosen external platform, which carries out the execution. In response, the platform provides a job identifier, which the dispatcher records internally to keep track of the execution.</p>
+<p>After a job has been submitted and forwarded to an external platform, the dispatcher maintains an internal record of it. This record includes a unique internal job identifier, which the client can use for reference, as well as the mapping to the external platform’s job ID. Additional metadata, such as the job status, the creation timestamp, and the parameters used during submission, are also stored. This internal tracking mechanism ensures that the client has a single point of reference for all jobs, regardless of where they are executed.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant UI as Client
+    box APEx
+    participant API as APEx Dispatch API
+    end
+    box Platform
+    participant Platform as API (openEO / OGC API Process)
+    end
+
+    UI-&gt;&gt;API: POST /unit_jobs
+
+    API-&gt;&gt;API: Create processing job
+    API-&gt;&gt;Platform: Submit processing job
+    Platform--&gt;&gt;API: Return platform job ID
+    API-&gt;&gt;API:Store platform job ID 
+    API-&gt;&gt;API:Set job status as "submitted"
+
+    API--&gt;&gt;UI: Return processing job summary</code></pre>
+<h3 id="upscaling-task-execution">Upscaling Task Execution<a class="headerlink" href="#upscaling-task-execution" title="Permanent link">&para;</a></h3>
+<p>In addition to individual job submissions, the dispatcher also supports <strong>upscaling</strong> activities. In this case, a client submits a request that includes not just the target service and execution parameters, but also a <strong>parameter dimension with multiple values</strong>. The dispatcher uses this information to generate multiple job requests, each corresponding to one value in the parameter dimension, and forwards them to the external platform. From the client’s perspective, however, this entire batch of jobs is managed as a single <strong>upscaling task</strong>. The dispatcher keeps track of the execution of all related jobs and exposes them as part of one unified task, simplifying monitoring and retrieval for the user.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant UI as Client
+    box APEx
+    participant API as APEx Dispatch API
+    end
+    box Platform
+    participant Platform as API (openEO / OGC API Process)
+    end
+
+    UI-&gt;&gt;API: POST /upscale_tasks
+
+    API-&gt;&gt;API: Create upscaling task
+
+
+    loop For each job of upscaling task
+    API-&gt;&gt;API: Create processing job
+    API-&gt;&gt;Platform: Submit processing job
+    Platform--&gt;&gt;API: Return platform job ID
+    API-&gt;&gt;API:Store platform job ID 
+    API-&gt;&gt;API:Set job status as "submitted"
+    end
+
+    API--&gt;&gt;UI: Return upscaling task summary</code></pre>
+<h3 id="status-retrieval">Status Retrieval<a class="headerlink" href="#status-retrieval" title="Permanent link">&para;</a></h3>
+<p>To check the progress of their jobs and upscale tasks, clients use a single status endpoint exposed by the Dispatch API. When such a request arrives, the dispatcher looks up the corresponding external job reference stored in its internal records. It then queries the external platform to obtain the most up-to-date status. This status information is returned to the client, allowing them to monitor their job execution transparently through the dispatcher without needing to interact with the external platform directly.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant UI as Client
+    box APEx
+    participant API as APEx Dispatch API
+    end
+    box Platform
+    participant Platform as API (openEO / OGC API Process)
+    end
+
+    UI-&gt;&gt;+API: Set up websocket to /job_status
+
+    loop Every X minutes
+        loop For each running processing job
+            API-&gt;&gt;Platform: Request job status
+            Platform--&gt;&gt;API: Send job status
+            API-&gt;&gt;API: Update job status
+        end
+
+        loop For each running upscaling task
+            loop For each running processing job in upscaling task
+                API-&gt;&gt;Platform: Request job status
+                Platform--&gt;&gt;API: Send job status
+                API-&gt;&gt;API: Update job status
+            end
+            API-&gt;&gt;API: Compute upscaling task status
+        end
+    end
+    API--&gt;&gt;-UI: Return summary list of processing jobs and upscaling tasks</code></pre>
+<h2 id="authentication-and-authorization">Authentication and Authorization<a class="headerlink" href="#authentication-and-authorization" title="Permanent link">&para;</a></h2>
+<p>Authentication and authorization are critical components of the APEx Dispatch API, as jobs launched through the API result in resource consumption on external platforms. To support remote job execution and manage this resource usage effectively, the project has identified two distinct scenarios:</p>
+<h3 id="apex-service-account-current-implementation">APEx Service Account (Current Implementation)<a class="headerlink" href="#apex-service-account-current-implementation" title="Permanent link">&para;</a></h3>
+<p>In this scenario, all jobs are executed on the external platforms using a generic APEx service account that has access to them. This means that each job or upscaling task triggered through the API is executed on the platform under the APEx account, rather than the actual user’s identity. However, the Dispatch API maintains the link between the platform job ID and the user who initiated the request in its database.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant UI as Client (UI)
+    box APEx
+        participant APEX_KEYCLOAK as APEx Keycloak
+        participant API as APEx Dispatch API
+    end
+    box Platform
+        participant EXTERNAL_KEYCLOAK as Platform Keycloak
+        participant EXTERNAL_API as Platform API
+    end
+
+    %% Flow
+    Note over UI,APEX_KEYCLOAK: Step 1 — User Authentication
+    UI-&gt;&gt;APEX_KEYCLOAK: Authenticate user (OIDC login)
+    APEX_KEYCLOAK--&gt;&gt;UI: Return APEx user access token
+
+    Note over UI,API: Step 2 — Call APEx API with token
+    UI-&gt;&gt;API: Request (Authorization: Bearer user_token)
+
+    Note over API,EXTERNAL_KEYCLOAK: Step 3 — Token Exchange
+    API-&gt;&gt;APEX_KEYCLOAK: Initiate token exchange
+    APEX_KEYCLOAK-&gt;&gt;EXTERNAL_KEYCLOAK: Request platform access token (via token exchange)
+    EXTERNAL_KEYCLOAK--&gt;&gt;APEX_KEYCLOAK: Return platform access token
+    APEX_KEYCLOAK--&gt;&gt;API: Return platform access token
+
+    Note over API,EXTERNAL_API: Step 4 — Access Platform Resource
+    API-&gt;&gt;EXTERNAL_API: Invoke job (Authorization: Bearer platform_token)
+    EXTERNAL_API--&gt;&gt;API: Job accepted/response</code></pre>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>Provides a seamless user experience: users do not need to create or manage platform-specific accounts.</li>
+<li>Simplifies integration for clients using the Dispatch API.</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>For each new platform, a dedicated APEx account must be created and funded appropriately. Estimating the required funding in advance is challenging, especially since the account is shared across all users.</li>
+<li>No user-level auditing or accounting is available. Users can continue triggering jobs as long as the APEx account has sufficient funds. This poses a risk of misuse, potentially leading to service disruption for all users if the APEx account is depleted.</li>
+<li>Implementing safeguards would require advanced accounting features within the Dispatch API, requiring the translation of existing business models into a uniform business logic. This adds complexity and may introduce additional costs by layering over existing platform models.</li>
+</ul>
+<h3 id="user-impersonation-preferred-approach">User Impersonation (Preferred Approach)<a class="headerlink" href="#user-impersonation-preferred-approach" title="Permanent link">&para;</a></h3>
+<p>The preferred solution is to execute jobs on behalf of the user who initiates the request via the APEx Dispatch API. In this model, all accounting and access control are handled directly by the platform, and users are responsible for maintaining sufficient access and funding—potentially supported through the ESA Network of Resources (NoR).</p>
+<pre class="mermaid"><code>flowchart LR
+    C["Alice"] -- Request job---&gt; D["APEx Dispatch API"]
+    D--Launch job as user Alice --&gt;P1[Platform ]</code></pre>
+<p><strong>Pros:</strong></p>
+<ul>
+<li>No need for custom accounting logic in the APEx Dispatch API, as platforms handle this natively.</li>
+<li>APEx avoids introducing a layer over the platform’s existing business model, preserving operational simplicity.</li>
+</ul>
+<p><strong>Cons:</strong></p>
+<ul>
+<li>Propagating user identity across platforms is a technical challenge and currently lacks a proven, ready-to-use solution.</li>
+<li>May require modifications on the target platform to support user impersonation, depending on the chosen implementation strategy.</li>
+</ul>
+<h4 id="implementation-oidc-token-exchange-via-apex-keycloak">Implementation: OIDC Token Exchange via APEx Keycloak<a class="headerlink" href="#implementation-oidc-token-exchange-via-apex-keycloak" title="Permanent link">&para;</a></h4>
+<p>The APEx Dispatch API implements user impersonation by utilising the OpenID Connect (OIDC) Token Exchange flow, which is facilitated through the APEx Keycloak instance. In this scenario, APEx Keycloak serves as an OIDC broker, interacting with external OIDC instances to enable secure and seamless user authentication across multiple platforms.</p>
+<p>To start, users authenticate via the standard login process through the APEx Keycloak. Leveraging the provided tools or scripts, the user’s APEx Keycloak access token is used to submit requests to the APEx Dispatch API by including their access token within the request headers. When the Dispatch API needs to interact with an external API, such as GEP’s OGC API - Process API or CDSE’s openEO API, it triggers a token exchange operation with the APEx Keycloak instance.</p>
+<pre class="mermaid"><code>flowchart LR
+    C["Alice"] -- Request job---&gt; D["APEx Dispatch API"]
+    D--Launch job as user APEx --&gt;P1[Platform ]</code></pre>
+<p>Through this process, the APEx Keycloak uses the submitted user access token to issue an exchanged token corresponding to the external Identity Provider (IdP) of the target platform (e.g., GEP or CDSE). The resulting token functions as an external access token, recognised by the respective external platform and including the identity of the original requester. This token is then returned to the APEx Dispatch API.</p>
+<p>Upon receiving the exchanged token, the APEx Dispatch API proceeds to authenticate with the external API by presenting the external access token. This mechanism ensures that the external system accurately identifies the user, thereby maintaining continuity and integrity in user access and identity management across various platforms.</p>
+<h5 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h5>
+<p>The implementation of the Token Exchange process requires the following:</p>
+<ul>
+<li>Every platform needs to be set up as an external IdP in APEx Keycloak, which includes creating a client on the external platform. </li>
+<li>The client used by the APEx Dispatch API must be authorised to perform token exchanges for the IdPs associated with supported platforms. This can be managed within the APEx Keycloak environment. </li>
+<li>For user token exchange, the user's account must be linked via the platform's IdP. Users can link their accounts through the APEx account dashboard or by signing into APEx with the corresponding external IdP.</li>
+</ul>
+<h5 id="considerations">Considerations<a class="headerlink" href="#considerations" title="Permanent link">&para;</a></h5>
+<p>The following considerations should be noted in this scenario:</p>
+<ul>
+<li>This scenario requires the user to possess a valid account on the platform with appropriate authorisation to access various resources.</li>
+<li>Each platform must be onboarded individually as an external identity provider.</li>
+<li>The association between the user's account and the external platform is subject to expiration, requiring the user to periodically re-link their account.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "diagrams"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
