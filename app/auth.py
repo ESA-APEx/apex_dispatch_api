@@ -192,7 +192,7 @@ async def _exchange_token_for_provider(
             http_status=client_status,
             message=(
                 f"Please link your account with {provider} in your "
-                "<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+                f"<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
                 "account'>Account Dashboard</a>"
                 if body.get("error", "") == "not_linked"
                 else f"Could not authenticate with {provider}: {err}"
