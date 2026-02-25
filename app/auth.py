@@ -179,8 +179,7 @@ async def _exchange_token_for_provider(
         # Keycloak returns error and error_description fields for token errors
         err = body.get("error_description") or body.get("error") or resp.text
         logger.error(
-            "Token exchange failed",
-            extra={"provider": provider, "status": resp.status_code, "error": err},
+            f"Token exchange failed for provider={provider}, status={resp.status_code}, error={err}"
         )
         # Map common upstream statuses to meaningful client statuses
         client_status = (
