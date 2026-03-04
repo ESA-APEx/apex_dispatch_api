@@ -238,8 +238,12 @@ class OpenEOPlatform(BaseProcessingPlatform):
     ) -> ProcessingStatusEnum:
         logger.debug(f"Fetching job status for openEO job with ID {job_id}")
         connection = await self._setup_connection(user_token, details.endpoint)
-        job = connection.job(job_id)
-        return self._map_openeo_status(job.status())
+        try:
+            job = connection.job(job_id)
+            return self._map_openeo_status(job.status())
+        except Exception as e:
+            logger.error(f"Error occurred while fetching job status for job {job_id}: {e}")
+            return ProcessingStatusEnum.UNKNOWN
 
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
