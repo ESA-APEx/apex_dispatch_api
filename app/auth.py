@@ -179,8 +179,7 @@ async def _exchange_token_for_provider(
         # Keycloak returns error and error_description fields for token errors
         err = body.get("error_description") or body.get("error") or resp.text
         logger.error(
-            "Token exchange failed",
-            extra={"provider": provider, "status": resp.status_code, "error": err},
+            f"Token exchange failed for provider={provider}, status={resp.status_code}, error={err}"
         )
         # Map common upstream statuses to meaningful client statuses
         client_status = (
@@ -193,7 +192,7 @@ async def _exchange_token_for_provider(
             http_status=client_status,
             message=(
                 f"Please link your account with {provider} in your "
-                "<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
+                f"<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
                 "account'>Account Dashboard</a>"
                 if body.get("error", "") == "not_linked"
                 else f"Could not authenticate with {provider}: {err}"
