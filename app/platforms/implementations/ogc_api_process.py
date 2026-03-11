@@ -159,7 +159,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # Job ID is composed of namespace and internal job id
         namespace, internal_job_id = self._split_job_id(job_id)
-        api_client = self._create_api_client_instance(
+        api_client = await self._create_api_client_instance(
             details.endpoint, namespace, exchanged_token
         )
 
@@ -180,7 +180,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             user_token=user_token, url=details.endpoint
         )
 
-        api_client = self._create_api_client_instance(
+        api_client = await self._create_api_client_instance(
             details.endpoint, details.namespace, exchanged_token
         )
         process_description = api_client.get_process_description(details.application)
