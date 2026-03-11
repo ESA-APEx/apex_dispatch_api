@@ -2,6 +2,7 @@ import json
 
 import re
 from typing import List
+from app.auth import exchange_token
 from fastapi import Response
 from loguru import logger
 
@@ -34,7 +35,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         return tuple(parts)
 
     
-    def _create_api_client_instance(
+    async def _create_api_client_instance(
         self,
         endpoint: str,
         namespace: str,
@@ -60,17 +61,21 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         format: OutputFormatEnum,
     ) -> str:
         logger.info(f"Executing OGC API job with title={title}")
-        # Output format omitted from request
 
-        api_client = self._create_api_client_instance(details.endpoint, details.namespace, user_token)
+        # Exchanging token
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(user_token=user_token, url=details.endpoint)
+
+        # Output format omitted from request
+        api_client = await self._create_api_client_instance(details.endpoint, details.namespace, exchanged_token)
 
         headers = {
             "accept": "*/*",
             #"Prefer": "respond-async;return=representation",
             "Content-Type": "application/json"
         }
-        if user_token:
-            headers["Authorization"] = f"Bearer {user_token}"
+        if exchanged_token:
+            headers["Authorization"] = f"Bearer {exchanged_token}"
 
         data = {
             "inputs": {key: value for key, value in parameters.items()}
@@ -132,7 +137,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         
         # Job ID is composed of namespace and internal job id
         namespace, internal_job_id = self._split_job_id(job_id)
-        api_client = self._create_api_client_instance(details.endpoint, namespace, user_token)
+        api_client = await self._create_api_client_instance(details.endpoint, namespace, user_token)
 
         status_info = api_client.get_status(job_id=internal_job_id)
         return self._map_ogcapi_status(status_info.status)
