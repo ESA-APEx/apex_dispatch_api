@@ -1,5 +1,3 @@
-import json
-
 import re
 from typing import List
 from app.auth import exchange_token
@@ -13,10 +11,8 @@ from app.schemas.parameters import Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 from ogc_api_client import Configuration
-from ogc_api_client.api.execute_api import ExecuteApi
 from ogc_api_client.api_client_wrapper import ApiClientWrapper
-from ogc_api_client.rest import ApiException
-from ogc_api_client.models.status_info import StatusInfo, StatusCode
+from ogc_api_client.models.status_info import StatusCode
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
