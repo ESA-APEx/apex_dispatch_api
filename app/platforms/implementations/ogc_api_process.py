@@ -133,10 +133,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> ProcessingStatusEnum:
         logger.debug(f"Fetching job status for OGC API job with ID {job_id}")
 
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
         # Job ID is composed of namespace and internal job id
         namespace, internal_job_id = self._split_job_id(job_id)
         api_client = await self._create_api_client_instance(
-            details.endpoint, namespace, user_token
+            details.endpoint, namespace, exchanged_token
         )
 
         status_info = api_client.get_status(job_id=internal_job_id)
@@ -147,10 +152,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> Collection:
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
         # Job ID is composed of namespace and internal job id
         namespace, internal_job_id = self._split_job_id(job_id)
         api_client = self._create_api_client_instance(
-            details.endpoint, namespace, user_token
+            details.endpoint, namespace, exchanged_token
         )
 
         result = api_client.get_result(job_id=internal_job_id)
@@ -165,8 +175,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             f"Fetching service parameters for OGC API process with ID {details.application}"
         )
 
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
         api_client = self._create_api_client_instance(
-            details.endpoint, details.namespace, user_token
+            details.endpoint, details.namespace, exchanged_token
         )
         process_description = api_client.get_process_description(details.application)
 
