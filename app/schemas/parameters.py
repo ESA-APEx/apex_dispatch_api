@@ -9,7 +9,7 @@ from app.schemas.unit_job import ServiceDetails
 class ParamTypeEnum(str, Enum):
     DATE_INTERVAL = "date-interval"
     BOUNDING_BOX = "bounding-box"
-    POLYGON = "polygon" 
+    POLYGON = "polygon"
     BOOLEAN = "boolean"
     INTEGER = "integer"
     STRING = "string"

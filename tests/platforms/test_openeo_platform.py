@@ -554,7 +554,7 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "name": "array_string_test",
             "description": "Test for an array of strings parameter",
             "schema": {"type": "array", "items": {"type": "string"}},
-        }, 
+        },
         {
             "name": "number_test",
             "description": "Test for a number parameter",
