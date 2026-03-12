@@ -103,6 +103,21 @@ def get_job_by_user_id(
     )
 
 
+def remove_job_by_id(database: Session, job_id: int, user_id: str) -> bool:
+    logger.info(f"Removing processing job with ID {job_id} for user {user_id}")
+    job = get_job_by_user_id(database, job_id, user_id)
+    if job:
+        database.delete(job)
+        database.commit()
+        return True
+    else:
+        logger.warning(
+            f"Could not remove processing job with ID {job_id} for user {user_id} as it could not"
+            " be found in the database"
+        )
+        return False
+
+
 def update_job_status_by_id(
     database: Session, job_id: int, status: ProcessingStatusEnum
 ):

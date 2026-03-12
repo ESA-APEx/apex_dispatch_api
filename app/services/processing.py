@@ -8,6 +8,7 @@ from app.database.models.processing_job import (
     ProcessingJobRecord,
     get_job_by_user_id,
     get_jobs_by_user_id,
+    remove_job_by_id,
     save_job_to_db,
     update_job_status_by_id,
 )
@@ -228,3 +229,22 @@ async def retrieve_service_parameters(
         user_token=user_token,
         details=payload.service,
     )
+
+
+async def delete_processing_job(
+    token: str,
+    database: Session,
+    job_id: int,
+) -> None:
+    user = get_current_user_id(token)
+    logger.info(f"Deleting processing job with ID {job_id} for user {user}")
+
+    record = get_job_by_user_id(database, job_id, user)
+    if not record:
+        return
+
+    # @TODO - Cancel job on the platform as well when supported by the platform
+    # platform = get_processing_platform(record.label)
+    # await platform.cancel_job(user_token=token, job_id=record.platform_job_id)
+
+    remove_job_by_id(database, record.id, user)
