@@ -286,12 +286,18 @@ class OpenEOPlatform(BaseProcessingPlatform):
             subtype = schema.get("subtype")
             if type == "array" and subtype == "temporal-interval":
                 return ParamTypeEnum.DATE_INTERVAL
+            elif type == "array" and schema.get("items", {}).get("type") == "string":
+                return ParamTypeEnum.ARRAY_STRING
             elif subtype == "bounding-box":
                 return ParamTypeEnum.BOUNDING_BOX
+            elif subtype == "geojson":
+                return ParamTypeEnum.POLYGON
             elif type == "boolean":
                 return ParamTypeEnum.BOOLEAN
             elif type == "string":
                 return ParamTypeEnum.STRING
+            elif type == "integer" or type == "number":
+                return ParamTypeEnum.INTEGER
 
         # If no matching schema found, raise an error
         raise ValueError(f"Unsupported parameter schemas: {schemas}")

@@ -524,6 +524,11 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "schema": {"type": "boolean"},
         },
         {
+            "name": "polygon_test",
+            "description": "Test for a polygon parameter",
+            "schema": {"type": "object", "subtype": "geojson"},
+        },
+        {
             "name": "bbox_test",
             "description": "Test for a bbox parameter",
             "schema": {"type": "object", "subtype": "bounding-box"},
@@ -539,6 +544,21 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "name": "string_test",
             "description": "Test for a string parameter",
             "schema": {"type": "string"},
+        },
+        {
+            "name": "int_test",
+            "description": "Test for a integer parameter",
+            "schema": {"type": "integer"},
+        },
+        {
+            "name": "array_string_test",
+            "description": "Test for an array of strings parameter",
+            "schema": {"type": "array", "items": {"type": "string"}},
+        }, 
+        {
+            "name": "number_test",
+            "description": "Test for a number parameter",
+            "schema": {"type": "number"},
         },
     ]
     mock_udp_request.return_value.json.return_value = {
@@ -563,20 +583,44 @@ async def test_get_parameters_success(mock_udp_request, platform):
         Parameter(
             name=udp_params[1]["name"],
             description=udp_params[1]["description"],
-            type=ParamTypeEnum.BOUNDING_BOX,
+            type=ParamTypeEnum.POLYGON,
             optional=False,
         ),
         Parameter(
             name=udp_params[2]["name"],
             description=udp_params[2]["description"],
-            type=ParamTypeEnum.DATE_INTERVAL,
-            optional=True,
-            default=udp_params[2]["default"],
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
         ),
         Parameter(
             name=udp_params[3]["name"],
             description=udp_params[3]["description"],
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+            default=udp_params[3]["default"],
+        ),
+        Parameter(
+            name=udp_params[4]["name"],
+            description=udp_params[4]["description"],
             type=ParamTypeEnum.STRING,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[5]["name"],
+            description=udp_params[5]["description"],
+            type=ParamTypeEnum.INTEGER,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[6]["name"],
+            description=udp_params[6]["description"],
+            type=ParamTypeEnum.ARRAY_STRING,
+            optional=False,
+        ),
+        Parameter(
+            name=udp_params[7]["name"],
+            description=udp_params[7]["description"],
+            type=ParamTypeEnum.INTEGER,
             optional=False,
         ),
     ]
