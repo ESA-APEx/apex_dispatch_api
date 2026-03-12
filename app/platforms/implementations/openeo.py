@@ -12,11 +12,14 @@ from stac_pydantic import Collection
 from app.auth import exchange_token
 from app.config.schemas import AuthMethod
 from app.config.settings import settings
+from app.error import AuthException
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
+
+from openeo.rest import OpenEoApiError
 
 load_dotenv()
 
@@ -70,10 +73,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         if url not in settings.backend_auth_config:
             raise ValueError(f"No OpenEO backend configuration found for URL: {url}")
 
-        if (
-            settings.backend_auth_config[url].auth_method
-            == AuthMethod.USER_CREDENTIALS
-        ):
+        if settings.backend_auth_config[url].auth_method == AuthMethod.USER_CREDENTIALS:
             logger.debug("Using user credentials for OpenEO connection authentication")
             bearer_token = await exchange_token(user_token=user_token, url=url)
             connection.authenticate_bearer_token(bearer_token=bearer_token)
@@ -184,12 +184,22 @@ class OpenEOPlatform(BaseProcessingPlatform):
         parameters: dict,
         format: OutputFormatEnum,
     ) -> str:
-        service = await self._build_datacube(user_token, title, details, parameters)
-        job = service.create_job(title=title, out_format=format)
-        logger.info(f"Executing OpenEO batch job with title={title}")
-        job.start()
+        try:
+            service = await self._build_datacube(user_token, title, details, parameters)
+            job = service.create_job(title=title, out_format=format)
+            logger.info(f"Executing OpenEO batch job with title={title}")
+            job.start()
 
-        return job.job_id
+            return job.job_id
+        except OpenEoApiError as e:
+            if e.http_status_code in (403, 401):
+                raise AuthException(
+                    e.http_status_code,
+                    f"Authentication error when executing: {e.message}",
+                )
+            raise e
+        except Exception as e:
+            raise e
 
     async def execute_synchronous_job(
         self,
@@ -199,14 +209,24 @@ class OpenEOPlatform(BaseProcessingPlatform):
         parameters: dict,
         format: OutputFormatEnum,
     ) -> Response:
-        service = await self._build_datacube(user_token, title, details, parameters)
-        logger.info("Executing synchronous OpenEO job")
-        response = service.execute(auto_decode=False)
-        return Response(
-            content=response.content,
-            status_code=response.status_code,
-            media_type=response.headers.get("Content-Type"),
-        )
+        try:
+            service = await self._build_datacube(user_token, title, details, parameters)
+            logger.info("Executing synchronous OpenEO job")
+            response = service.execute(auto_decode=False)
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                media_type=response.headers.get("Content-Type"),
+            )
+        except OpenEoApiError as e:
+            if e.http_status_code in (403, 401):
+                raise AuthException(
+                    e.http_status_code,
+                    f"Authentication error when executing: {e.message}",
+                )
+            raise e
+        except Exception as e:
+            raise e
 
     def _map_openeo_status(self, status: str) -> ProcessingStatusEnum:
         """
@@ -248,10 +268,20 @@ class OpenEOPlatform(BaseProcessingPlatform):
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
     ) -> Collection:
-        logger.debug(f"Fetching job result for openEO job with ID {job_id}")
-        connection = await self._setup_connection(user_token, details.endpoint)
-        job = connection.job(job_id)
-        return Collection(**job.get_results().get_metadata())
+        try:
+            logger.debug(f"Fetching job result for openEO job with ID {job_id}")
+            connection = await self._setup_connection(user_token, details.endpoint)
+            job = connection.job(job_id)
+            return Collection(**job.get_results().get_metadata())
+        except OpenEoApiError as e:
+            if e.http_status_code in (403, 401):
+                raise AuthException(
+                    e.http_status_code,
+                    f"Authentication error when fetching job results for job {job_id}: {e.message}",
+                )
+            raise e
+        except Exception as e:
+            raise e
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
