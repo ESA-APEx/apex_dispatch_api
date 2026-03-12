@@ -9,6 +9,7 @@ import requests
 
 from app.config.schemas import AuthMethod, BackendAuthConfig
 from app.config.settings import settings
+from app.error import AuthException
 from app.platforms.implementations.openeo import (
     OpenEOPlatform,
 )
@@ -16,6 +17,8 @@ from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
+
+from openeo.rest import OpenEoApiError
 
 
 class DummyOpenEOClient:
@@ -131,6 +134,46 @@ async def test_execute_job_process_id_failure(
         )
 
 
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(
+    OpenEOPlatform,
+    "_build_datacube",
+    side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=401),
+)
+async def test_execute_job_process_openeo_auth_error(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(AuthException, match="Authentication error"):
+        await platform.execute_job(
+            user_token="fake_token",
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(
+    OpenEOPlatform,
+    "_build_datacube",
+    side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=500),
+)
+async def test_execute_job_process_openeo_error(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(OpenEoApiError, match="Woops"):
+        await platform.execute_job(
+            user_token="fake_token",
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
+
+
 @pytest.mark.parametrize(
     "openeo_status, expected_enum",
     [
@@ -195,6 +238,30 @@ async def test_get_job_results_error(mock_connection, platform):
         await platform.get_job_results("foobar", "job123", details)
 
     assert "Connection error" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+async def test_get_job_results_openeo_auth_error(
+    mock_connection, platform, service_details
+):
+    mock_connection.side_effect = OpenEoApiError(
+        message="Woops", code="Test", http_status_code=401
+    )
+    details = ServiceDetails(endpoint="foo", application="bar")
+    with pytest.raises(AuthException, match="Authentication error"):
+        await platform.get_job_results("foobar", "job123", details)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+async def test_get_job_results_openeo_error(mock_connection, platform, service_details):
+    mock_connection.side_effect = OpenEoApiError(
+        message="Woops", code="Test", http_status_code=500
+    )
+    details = ServiceDetails(endpoint="foo", application="bar")
+    with pytest.raises(OpenEoApiError, match="Woops"):
+        await platform.get_job_results("foobar", "job123", details)
 
 
 def _make_conn_with_token(token: str):
@@ -511,6 +578,66 @@ async def test_execute_sync_job_success(
     assert response.status_code == mock_response.status_code
     assert json.loads(response.body) == json.loads(mock_response.content)
     mock_connect.assert_called_once_with("fake_token", service_details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(
+    OpenEOPlatform,
+    "_build_datacube",
+    side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=401),
+)
+async def test_execute_sync_job_openeo_auth_error(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(AuthException, match="Authentication error"):
+        await platform.execute_synchronous_job(
+            user_token="fake_token",
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(
+    OpenEOPlatform,
+    "_build_datacube",
+    side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=500),
+)
+async def test_execute_sync_job_openeo_error(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(OpenEoApiError, match="Woops"):
+        await platform.execute_synchronous_job(
+            user_token="fake_token",
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection")
+@patch.object(
+    OpenEOPlatform,
+    "_build_datacube",
+    side_effect=RuntimeError("Woops"),
+)
+async def test_execute_sync_job_error(
+    mock_pid, mock_connect, platform, service_details
+):
+    with pytest.raises(RuntimeError, match="Woops"):
+        await platform.execute_synchronous_job(
+            user_token="fake_token",
+            title="Test Job",
+            details=service_details,
+            parameters={},
+            format=OutputFormatEnum.GEOTIFF,
+        )
 
 
 @pytest.mark.asyncio
