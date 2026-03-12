@@ -22,7 +22,7 @@ def test_upscaling_task_create_201(
     r = client.post("/upscale_tasks", json=fake_upscaling_task_request.model_dump())
     assert r.status_code == status.HTTP_201_CREATED
     assert r.json() == fake_upscaling_task_summary.model_dump()
-    assert mock_create_processing_jobs.called_once()
+    mock_create_processing_jobs.assert_called_once()
 
 
 @patch("app.routers.upscale_tasks.create_upscaling_task")
