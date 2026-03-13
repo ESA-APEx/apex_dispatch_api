@@ -234,14 +234,14 @@ async def test_get_job_status_retries_after_auth_error(
     second_connection = MagicMock()
     second_connection.job.return_value = second_job
 
-    mock_setup_connection.return_value = first_connection
+    mock_setup_connection.side_effect = [first_connection, second_connection]
     mock_refresh_connection.return_value = second_connection
 
     details = ServiceDetails(endpoint="foo", application="bar")
     result = await platform.get_job_status("foobar", "job123", details)
 
     assert result == ProcessingStatusEnum.RUNNING
-    mock_setup_connection.assert_awaited_once_with("foobar", details.endpoint)
+    assert mock_setup_connection.await_count == 2
     mock_refresh_connection.assert_awaited_once_with("foobar", details.endpoint)
 
 

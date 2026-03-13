@@ -171,6 +171,20 @@ class OpenEOPlatform(BaseProcessingPlatform):
             media_type=response.headers.get("Content-Type"),
         )
 
+    async def _get_job_status_once(
+        self, user_token: str, job_id: str, details: ServiceDetails
+    ) -> ProcessingStatusEnum:
+        connection = await self._setup_connection(user_token, details.endpoint)
+        job = connection.job(job_id)
+        return self._map_openeo_status(job.status())
+
+    async def _get_job_results_once(
+        self, user_token: str, job_id: str, details: ServiceDetails
+    ) -> Collection:
+        connection = await self._setup_connection(user_token, details.endpoint)
+        job = connection.job(job_id)
+        return Collection(**job.get_results().get_metadata())
+
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
         Get client credentials for the OpenEO backend.
@@ -337,15 +351,14 @@ class OpenEOPlatform(BaseProcessingPlatform):
     ) -> ProcessingStatusEnum:
         logger.debug(f"Fetching job status for openEO job with ID {job_id}")
         try:
-            connection = await self._setup_connection(user_token, details.endpoint)
-            job = connection.job(job_id)
-            return self._map_openeo_status(job.status())
+            return await self._get_job_status_once(user_token, job_id, details)
         except OpenEoApiError as e:
             if self._is_auth_error(e):
                 try:
-                    connection = await self._refresh_connection(user_token, details.endpoint)
-                    job = connection.job(job_id)
-                    return self._map_openeo_status(job.status())
+                    await self._refresh_connection(user_token, details.endpoint)
+                    return await self._get_job_status_once(
+                        user_token, job_id, details
+                    )
                 except Exception as retry_error:
                     logger.error(
                         "Error occurred while fetching job status for "
@@ -363,16 +376,14 @@ class OpenEOPlatform(BaseProcessingPlatform):
     ) -> Collection:
         try:
             logger.debug(f"Fetching job result for openEO job with ID {job_id}")
-            connection = await self._setup_connection(user_token, details.endpoint)
-            job = connection.job(job_id)
-            return Collection(**job.get_results().get_metadata())
+            return await self._get_job_results_once(user_token, job_id, details)
         except OpenEoApiError as e:
             if self._is_auth_error(e):
                 try:
                     await self._refresh_connection(user_token, details.endpoint)
-                    connection = await self._setup_connection(user_token, details.endpoint)
-                    job = connection.job(job_id)
-                    return Collection(**job.get_results().get_metadata())
+                    return await self._get_job_results_once(
+                        user_token, job_id, details
+                    )
                 except OpenEoApiError as retry_error:
                     if self._is_auth_error(retry_error):
                         raise AuthException(
