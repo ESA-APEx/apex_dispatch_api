@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from stac_pydantic import Collection
 
-from app.auth import exchange_token
+from app.auth import exchange_token, get_current_user_id
 from app.config.schemas import AuthMethod
 from app.config.settings import settings
 from app.error import AuthException
@@ -104,16 +104,17 @@ class OpenEOPlatform(BaseProcessingPlatform):
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
         """
-        if url in self._connection_cache and not self._connection_expired(
-            self._connection_cache[url]
+        cache_key = "openeo_connection_" + get_current_user_id(user_token) + "_" + url
+        if cache_key in self._connection_cache and not self._connection_expired(
+            self._connection_cache[cache_key]
         ):
-            logger.debug(f"Reusing cached OpenEO connection to {url}")
-            return self._connection_cache[url]
+            logger.debug(f"Reusing cached OpenEO connection to {url} (key: {cache_key})")
+            return self._connection_cache[cache_key]
 
         logger.debug(f"Setting up OpenEO connection to {url}")
         connection = openeo.connect(url)
         connection = await self._authenticate_user(user_token, url, connection)
-        self._connection_cache[url] = connection
+        self._connection_cache[cache_key] = connection
         return connection
 
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
