@@ -33,7 +33,7 @@ jobs:
           echo "IMAGE_TAG_LATEST=${DOCKER_REGISTRY_URL}/${DOCKER_REGISTRY_BUCKET}/${DOCKER_IMAGE_NAME}:latest" >> $GITHUB_ENV
       - name: Build docker image
         run: |
-          docker build . --tag $IMAGE_NAME
+          docker build . --build-arg APP_VERSION=$RELEASE_VERSION --tag $IMAGE_NAME
       - name: Tag the image
         run: |
           docker tag $IMAGE_NAME $IMAGE_TAG_RELEASE
