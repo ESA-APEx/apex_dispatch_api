@@ -1,6 +1,8 @@
 # Use official Python slim image
 FROM python:3.11-slim
 
+ARG APP_VERSION=development
+
 WORKDIR /app
 
 # system deps
@@ -17,5 +19,6 @@ COPY . .
 EXPOSE 8000
 
 ENV WORKERS=3
+ENV APP_VERSION=${APP_VERSION}
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --workers ${WORKERS}"]

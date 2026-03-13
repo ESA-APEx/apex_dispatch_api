@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         default="",
         json_schema_extra={"env": "APP_DESCRIPTION"},
     )
+    app_version: str = Field(
+        default="development",
+        json_schema_extra={"env": "APP_VERSION"},
+    )
     env: str = Field(default="development", json_schema_extra={"env": "APP_ENV"})
 
     cors_allowed_origins: str = Field(

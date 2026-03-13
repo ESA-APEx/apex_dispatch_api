@@ -211,10 +211,82 @@ async def test_get_job_status_error(mock_connection, platform):
     mock_connection.side_effect = RuntimeError("Connection error")
 
     details = ServiceDetails(endpoint="foo", application="bar")
-    with pytest.raises(RuntimeError) as exc_info:
-        await platform.get_job_status("foobar", "job123", details)
+    result = await platform.get_job_status("foobar", "job123", details)
+    assert result == ProcessingStatusEnum.UNKNOWN
 
-    assert "Connection error" in str(exc_info.value)
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_refresh_connection", new_callable=AsyncMock)
+@patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock)
+async def test_get_job_status_retries_after_auth_error(
+    mock_setup_connection, mock_refresh_connection, platform
+):
+    first_job = MagicMock()
+    first_job.status.side_effect = OpenEoApiError(
+        message="expired", code="TokenExpired", http_status_code=401
+    )
+
+    second_job = MagicMock()
+    second_job.status.return_value = "running"
+
+    first_connection = MagicMock()
+    first_connection.job.return_value = first_job
+    second_connection = MagicMock()
+    second_connection.job.return_value = second_job
+
+    mock_setup_connection.side_effect = [first_connection, second_connection]
+    mock_refresh_connection.return_value = second_connection
+
+    details = ServiceDetails(endpoint="foo", application="bar")
+    result = await platform.get_job_status("foobar", "job123", details)
+
+    assert result == ProcessingStatusEnum.RUNNING
+    assert mock_setup_connection.await_count == 2
+    mock_refresh_connection.assert_awaited_once_with("foobar", details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_refresh_connection", new_callable=AsyncMock)
+@patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock)
+async def test_get_job_status_returns_unknown_when_refresh_fails(
+    mock_setup_connection, mock_refresh_connection, platform
+):
+    first_job = MagicMock()
+    first_job.status.side_effect = OpenEoApiError(
+        message="expired", code="TokenExpired", http_status_code=401
+    )
+
+    first_connection = MagicMock()
+    first_connection.job.return_value = first_job
+
+    mock_setup_connection.return_value = first_connection
+    mock_refresh_connection.side_effect = RuntimeError("refresh failed")
+
+    details = ServiceDetails(endpoint="foo", application="bar")
+    result = await platform.get_job_status("foobar", "job123", details)
+
+    assert result == ProcessingStatusEnum.UNKNOWN
+    mock_setup_connection.assert_awaited_once_with("foobar", details.endpoint)
+    mock_refresh_connection.assert_awaited_once_with("foobar", details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock)
+async def test_get_job_status_non_auth_openeo_error_returns_unknown(
+    mock_setup_connection, platform
+):
+    job = MagicMock()
+    job.status.side_effect = OpenEoApiError(
+        message="server-error", code="ServerError", http_status_code=500
+    )
+    connection = MagicMock()
+    connection.job.return_value = job
+    mock_setup_connection.return_value = connection
+
+    details = ServiceDetails(endpoint="foo", application="bar")
+    result = await platform.get_job_status("foobar", "job123", details)
+
+    assert result == ProcessingStatusEnum.UNKNOWN
 
 
 @pytest.mark.asyncio
@@ -474,7 +546,9 @@ async def test_authenticate_user_config_format_issue_credentials(
 @pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-async def test_setup_connection_creates_and_caches(mock_auth, mock_connect, platform):
+async def test_setup_connection_creates_and_caches(
+    mock_auth, mock_connect, platform
+):
     platform._connection_cache = {}
     mock_conn = MagicMock()
     mock_connect.return_value = mock_conn
@@ -486,20 +560,22 @@ async def test_setup_connection_creates_and_caches(mock_auth, mock_connect, plat
     mock_connect.assert_called_once_with(url)
     mock_auth.assert_awaited_once_with("user-token", url, mock_conn)
     assert conn is mock_conn
-    assert platform._connection_cache[url] is mock_conn
+    cache_key = platform._build_connection_cache_key("user-token", url)
+    assert platform._connection_cache[cache_key] is mock_conn
 
 
+@pytest.mark.asyncio
 @patch.object(OpenEOPlatform, "_connection_expired", return_value=False)
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@pytest.mark.asyncio
 async def test_setup_connection_uses_cache_if_not_expired(
     mock_auth, mock_connect, mock_expired, platform
 ):
     platform._connection_cache = {}
     url = "https://example.backend"
     cached_conn = MagicMock()
-    platform._connection_cache[url] = cached_conn
+    cache_key = platform._build_connection_cache_key("user-token", url)
+    platform._connection_cache[cache_key] = cached_conn
 
     conn = await platform._setup_connection("user-token", url)
 
@@ -510,10 +586,10 @@ async def test_setup_connection_uses_cache_if_not_expired(
     mock_auth.assert_not_awaited()
 
 
+@pytest.mark.asyncio
 @patch.object(OpenEOPlatform, "_connection_expired", return_value=True)
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@pytest.mark.asyncio
 async def test_setup_connection_recreates_if_expired(
     mock_auth, mock_connect, mock_expired, platform
 ):
@@ -521,7 +597,8 @@ async def test_setup_connection_recreates_if_expired(
     url = "https://example.backend"
     old_conn = MagicMock()
     new_conn = MagicMock()
-    platform._connection_cache[url] = old_conn
+    cache_key = platform._build_connection_cache_key("user-token", url)
+    platform._connection_cache[cache_key] = old_conn
 
     mock_connect.return_value = new_conn
     mock_auth.return_value = new_conn
@@ -531,12 +608,36 @@ async def test_setup_connection_recreates_if_expired(
     mock_connect.assert_called_once_with(url)
     mock_auth.assert_awaited_once_with("user-token", url, new_conn)
     assert conn is new_conn
-    assert platform._connection_cache[url] is new_conn
+    assert platform._connection_cache[cache_key] is new_conn
 
 
+@pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
+async def test_setup_connection_force_refresh_bypasses_cache(
+    mock_auth, mock_connect, platform
+):
+    platform._connection_cache = {}
+    url = "https://example.backend"
+    old_conn = MagicMock()
+    new_conn = MagicMock()
+    cache_key = platform._build_connection_cache_key("user-token", url)
+    platform._connection_cache[cache_key] = old_conn
+
+    mock_connect.return_value = new_conn
+    mock_auth.return_value = new_conn
+
+    conn = await platform._setup_connection("user-token", url, force_refresh=True)
+
+    mock_connect.assert_called_once_with(url)
+    mock_auth.assert_awaited_once_with("user-token", url, new_conn)
+    assert conn is new_conn
+    assert platform._connection_cache[cache_key] is new_conn
+
+
 @pytest.mark.asyncio
+@patch("app.platforms.implementations.openeo.openeo.connect")
+@patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
 async def test_setup_connection_propagates_auth_error(
     mock_auth, mock_connect, platform
 ):
@@ -550,7 +651,8 @@ async def test_setup_connection_propagates_auth_error(
         await platform._setup_connection("user-token", url)
 
     # authenticate failed, connection must not be cached
-    assert url not in platform._connection_cache
+    cache_key = platform._build_connection_cache_key("user-token", url)
+    assert cache_key not in platform._connection_cache
 
 
 @pytest.mark.asyncio
@@ -578,6 +680,71 @@ async def test_execute_sync_job_success(
     assert response.status_code == mock_response.status_code
     assert json.loads(response.body) == json.loads(mock_response.content)
     mock_connect.assert_called_once_with("fake_token", service_details.endpoint)
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_build_datacube", new_callable=AsyncMock)
+@patch.object(OpenEOPlatform, "_refresh_connection", new_callable=AsyncMock)
+async def test_execute_job_retries_after_auth_error(
+    mock_refresh_connection, mock_build_datacube, platform, service_details
+):
+    first_service = MagicMock()
+    first_job = MagicMock()
+    first_job.start.side_effect = OpenEoApiError(
+        message="expired", code="TokenExpired", http_status_code=401
+    )
+    first_service.create_job.return_value = first_job
+
+    second_service = MagicMock()
+    second_job = MagicMock()
+    second_job.job_id = "job-retried"
+    second_service.create_job.return_value = second_job
+
+    mock_build_datacube.side_effect = [first_service, second_service]
+
+    job_id = await platform.execute_job(
+        user_token="fake_token",
+        title="Retry Job",
+        details=service_details,
+        parameters={},
+        format=OutputFormatEnum.GEOTIFF,
+    )
+
+    assert job_id == "job-retried"
+    assert mock_build_datacube.await_count == 2
+    mock_refresh_connection.assert_awaited_once_with(
+        "fake_token", service_details.endpoint
+    )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_refresh_connection", new_callable=AsyncMock)
+async def test_get_job_results_retries_after_auth_error(
+    mock_refresh_connection, platform, service_details, fake_result
+):
+    first_job = MagicMock()
+    first_job.get_results.side_effect = OpenEoApiError(
+        message="expired", code="TokenExpired", http_status_code=401
+    )
+
+    second_metadata = fake_result.model_dump()
+    second_job = MagicMock()
+    second_job.get_results.return_value.get_metadata.return_value = second_metadata
+
+    first_conn = MagicMock()
+    first_conn.job.return_value = first_job
+    second_conn = MagicMock()
+    second_conn.job.return_value = second_job
+
+    with patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock) as mock_setup:
+        mock_setup.side_effect = [first_conn, second_conn, second_conn]
+
+        result = await platform.get_job_results("fake_token", "job-1", service_details)
+
+    assert result == fake_result
+    mock_refresh_connection.assert_awaited_once_with(
+        "fake_token", service_details.endpoint
+    )
 
 
 @pytest.mark.asyncio
