@@ -475,7 +475,9 @@ async def test_authenticate_user_config_format_issue_credentials(
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
 @patch("app.platforms.implementations.openeo.get_current_user_id")
-async def test_setup_connection_creates_and_caches(mock_current_user_id, mock_auth, mock_connect, platform):
+async def test_setup_connection_creates_and_caches(
+    mock_current_user_id, mock_auth, mock_connect, platform
+):
     platform._connection_cache = {}
     mock_conn = MagicMock()
     mock_connect.return_value = mock_conn
