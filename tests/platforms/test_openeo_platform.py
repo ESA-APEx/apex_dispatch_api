@@ -546,15 +546,13 @@ async def test_authenticate_user_config_format_issue_credentials(
 @pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@patch("app.platforms.implementations.openeo.get_current_user_id")
 async def test_setup_connection_creates_and_caches(
-    mock_current_user_id, mock_auth, mock_connect, platform
+    mock_auth, mock_connect, platform
 ):
     platform._connection_cache = {}
     mock_conn = MagicMock()
     mock_connect.return_value = mock_conn
     mock_auth.return_value = mock_conn
-    mock_current_user_id.return_value = "user123"
 
     url = "https://example.backend"
     conn = await platform._setup_connection("user-token", url)
@@ -562,7 +560,7 @@ async def test_setup_connection_creates_and_caches(
     mock_connect.assert_called_once_with(url)
     mock_auth.assert_awaited_once_with("user-token", url, mock_conn)
     assert conn is mock_conn
-    cache_key = "openeo_connection_" + mock_current_user_id.return_value + "_" + url
+    cache_key = platform._build_connection_cache_key("user-token", url)
     assert platform._connection_cache[cache_key] is mock_conn
 
 
@@ -570,15 +568,13 @@ async def test_setup_connection_creates_and_caches(
 @patch.object(OpenEOPlatform, "_connection_expired", return_value=False)
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@patch("app.platforms.implementations.openeo.get_current_user_id")
 async def test_setup_connection_uses_cache_if_not_expired(
-    mock_current_user_id, mock_auth, mock_connect, mock_expired, platform
+    mock_auth, mock_connect, mock_expired, platform
 ):
-    mock_current_user_id.return_value = "user123"
     platform._connection_cache = {}
     url = "https://example.backend"
     cached_conn = MagicMock()
-    cache_key = "openeo_connection_" + mock_current_user_id.return_value + "_" + url
+    cache_key = platform._build_connection_cache_key("user-token", url)
     platform._connection_cache[cache_key] = cached_conn
 
     conn = await platform._setup_connection("user-token", url)
@@ -594,16 +590,14 @@ async def test_setup_connection_uses_cache_if_not_expired(
 @patch.object(OpenEOPlatform, "_connection_expired", return_value=True)
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@patch("app.platforms.implementations.openeo.get_current_user_id")
 async def test_setup_connection_recreates_if_expired(
-    mock_current_user_id, mock_auth, mock_connect, mock_expired, platform
+    mock_auth, mock_connect, mock_expired, platform
 ):
-    mock_current_user_id.return_value = "user123"
     platform._connection_cache = {}
     url = "https://example.backend"
     old_conn = MagicMock()
     new_conn = MagicMock()
-    cache_key = "openeo_connection_" + mock_current_user_id.return_value + "_" + url
+    cache_key = platform._build_connection_cache_key("user-token", url)
     platform._connection_cache[cache_key] = old_conn
 
     mock_connect.return_value = new_conn
@@ -620,16 +614,14 @@ async def test_setup_connection_recreates_if_expired(
 @pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@patch("app.platforms.implementations.openeo.get_current_user_id")
 async def test_setup_connection_force_refresh_bypasses_cache(
-    mock_current_user_id, mock_auth, mock_connect, platform
+    mock_auth, mock_connect, platform
 ):
-    mock_current_user_id.return_value = "user123"
     platform._connection_cache = {}
     url = "https://example.backend"
     old_conn = MagicMock()
     new_conn = MagicMock()
-    cache_key = "openeo_connection_" + mock_current_user_id.return_value + "_" + url
+    cache_key = platform._build_connection_cache_key("user-token", url)
     platform._connection_cache[cache_key] = old_conn
 
     mock_connect.return_value = new_conn
@@ -646,11 +638,9 @@ async def test_setup_connection_force_refresh_bypasses_cache(
 @pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-@patch("app.platforms.implementations.openeo.get_current_user_id")
 async def test_setup_connection_propagates_auth_error(
-    mock_current_user_id, mock_auth, mock_connect, platform
+    mock_auth, mock_connect, platform
 ):
-    mock_current_user_id.return_value = "user123"
     platform._connection_cache = {}
     url = "https://example.backend"
     mock_conn = MagicMock()
@@ -661,7 +651,7 @@ async def test_setup_connection_propagates_auth_error(
         await platform._setup_connection("user-token", url)
 
     # authenticate failed, connection must not be cached
-    cache_key = "openeo_connection_" + mock_current_user_id.return_value + "_" + url
+    cache_key = platform._build_connection_cache_key("user-token", url)
     assert cache_key not in platform._connection_cache
 
 

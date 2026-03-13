@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 from typing import List
 
 from fastapi import Response
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from stac_pydantic import Collection
 
-from app.auth import exchange_token, get_current_user_id
+from app.auth import exchange_token
 from app.config.schemas import AuthMethod
 from app.config.settings import settings
 from app.error import AuthException
@@ -33,6 +34,10 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
     _connection_cache: dict[str, openeo.Connection] = {}
     _token_expiry_buffer_seconds = 60
+
+    def _build_connection_cache_key(self, user_token: str, url: str) -> str:
+        token_fingerprint = hashlib.sha256(user_token.encode("utf-8")).hexdigest()
+        return f"openeo_connection_{token_fingerprint}_{url}"
 
     def _is_auth_error(self, error: OpenEoApiError) -> bool:
         return error.http_status_code in (403, 401)
@@ -116,7 +121,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         Setup the connection to the OpenEO backend.
         This method can be used to initialize any required client or session.
         """
-        cache_key = "openeo_connection_" + get_current_user_id(user_token) + "_" + url
+        cache_key = self._build_connection_cache_key(user_token, url)
         if (
             not force_refresh
             and cache_key in self._connection_cache
