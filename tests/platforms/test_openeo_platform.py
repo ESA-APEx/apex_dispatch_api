@@ -867,6 +867,11 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "description": "Test for a number parameter",
             "schema": {"type": "number"},
         },
+        {
+            "name": "string_enum_test",
+            "description": "Test for a string enum parameter",
+            "schema": {"type": "string", "enum": ["option1", "option2"]},
+        },
     ]
     mock_udp_request.return_value.json.return_value = {
         "id": "process123",
@@ -886,18 +891,21 @@ async def test_get_parameters_success(mock_udp_request, platform):
             description=udp_params[0]["description"],
             type=ParamTypeEnum.BOOLEAN,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[1]["name"],
             description=udp_params[1]["description"],
             type=ParamTypeEnum.POLYGON,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[2]["name"],
             description=udp_params[2]["description"],
             type=ParamTypeEnum.BOUNDING_BOX,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[3]["name"],
@@ -905,30 +913,42 @@ async def test_get_parameters_success(mock_udp_request, platform):
             type=ParamTypeEnum.DATE_INTERVAL,
             optional=True,
             default=udp_params[3]["default"],
+            options=[],
         ),
         Parameter(
             name=udp_params[4]["name"],
             description=udp_params[4]["description"],
             type=ParamTypeEnum.STRING,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[5]["name"],
             description=udp_params[5]["description"],
             type=ParamTypeEnum.INTEGER,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[6]["name"],
             description=udp_params[6]["description"],
             type=ParamTypeEnum.ARRAY_STRING,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[7]["name"],
             description=udp_params[7]["description"],
             type=ParamTypeEnum.INTEGER,
             optional=False,
+            options=[],
+        ),
+        Parameter(
+            name=udp_params[8]["name"],
+            description=udp_params[8]["description"],
+            type=ParamTypeEnum.STRING,
+            optional=False,
+            options=udp_params[8]["schema"]["enum"],
         ),
     ]
     assert result == parameters
