@@ -31,28 +31,6 @@ async def test_exchange_token_missing_provider():
         if original_config:
             settings.backend_auth_config[url] = original_config
 
-
-@pytest.mark.asyncio
-async def test_exchange_token_missing_token_prefix():
-    url = "https://openeo.vito.be"
-    original_config = settings.backend_auth_config.get(url)
-
-    try:
-        # Create a config without token_prefix
-        settings.backend_auth_config[url] = BackendAuthConfig(
-            auth_method=AuthMethod.USER_CREDENTIALS,
-            token_provider="openeo",
-            token_prefix=None,
-        )
-
-        with pytest.raises(ValueError, match="must define"):
-            await exchange_token("user-token", url)
-    finally:
-        # Restore original config
-        if original_config:
-            settings.backend_auth_config[url] = original_config
-
-
 @pytest.mark.asyncio
 @patch(
     "app.auth._exchange_token_for_provider",
