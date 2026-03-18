@@ -1,25 +1,30 @@
-import json
-
 import re
 from typing import List
+from app.auth import exchange_token
 from fastapi import Response
 from loguru import logger
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
-from app.schemas.parameters import Parameter
+from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 from ogc_api_client import Configuration
-from ogc_api_client.api.execute_api import ExecuteApi
 from ogc_api_client.api_client_wrapper import ApiClientWrapper
-from ogc_api_client.rest import ApiException
-from ogc_api_client.models.status_info import StatusInfo, StatusCode
+from ogc_api_client.models.status_info import StatusCode
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
+    input_type_map = {
+        "date-interval": ParamTypeEnum.DATE_INTERVAL,
+        "bounding-box": ParamTypeEnum.BOUNDING_BOX,
+        "boolean": ParamTypeEnum.BOOLEAN,
+        "integer": ParamTypeEnum.INTEGER,
+        "double": ParamTypeEnum.DOUBLE,
+    }
+
     application_path_regex = re.compile(
         r"(?P<namespace>.+)/processes/(?P<process_id>[^/]+)$"
     )
@@ -35,7 +40,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             return (None, job_id)
         return tuple(parts)
 
-    def _create_api_client_instance(
+    async def _create_api_client_instance(
         self,
         endpoint: str,
         namespace: str,
@@ -61,10 +66,16 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         format: OutputFormatEnum,
     ) -> str:
         logger.info(f"Executing OGC API job with title={title}")
-        # Output format omitted from request
 
-        api_client = self._create_api_client_instance(
-            details.endpoint, details.namespace, user_token
+        # Exchanging token
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
+        # Output format omitted from request
+        api_client = await self._create_api_client_instance(
+            details.endpoint, details.namespace, exchanged_token
         )
 
         headers = {
@@ -72,8 +83,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             # "Prefer": "respond-async;return=representation",
             "Content-Type": "application/json",
         }
-        if user_token:
-            headers["Authorization"] = f"Bearer {user_token}"
+        if exchanged_token:
+            headers["Authorization"] = f"Bearer {exchanged_token}"
 
         data = {"inputs": {key: value for key, value in parameters.items()}}
 
@@ -129,10 +140,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> ProcessingStatusEnum:
         logger.debug(f"Fetching job status for OGC API job with ID {job_id}")
 
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
         # Job ID is composed of namespace and internal job id
         namespace, internal_job_id = self._split_job_id(job_id)
-        api_client = self._create_api_client_instance(
-            details.endpoint, namespace, user_token
+        api_client = await self._create_api_client_instance(
+            details.endpoint, namespace, exchanged_token
         )
 
         status_info = api_client.get_status(job_id=internal_job_id)
@@ -143,14 +159,19 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> Collection:
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
-        # Job ID is composed of namespace and internal job id
-        namespace, internal_job_id = self._split_job_id(job_id)
-        api_client = self._create_api_client_instance(
-            details.endpoint, namespace, user_token
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
         )
 
-        result = api_client.get_result(job_id=internal_job_id)
-        return Collection(result[0])
+        # Job ID is composed of namespace and internal job id
+        namespace, internal_job_id = self._split_job_id(job_id)
+        api_client = await self._create_api_client_instance(
+            details.endpoint, namespace, exchanged_token
+        )
+
+        result = api_client.get_result_simple(job_id=internal_job_id)
+        return result[0]
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
@@ -161,8 +182,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             f"Fetching service parameters for OGC API process with ID {details.application}"
         )
 
-        api_client = self._create_api_client_instance(
-            details.endpoint, details.namespace, user_token
+        logger.debug("Exchanging user token for OGC API Process execution...")
+        exchanged_token = await exchange_token(
+            user_token=user_token, url=details.endpoint
+        )
+
+        api_client = await self._create_api_client_instance(
+            details.endpoint, details.namespace, exchanged_token
         )
         process_description = api_client.get_process_description(details.application)
 
@@ -172,17 +198,46 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 input_details.model_dump()
                 .get("var_schema", {})
                 .get("actual_instance", {})
-                .get("type", "string"),
+                .get("type", ""),
             )
             if isinstance(input_type, tuple):
                 input_type = next(
                     (
                         t
                         for t in input_type
-                        if t in ["date-interval", "bounding-box", "boolean"]
+                        if t
+                        in [
+                            "date-interval",
+                            "bounding-box",
+                            "boolean",
+                            "integer",
+                            "double",
+                        ]
                     ),
-                    "string",
+                    None,
                 )
+            input_type = self.__class__.input_type_map.get(input_type)
+
+            if not input_type:
+                input_type = ParamTypeEnum.STRING
+                input_types = (
+                    input_details.model_dump()
+                    .get("var_schema", {})
+                    .get("actual_instance", {})
+                    .get("required")
+                    or []
+                )
+                if "bbox" in input_types:
+                    input_type = ParamTypeEnum.BOUNDING_BOX
+
+            input_options = (
+                input_details.model_dump()
+                .get("var_schema", {})
+                .get("actual_instance", {})
+                .get("enum")
+                or []
+            )
+            print(input_options)
 
             parameters.append(
                 Parameter(
@@ -190,7 +245,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     description=input_details.description,
                     default=None,
                     optional=(input_details.min_occurs == 0),
-                    type="string",
+                    type=input_type,
+                    options=input_options,
                 )
             )
 
