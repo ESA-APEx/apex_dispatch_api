@@ -10,9 +10,9 @@ from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatus
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
-from ogc_api_client import Configuration
-from ogc_api_client.api_client_wrapper import ApiClientWrapper
-from ogc_api_client.models.status_info import StatusCode
+from ogc_api_processes_client import Configuration
+from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
+from ogc_api_processes_client.models.status_info import StatusCode
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
