@@ -95,9 +95,14 @@ def test_get_process_id_http_error(mock_get, platform):
 
 
 @pytest.mark.asyncio
+@patch.object(
+    OpenEOPlatform, "_transform_parameters", return_value={"param1": "value1"}
+)
 @patch.object(OpenEOPlatform, "_setup_connection")
 @patch.object(OpenEOPlatform, "_get_process_id", return_value="process123")
-async def test_execute_job_success(mock_pid, mock_connect, platform, service_details):
+async def test_execute_job_success(
+    mock_pid, mock_connect, mock_transform, platform, service_details
+):
     mock_connection = MagicMock()
     mock_connect.return_value = mock_connection
     mock_connection.datacube_from_process.return_value.create_job.return_value.job_id = (
@@ -117,12 +122,13 @@ async def test_execute_job_success(mock_pid, mock_connect, platform, service_det
 
 
 @pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_transform_parameters", return_value={})
 @patch.object(OpenEOPlatform, "_setup_connection")
 @patch.object(
     OpenEOPlatform, "_get_process_id", side_effect=ValueError("Invalid process")
 )
 async def test_execute_job_process_id_failure(
-    mock_pid, mock_connect, platform, service_details
+    mock_pid, mock_connect, mock_transform, platform, service_details
 ):
     with pytest.raises(ValueError, match="Invalid process"):
         await platform.execute_job(
@@ -135,6 +141,7 @@ async def test_execute_job_process_id_failure(
 
 
 @pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_transform_parameters", return_value={})
 @patch.object(OpenEOPlatform, "_setup_connection")
 @patch.object(
     OpenEOPlatform,
@@ -142,7 +149,7 @@ async def test_execute_job_process_id_failure(
     side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=401),
 )
 async def test_execute_job_process_openeo_auth_error(
-    mock_pid, mock_connect, platform, service_details
+    mock_pid, mock_connect, mock_transform, platform, service_details
 ):
     with pytest.raises(AuthException, match="Authentication error"):
         await platform.execute_job(
@@ -155,6 +162,7 @@ async def test_execute_job_process_openeo_auth_error(
 
 
 @pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_transform_parameters", return_value={})
 @patch.object(OpenEOPlatform, "_setup_connection")
 @patch.object(
     OpenEOPlatform,
@@ -162,7 +170,7 @@ async def test_execute_job_process_openeo_auth_error(
     side_effect=OpenEoApiError(message="Woops", code="Test", http_status_code=500),
 )
 async def test_execute_job_process_openeo_error(
-    mock_pid, mock_connect, platform, service_details
+    mock_pid, mock_connect, mock_transform, platform, service_details
 ):
     with pytest.raises(OpenEoApiError, match="Woops"):
         await platform.execute_job(
@@ -546,9 +554,7 @@ async def test_authenticate_user_config_format_issue_credentials(
 @pytest.mark.asyncio
 @patch("app.platforms.implementations.openeo.openeo.connect")
 @patch.object(OpenEOPlatform, "_authenticate_user", new_callable=AsyncMock)
-async def test_setup_connection_creates_and_caches(
-    mock_auth, mock_connect, platform
-):
+async def test_setup_connection_creates_and_caches(mock_auth, mock_connect, platform):
     platform._connection_cache = {}
     mock_conn = MagicMock()
     mock_connect.return_value = mock_conn
@@ -683,10 +689,15 @@ async def test_execute_sync_job_success(
 
 
 @pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_transform_parameters", return_value={})
 @patch.object(OpenEOPlatform, "_build_datacube", new_callable=AsyncMock)
 @patch.object(OpenEOPlatform, "_refresh_connection", new_callable=AsyncMock)
 async def test_execute_job_retries_after_auth_error(
-    mock_refresh_connection, mock_build_datacube, platform, service_details
+    mock_refresh_connection,
+    mock_build_datacube,
+    mock_transform,
+    platform,
+    service_details,
 ):
     first_service = MagicMock()
     first_job = MagicMock()
@@ -736,7 +747,9 @@ async def test_get_job_results_retries_after_auth_error(
     second_conn = MagicMock()
     second_conn.job.return_value = second_job
 
-    with patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock) as mock_setup:
+    with patch.object(
+        OpenEOPlatform, "_setup_connection", new_callable=AsyncMock
+    ) as mock_setup:
         mock_setup.side_effect = [first_conn, second_conn, second_conn]
 
         result = await platform.get_job_results("fake_token", "job-1", service_details)
@@ -854,6 +867,11 @@ async def test_get_parameters_success(mock_udp_request, platform):
             "description": "Test for a number parameter",
             "schema": {"type": "number"},
         },
+        {
+            "name": "string_enum_test",
+            "description": "Test for a string enum parameter",
+            "schema": {"type": "string", "enum": ["option1", "option2"]},
+        },
     ]
     mock_udp_request.return_value.json.return_value = {
         "id": "process123",
@@ -873,18 +891,21 @@ async def test_get_parameters_success(mock_udp_request, platform):
             description=udp_params[0]["description"],
             type=ParamTypeEnum.BOOLEAN,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[1]["name"],
             description=udp_params[1]["description"],
             type=ParamTypeEnum.POLYGON,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[2]["name"],
             description=udp_params[2]["description"],
             type=ParamTypeEnum.BOUNDING_BOX,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[3]["name"],
@@ -892,30 +913,42 @@ async def test_get_parameters_success(mock_udp_request, platform):
             type=ParamTypeEnum.DATE_INTERVAL,
             optional=True,
             default=udp_params[3]["default"],
+            options=[],
         ),
         Parameter(
             name=udp_params[4]["name"],
             description=udp_params[4]["description"],
             type=ParamTypeEnum.STRING,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[5]["name"],
             description=udp_params[5]["description"],
             type=ParamTypeEnum.INTEGER,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[6]["name"],
             description=udp_params[6]["description"],
             type=ParamTypeEnum.ARRAY_STRING,
             optional=False,
+            options=[],
         ),
         Parameter(
             name=udp_params[7]["name"],
             description=udp_params[7]["description"],
             type=ParamTypeEnum.INTEGER,
             optional=False,
+            options=[],
+        ),
+        Parameter(
+            name=udp_params[8]["name"],
+            description=udp_params[8]["description"],
+            type=ParamTypeEnum.STRING,
+            optional=False,
+            options=udp_params[8]["schema"]["enum"],
         ),
     ]
     assert result == parameters
@@ -944,4 +977,131 @@ async def test_get_parameters_unsupported_type(mock_udp_request, platform):
                 endpoint="https://openeo.dataspace.copernicus.eu",
                 application="https://foo.bar/process.json",
             ),
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_bbox_polygon_to_bbox(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area",
+            description="Area of interest",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        )
+    ]
+
+    parameters = {
+        "area": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [3.0, 50.0],
+                    [5.0, 50.0],
+                    [5.0, 52.0],
+                    [3.0, 52.0],
+                    [3.0, 50.0],
+                ]
+            ],
+        },
+        "other": "untouched",
+    }
+
+    result = await platform._transform_parameters(
+        user_token="fake-token", details=service_details, parameters=parameters
+    )
+
+    assert result == {
+        "area": {"west": 3.0, "south": 50.0, "east": 5.0, "north": 52.0},
+        "other": "untouched",
+    }
+    assert parameters["area"]["type"] == "Polygon"
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_passthrough_when_not_applicable(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="date",
+            description="Date interval",
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+        ),
+        Parameter(
+            name="bbox_param",
+            description="Bounding box",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+    ]
+
+    parameters = {
+        "date": ["2024-01-01", "2024-12-31"],
+        "other": "unchanged",
+    }
+
+    result = await platform._transform_parameters(
+        user_token="fake-token", details=service_details, parameters=parameters
+    )
+
+    assert result == parameters
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_raises_for_unsupported_geojson_type(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area",
+            description="Area of interest",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        )
+    ]
+
+    parameters = {
+        "area": {
+            "type": "Point",
+            "coordinates": [4.0, 51.0],
+        }
+    }
+
+    with pytest.raises(ValueError, match="Unsupported GeoJSON type"):
+        await platform._transform_parameters(
+            user_token="fake-token", details=service_details, parameters=parameters
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_raises_for_invalid_polygon_coordinates(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area",
+            description="Area of interest",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        )
+    ]
+
+    parameters = {
+        "area": {
+            "type": "Polygon",
+            "coordinates": [],
+        }
+    }
+
+    with pytest.raises(ValueError, match="Invalid GeoJSON geometry"):
+        await platform._transform_parameters(
+            user_token="fake-token", details=service_details, parameters=parameters
         )
