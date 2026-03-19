@@ -14,6 +14,7 @@ from app.schemas.unit_job import (
 from app.services.processing import (
     create_processing_job,
     create_synchronous_job,
+    delete_processing_job,
     get_processing_job_results,
     get_job_status,
     get_processing_job_by_user_id,
@@ -555,3 +556,44 @@ async def test_retrieve_service_parameters_success(
         details=fake_param_request.service,
     )
     assert result == fake_parameter_result
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.remove_job_by_id")
+@patch("app.services.processing.get_job_by_user_id")
+@patch("app.services.processing.get_current_user_id")
+async def test_delete_processing_job_deletes_record_when_found(
+    mock_current_user,
+    mock_get_job,
+    mock_remove_job,
+    fake_db_session,
+    fake_processing_job_record,
+):
+    mock_current_user.return_value = "foobar"
+    mock_get_job.return_value = fake_processing_job_record
+
+    await delete_processing_job("foobar-token", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
+    mock_remove_job.assert_called_once_with(
+        fake_db_session, fake_processing_job_record.id, "foobar"
+    )
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.remove_job_by_id")
+@patch("app.services.processing.get_job_by_user_id")
+@patch("app.services.processing.get_current_user_id")
+async def test_delete_processing_job_noop_when_not_found(
+    mock_current_user,
+    mock_get_job,
+    mock_remove_job,
+    fake_db_session,
+):
+    mock_current_user.return_value = "foobar"
+    mock_get_job.return_value = None
+
+    await delete_processing_job("foobar-token", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
+    mock_remove_job.assert_not_called()

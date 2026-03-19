@@ -25,7 +25,7 @@ load_grids()
 app = FastAPI(
     title=settings.app_name,
     description=settings.app_description,
-    version="1.0.0",
+    version=settings.app_version,
 )
 
 app.add_middleware(

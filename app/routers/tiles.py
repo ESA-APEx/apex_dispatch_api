@@ -107,8 +107,8 @@ def split_in_tiles(
         raise de
     except Exception as e:
         logger.error(
-            f"An error occurred while calculating tiles for {payload.grid}: {e}"
+            f"An error occurred while calculating tiles for {payload.grid.value}: {e}"
         )
         raise InternalException(
-            message=f"An error occurred while calculating tiles for {payload.grid}"
+            message=f"An error occurred while calculating tiles for {payload.grid.value}"
         )

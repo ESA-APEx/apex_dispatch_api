@@ -137,3 +137,41 @@ def test_unit_jobs_get_job_results_500(mock_get_processing_job_results, client):
     assert "An error occurred while retrieving processing job results." in r.json().get(
         "message", ""
     )
+
+
+@patch("app.routers.unit_jobs.delete_processing_job")
+@patch("app.routers.unit_jobs.get_processing_job_by_user_id")
+def test_unit_jobs_delete_job_200(
+    mock_get_processing_job,
+    mock_delete_processing_job,
+    client,
+    fake_processing_job,
+):
+
+    mock_get_processing_job.return_value = fake_processing_job
+    mock_delete_processing_job.return_value = None
+
+    r = client.delete("/unit_jobs/1")
+    assert r.status_code == 200
+
+
+@patch("app.routers.unit_jobs.get_processing_job_by_user_id")
+def test_unit_jobs_delete_job_results_404(mock_get_processing_job, client):
+
+    mock_get_processing_job.return_value = None
+
+    r = client.delete("/unit_jobs/1")
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert "The requested job was not found." in r.json().get("message", "")
+
+
+@patch("app.routers.unit_jobs.get_processing_job_by_user_id")
+def test_unit_jobs_delete_job_500(mock_get_processing_job, client):
+
+    mock_get_processing_job.side_effect = RuntimeError("Database connection lost")
+
+    r = client.delete("/unit_jobs/1")
+    assert r.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "An error occurred while deleting the processing job." in r.json().get(
+        "message", ""
+    )
