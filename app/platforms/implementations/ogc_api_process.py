@@ -237,8 +237,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 .get("enum")
                 or []
             )
-            print(input_options)
-
             parameters.append(
                 Parameter(
                     name=input_id,
