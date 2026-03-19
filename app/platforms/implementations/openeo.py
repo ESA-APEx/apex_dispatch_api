@@ -127,7 +127,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
             and cache_key in self._connection_cache
             and not self._connection_expired(self._connection_cache[cache_key])
         ):
-            logger.debug(f"Reusing cached OpenEO connection to {url} (key: {cache_key})")
+            logger.debug(
+                f"Reusing cached OpenEO connection to {url} (key: {cache_key})"
+            )
             return self._connection_cache[cache_key]
 
         logger.debug(f"Setting up OpenEO connection to {url}")
@@ -137,7 +139,9 @@ class OpenEOPlatform(BaseProcessingPlatform):
         return connection
 
     async def _refresh_connection(self, user_token: str, url: str) -> openeo.Connection:
-        logger.info(f"Refreshing OpenEO connection for {url} after authentication error")
+        logger.info(
+            f"Refreshing OpenEO connection for {url} after authentication error"
+        )
         return await self._setup_connection(user_token, url, force_refresh=True)
 
     async def _execute_job_once(
@@ -253,6 +257,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
         parameters: dict,
         format: OutputFormatEnum,
     ) -> str:
+        parameters = await self._transform_parameters(user_token, details, parameters)
         try:
             return await self._execute_job_once(
                 user_token=user_token,
@@ -356,19 +361,21 @@ class OpenEOPlatform(BaseProcessingPlatform):
             if self._is_auth_error(e):
                 try:
                     await self._refresh_connection(user_token, details.endpoint)
-                    return await self._get_job_status_once(
-                        user_token, job_id, details
-                    )
+                    return await self._get_job_status_once(user_token, job_id, details)
                 except Exception as retry_error:
                     logger.error(
                         "Error occurred while fetching job status for "
                         f"job {job_id} after refresh: {retry_error}"
                     )
                     return ProcessingStatusEnum.UNKNOWN
-            logger.error(f"Error occurred while fetching job status for job {job_id}: {e}")
+            logger.error(
+                f"Error occurred while fetching job status for job {job_id}: {e}"
+            )
             return ProcessingStatusEnum.UNKNOWN
         except Exception as e:
-            logger.error(f"Error occurred while fetching job status for job {job_id}: {e}")
+            logger.error(
+                f"Error occurred while fetching job status for job {job_id}: {e}"
+            )
             return ProcessingStatusEnum.UNKNOWN
 
     async def get_job_results(
@@ -381,9 +388,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             if self._is_auth_error(e):
                 try:
                     await self._refresh_connection(user_token, details.endpoint)
-                    return await self._get_job_results_once(
-                        user_token, job_id, details
-                    )
+                    return await self._get_job_results_once(user_token, job_id, details)
                 except OpenEoApiError as retry_error:
                     if self._is_auth_error(retry_error):
                         raise AuthException(
@@ -444,3 +449,45 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
         # If no matching schema found, raise an error
         raise ValueError(f"Unsupported parameter schemas: {schemas}")
+
+    async def _transform_parameters(
+        self, user_token: str, details: ServiceDetails, parameters: dict
+    ) -> dict:
+        """
+        Transform the input parameters to match the expected format for openEO. In general, this
+        is only applicable for the following cases:
+        * In case the parameter represents a spatial extent, provided in GeoJSON, but the service
+          is expecting an openEO bounding box, we need to transform the GeoJSON to a bounding box.
+        """
+        # Retrieve the parameters of the service
+        service_params = await self.get_service_parameters(user_token, details)
+
+        transformed_parameters = parameters.copy()
+        for param in service_params:
+            if param.type == ParamTypeEnum.BOUNDING_BOX and param.name in parameters:
+                # Transform GeoJSON to bounding box
+                geojson = parameters[param.name]
+                if geojson.get("type") == "Polygon":
+                    coordinates = geojson.get("coordinates", [])
+                    if coordinates and isinstance(coordinates, list):
+                        # Assuming the first set of coordinates defines the polygon
+                        polygon_coords = coordinates[0]
+                        lons = [point[0] for point in polygon_coords]
+                        lats = [point[1] for point in polygon_coords]
+                        transformed_parameters[param.name] = {
+                            "west": min(lons),
+                            "south": min(lats),
+                            "east": max(lons),
+                            "north": max(lats),
+                        }
+                    else:
+                        raise ValueError(
+                            f"Invalid GeoJSON geometry for parameter {param.name}: {geojson}"
+                        )
+                else:
+                    raise ValueError(
+                        f"Unsupported GeoJSON type for parameter {param.name}: "
+                        f"{geojson.get('type')}"
+                    )
+        logger.debug(f"Transformed parameters for openEO: {transformed_parameters}")
+        return transformed_parameters
