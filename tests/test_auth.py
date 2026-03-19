@@ -31,6 +31,7 @@ async def test_exchange_token_missing_provider():
         if original_config:
             settings.backend_auth_config[url] = original_config
 
+
 @pytest.mark.asyncio
 @patch(
     "app.auth._exchange_token_for_provider",
