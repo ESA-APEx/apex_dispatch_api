@@ -423,7 +423,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
                     default=param.get("default"),
                     optional=param.get("optional", False),
                     type=self._get_type_from_schemas(schemas),
-                    options=self._get_options_from_schemas(schemas)
+                    options=self._get_options_from_schemas(schemas),
                 )
             )
 
@@ -434,7 +434,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             if "enum" in schema:
                 return schema["enum"]
         return []
-    
+
     def _get_type_from_schemas(self, schemas: List[dict]) -> ParamTypeEnum:
         for schema in schemas:
             type = schema.get("type")
