@@ -16,10 +16,11 @@ class ServiceDetails(BaseModel):
     )
     namespace: Optional[str] = Field(
         default=None,
-        description="Namespace under the endpoint where the service is hosted. For openEO, this field"
-        "is not set. For OGC API Processes, this field should include the namespace ID representing"
-        "under which the namespace-related API is deployed",
-        examples=["https://openeofed.dataspace.copernicus.eu"]
+        description="Namespace under the endpoint where the service is hosted."
+        "For openEO, this field is not set."
+        "For OGC API Processes, this field should include the namespace ID"
+        "representing the service deployment",
+        examples=["https://processing.geohazards-tep.eu/44454d3235313539/"]
     )
     application: str = Field(
         ...,

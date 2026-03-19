@@ -21,6 +21,7 @@ from app.schemas.unit_job import (
 )
 from app.services.processing import (
     create_processing_job,
+    delete_processing_job,
     get_processing_job_by_user_id,
     get_processing_job_results,
 )
@@ -221,4 +222,49 @@ async def get_job_results(
         logger.error(f"Error getting results for processing job {job_id}: {e}")
         raise InternalException(
             message="An error occurred while retrieving processing job results."
+        )
+
+
+@router.delete(
+    "/unit_jobs/{job_id}",
+    tags=["Unit Jobs"],
+    responses={
+        JobNotFoundException.http_status: {
+            "description": "Job not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        JobNotFoundException(), "request-id"
+                    )
+                }
+            },
+        },
+        InternalException.http_status: {
+            "description": "Internal server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": get_dispatcher_error_response(
+                        InternalException(), "request-id"
+                    )
+                }
+            },
+        },
+    },
+)
+async def delete_job(
+    job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+) -> None:
+    try:
+        job = await get_processing_job_by_user_id(token, db, job_id)
+        if not job:
+            raise JobNotFoundException()
+        await delete_processing_job(token, db, job_id)
+    except DispatcherException as de:
+        raise de
+    except Exception as e:
+        logger.error(f"Error deleting processing job {job_id}: {e}")
+        raise InternalException(
+            message="An error occurred while deleting the processing job."
         )
