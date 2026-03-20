@@ -14,7 +14,7 @@ from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
 from ogc_api_processes_client import Configuration
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.models.status_info import StatusCode
-
+from pystac import ItemCollection
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
@@ -44,8 +44,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     async def _create_api_client_instance(
         self,
         endpoint: str,
-        namespace: str,
-        user_token: str = None,
+        namespace: str | None = None,
+        user_token: str | None = None,
     ) -> ApiClientWrapper:
         configuration: Configuration = Configuration(
             host=f"{endpoint}/{namespace}" if namespace else endpoint
@@ -131,7 +131,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         }
 
         try:
-            return mapping[ogcapi_status]
+            return mapping[StatusCode(ogcapi_status)]
         except (AttributeError, KeyError):
             logger.warning("Mapping of unknown OGC API status: %r", ogcapi_status)
             return ProcessingStatusEnum.UNKNOWN
@@ -172,7 +172,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
 
         result = api_client.get_result_simple(job_id=internal_job_id)
-        result_dict = result.to_dict()
+        if isinstance(result, ItemCollection):
+            result_dict = result.to_dict()
+        else:
+            result_dict = dict(result)
 
         # Convert pystac ItemCollection (GeoJSON FeatureCollection) to a STAC Collection.
         collection = Collection(
@@ -184,9 +187,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             ),
             type="Collection",
             license="proprietary",
-            links=[],
+            links=result_dict.get("links", []),
             extent=Extent(
-                spatial=SpatialExtent(bbox=[[-180.0, -90.0, 180.0, 90.0]]),
+                spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
             features=result_dict.get("features", []),
@@ -213,8 +216,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
         process_description = api_client.get_process_description(details.application)
 
-        for input_id, input_details in process_description.inputs.items():
-            input_type = (
+        for input_id, input_details in (process_description.inputs or {}).items():
+            input_type: tuple | str | None = (
                 input_id,
                 input_details.model_dump()
                 .get("var_schema", {})
@@ -237,7 +240,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     ),
                     None,
                 )
-            input_type = self.__class__.input_type_map.get(input_type)
+            if isinstance(input_type, str):
+                input_type = self.__class__.input_type_map.get(input_type)
 
             if not input_type:
                 input_type = ParamTypeEnum.STRING
@@ -261,7 +265,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             parameters.append(
                 Parameter(
                     name=input_id,
-                    description=input_details.description,
+                    description=input_details.description or input_id,
                     default=None,
                     optional=(input_details.min_occurs == 0),
                     type=input_type,
