@@ -7,16 +7,24 @@ from loguru import logger
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
-from app.schemas.parameters import Parameter
+from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
-from ogc_api_client import Configuration
-from ogc_api_client.api_client_wrapper import ApiClientWrapper
-from ogc_api_client.models.status_info import StatusCode
+from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
+from ogc_api_processes_client import Configuration
+from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
+from ogc_api_processes_client.models.status_info import StatusCode
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
+    input_type_map = {
+        "date-interval": ParamTypeEnum.DATE_INTERVAL,
+        "bounding-box": ParamTypeEnum.BOUNDING_BOX,
+        "boolean": ParamTypeEnum.BOOLEAN,
+        "integer": ParamTypeEnum.INTEGER,
+        "double": ParamTypeEnum.DOUBLE,
+    }
 
     application_path_regex = re.compile(
         r"(?P<namespace>.+)/processes/(?P<process_id>[^/]+)$"
@@ -163,8 +171,28 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        result = api_client.get_result(job_id=internal_job_id)
-        return Collection(result[0])
+        result = api_client.get_result_simple(job_id=internal_job_id)
+        result_dict = result.to_dict()
+
+        # Convert pystac ItemCollection (GeoJSON FeatureCollection) to a STAC Collection.
+        collection = Collection(
+            id=f"{details.application}-{internal_job_id}",
+            title=f"Results for {details.application}",
+            description=(
+                f"OGC API process result items for job '{internal_job_id}' "
+                f"of application '{details.application}'."
+            ),
+            type="Collection",
+            license="proprietary",
+            links=[],
+            extent=Extent(
+                spatial=SpatialExtent(bbox=[[-180.0, -90.0, 180.0, 90.0]]),
+                temporal=TimeInterval(interval=[[None, None]]),
+            ),
+            features=result_dict.get("features", []),
+        )
+
+        return collection
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
@@ -186,26 +214,58 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         process_description = api_client.get_process_description(details.application)
 
         for input_id, input_details in process_description.inputs.items():
-            input_type = input_id, input_details.model_dump().get("var_schema", {}).get(
-                "actual_instance", {}
-            ).get("type", "string")
+            input_type = (
+                input_id,
+                input_details.model_dump()
+                .get("var_schema", {})
+                .get("actual_instance", {})
+                .get("type", ""),
+            )
             if isinstance(input_type, tuple):
                 input_type = next(
                     (
                         t
                         for t in input_type
-                        if t in ["date-interval", "bounding-box", "boolean"]
+                        if t
+                        in [
+                            "date-interval",
+                            "bounding-box",
+                            "boolean",
+                            "integer",
+                            "double",
+                        ]
                     ),
-                    "string",
+                    None,
                 )
+            input_type = self.__class__.input_type_map.get(input_type)
 
+            if not input_type:
+                input_type = ParamTypeEnum.STRING
+                input_types = (
+                    input_details.model_dump()
+                    .get("var_schema", {})
+                    .get("actual_instance", {})
+                    .get("required")
+                    or []
+                )
+                if "bbox" in input_types:
+                    input_type = ParamTypeEnum.BOUNDING_BOX
+
+            input_options = (
+                input_details.model_dump()
+                .get("var_schema", {})
+                .get("actual_instance", {})
+                .get("enum")
+                or []
+            )
             parameters.append(
                 Parameter(
                     name=input_id,
                     description=input_details.description,
                     default=None,
                     optional=(input_details.min_occurs == 0),
-                    type="string",
+                    type=input_type,
+                    options=input_options,
                 )
             )
 
