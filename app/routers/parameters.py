@@ -1,9 +1,9 @@
-from typing import Annotated, List
+from typing import Annotated
 from fastapi import Body, APIRouter, Depends, HTTPException, status
 from loguru import logger
 
 from app.schemas.enum import ProcessTypeEnum
-from app.schemas.parameters import ParamRequest, Parameter
+from app.schemas.parameters import ParamRequest, ServiceParameters
 from app.schemas.unit_job import (
     ServiceDetails,
 )
@@ -45,7 +45,7 @@ async def get_job_params(
         ),
     ],
     token: str = Depends(oauth2_scheme),
-) -> List[Parameter]:
+) -> ServiceParameters:
     """Retrieve the parameters required for a specific processing service."""
     try:
         return await retrieve_service_parameters(token, payload)

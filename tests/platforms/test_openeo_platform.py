@@ -951,7 +951,8 @@ async def test_get_parameters_success(mock_udp_request, platform):
             options=udp_params[8]["schema"]["enum"],
         ),
     ]
-    assert result == parameters
+    assert result.parameters == parameters
+    assert result.outputs == []
 
 
 @pytest.mark.asyncio
