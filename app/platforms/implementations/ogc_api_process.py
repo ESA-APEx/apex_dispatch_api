@@ -16,6 +16,7 @@ from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.models.status_info import StatusCode
 from pystac import ItemCollection
 
+
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
     input_type_map = {
