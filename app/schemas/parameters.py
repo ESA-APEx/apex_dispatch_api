@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.enum import ProcessTypeEnum
@@ -53,5 +53,32 @@ class Parameter(BaseModel):
     options: list[Any] | None = Field(
         None,
         description="List of valid options for the parameter, if applicable",
-        examples=[["option1", "option2"]]
+        examples=[["option1", "option2"]],
+    )
+
+
+class Output(BaseModel):
+    id: str = Field(..., description="Identifier for the output", examples=["output1"])
+    description: Optional[str] = (
+        Field(
+            ...,
+            description="Description of the output",
+            examples=["This output contains the ..."],
+        ),
+    )
+    supported_formats: Optional[list[str]] = Field(
+        None,
+        description="List of supported formats for the output",
+        examples=[["application/json", "text/csv"]],
+    )
+
+
+class ServiceParameters(BaseModel):
+    parameters: list[Parameter] = Field(
+        ...,
+        description="List of parameters required for the service",
+    )
+    outputs: list[Output] = Field(
+        ...,
+        description="List of outputs produced by the service",
     )

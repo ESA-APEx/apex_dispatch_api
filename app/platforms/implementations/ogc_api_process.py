@@ -1,5 +1,4 @@
 import re
-from typing import List
 from app.auth import exchange_token
 from fastapi import Response
 from loguru import logger
@@ -7,7 +6,7 @@ from loguru import logger
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
-from app.schemas.parameters import ParamTypeEnum, Parameter
+from app.schemas.parameters import ParamTypeEnum, Parameter, ServiceParameters
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
@@ -200,7 +199,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
-    ) -> List[Parameter]:
+    ) -> ServiceParameters:
 
         parameters = []
         logger.debug(
@@ -274,4 +273,4 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 )
             )
 
-        return parameters
+        return ServiceParameters(parameters=parameters, outputs=[])

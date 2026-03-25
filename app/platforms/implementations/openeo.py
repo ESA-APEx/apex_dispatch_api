@@ -17,7 +17,7 @@ from app.error import AuthException
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
-from app.schemas.parameters import ParamTypeEnum, Parameter
+from app.schemas.parameters import ParamTypeEnum, Parameter, ServiceParameters
 from app.schemas.unit_job import ServiceDetails
 
 from openeo.rest import OpenEoApiError
@@ -403,7 +403,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
-    ) -> List[Parameter]:
+    ) -> ServiceParameters:
         parameters = []
         logger.debug(
             f"Fetching service parameters for OpenEO service at {details.application}"
@@ -427,7 +427,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
                 )
             )
 
-        return parameters
+        return ServiceParameters(parameters=parameters, outputs=[])
 
     def _get_options_from_schemas(self, schemas: List[dict]) -> list:
         for schema in schemas:
