@@ -26,6 +26,14 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         "double": ParamTypeEnum.DOUBLE,
     }
 
+    status_mapping = {
+        StatusCode.ACCEPTED: ProcessingStatusEnum.CREATED,
+        StatusCode.RUNNING: ProcessingStatusEnum.RUNNING,
+        StatusCode.DISMISSED: ProcessingStatusEnum.CANCELED,
+        StatusCode.SUCCESSFUL: ProcessingStatusEnum.FINISHED,
+        StatusCode.FAILED: ProcessingStatusEnum.FAILED,
+    }
+
     application_path_regex = re.compile(
         r"(?P<namespace>.+)/processes/(?P<process_id>[^/]+)$"
     )
@@ -112,7 +120,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         raise NotImplementedError("OGC API Process job execution not implemented yet.")
 
-    def _map_ogcapi_status(self, ogcapi_status: str) -> ProcessingStatusEnum:
+    def _map_ogcapi_status(self, ogcapi_status: StatusCode) -> ProcessingStatusEnum:
         """
         Map the status returned by OGC API to a status known within the API.
 
@@ -122,18 +130,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         logger.debug(f"Mapping OGC API status {ogcapi_status} to ProcessingStatusEnum")
 
-        mapping = {
-            StatusCode.ACCEPTED: ProcessingStatusEnum.CREATED,
-            StatusCode.RUNNING: ProcessingStatusEnum.RUNNING,
-            StatusCode.DISMISSED: ProcessingStatusEnum.CANCELED,
-            StatusCode.SUCCESSFUL: ProcessingStatusEnum.FINISHED,
-            StatusCode.FAILED: ProcessingStatusEnum.FAILED,
-        }
-
         try:
-            return mapping[ogcapi_status]
+            return self.__class__.status_mapping[ogcapi_status]
         except (AttributeError, KeyError):
-            logger.warning("Mapping of unknown OGC API status: %r", ogcapi_status)
+            logger.warning(f"Mapping of unknown OGC API status: {ogcapi_status}")
             return ProcessingStatusEnum.UNKNOWN
 
     async def get_job_status(
@@ -171,7 +171,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        result = api_client.get_result_simple(job_id=internal_job_id)
+        result = api_client.get_result(job_id=internal_job_id)
         result_dict = result.to_dict()
 
         # Convert pystac ItemCollection (GeoJSON FeatureCollection) to a STAC Collection.
