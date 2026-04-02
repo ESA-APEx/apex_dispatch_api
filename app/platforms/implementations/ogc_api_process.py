@@ -11,9 +11,10 @@ from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic import Collection
 from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
-from ogc_api_processes_client import Configuration
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
-from ogc_api_processes_client.models.status_info import StatusCode
+from ogc_api_processes_client.configuration import Configuration
+from ogc_api_processes_client.models.status_code import StatusCode
+from ogc_api_processes_client.models.status_info import StatusInfo
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
@@ -152,7 +153,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        status_info = api_client.get_status(job_id=internal_job_id)
+        status_info: StatusInfo = api_client.get_status(job_id=internal_job_id)
         return self._map_ogcapi_status(status_info.status)
 
     async def get_job_results(
