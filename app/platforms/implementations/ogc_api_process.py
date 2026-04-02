@@ -9,8 +9,9 @@ from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
-from stac_pydantic.collection import Collection
-from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
+from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
+from stac_pydantic.shared import BBox
+from stac_pydantic.version import STAC_VERSION
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.configuration import Configuration
 from ogc_api_processes_client.models.status_code import StatusCode
@@ -178,6 +179,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # Convert pystac ItemCollection (GeoJSON FeatureCollection) to a STAC Collection.
         collection = Collection(
             id=f"{details.application}-{internal_job_id}",
+            stac_version=STAC_VERSION,
             title=f"Results for {details.application}",
             description=(
                 f"OGC API process result items for job '{internal_job_id}' "
@@ -187,7 +189,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             license="proprietary",
             links=[],
             extent=Extent(
-                spatial=SpatialExtent(bbox=[[-180.0, -90.0, 180.0, 90.0]]),
+                spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
             features=result_dict.get("features", []),
