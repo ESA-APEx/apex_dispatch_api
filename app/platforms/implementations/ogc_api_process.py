@@ -10,12 +10,18 @@ from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatus
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
+from stac_pydantic.links import Links
 from stac_pydantic.shared import BBox
 from stac_pydantic.version import STAC_VERSION
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.configuration import Configuration
+from ogc_api_processes_client.models.inline_or_ref_data import InlineOrRefData
+from ogc_api_processes_client.models.input_value_no_object import InputValueNoObject
+from ogc_api_processes_client.models.link import Link as OgcLink
+from ogc_api_processes_client.models.qualified_input_value import QualifiedInputValue
 from ogc_api_processes_client.models.status_code import StatusCode
 from ogc_api_processes_client.models.status_info import StatusInfo
+from typing import Dict
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
@@ -173,10 +179,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        result = api_client.get_result(job_id=internal_job_id)
-        result_dict = result.to_dict()
+        result: Dict[str, InlineOrRefData] = api_client.get_result(job_id=internal_job_id)
 
-        # Convert pystac ItemCollection (GeoJSON FeatureCollection) to a STAC Collection.
+        # results are obtained, we can now build the returning Collection
+
         collection = Collection(
             id=f"{details.application}-{internal_job_id}",
             stac_version=STAC_VERSION,
@@ -187,13 +193,27 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             ),
             type="Collection",
             license="proprietary",
-            links=[],
+            links=Links([]),
             extent=Extent(
                 spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
-            features=result_dict.get("features", []),
         )
+
+        for result_name, result_value in result.items():
+            if not result_value.actual_instance:
+                logger.debug(f"Ignoring result '{result_name}' with None value")
+                continue
+
+            if isinstance(result_value.actual_instance, InputValueNoObject) or isinstance(result_value.actual_instance, OgcLink):
+                logger.warning(f"TODO: type {type(result_value)} of result '{result_name}' not managed yet")
+                continue
+
+            qualified_value: QualifiedInputValue = result_value.actual_instance
+
+            logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
+
+            # TODO enrich previously created collection with qualified_value.value returned object
 
         return collection
 
