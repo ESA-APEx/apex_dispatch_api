@@ -9,7 +9,7 @@ from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
-from stac_pydantic import Collection
+from stac_pydantic.collection import Collection
 from stac_pydantic.collection import Extent, SpatialExtent, TimeInterval
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.configuration import Configuration
@@ -44,17 +44,17 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     This class handles the execution of processing jobs on the OGC API Process platform.
     """
 
-    def _split_job_id(self, job_id):
+    def _split_job_id(self, job_id) -> tuple[str, ...]:
         parts = job_id.split(":", 1)
         if len(parts) != 2:
-            return (None, job_id)
+            return ("", job_id)
         return tuple(parts)
 
     async def _create_api_client_instance(
         self,
         endpoint: str,
         namespace: str,
-        user_token: str = None,
+        user_token: str | None = None,
     ) -> ApiClientWrapper:
         configuration: Configuration = Configuration(
             host=f"{endpoint}/{namespace}" if namespace else endpoint
@@ -85,7 +85,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # Output format omitted from request
         api_client = await self._create_api_client_instance(
-            details.endpoint, details.namespace, exchanged_token
+            details.endpoint, details.namespace if details.namespace else "", exchanged_token
         )
 
         headers = {
@@ -210,64 +210,66 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
 
         api_client = await self._create_api_client_instance(
-            details.endpoint, details.namespace, exchanged_token
+            details.endpoint, details.namespace if details.namespace else "", exchanged_token
         )
         process_description = api_client.get_process_description(details.application)
 
-        for input_id, input_details in process_description.inputs.items():
-            input_type = (
-                input_id,
-                input_details.model_dump()
-                .get("var_schema", {})
-                .get("actual_instance", {})
-                .get("type", ""),
-            )
-            if isinstance(input_type, tuple):
-                input_type = next(
-                    (
-                        t
-                        for t in input_type
-                        if t
-                        in [
-                            "date-interval",
-                            "bounding-box",
-                            "boolean",
-                            "integer",
-                            "double",
-                        ]
-                    ),
-                    None,
-                )
-            input_type = self.__class__.input_type_map.get(input_type)
-
-            if not input_type:
-                input_type = ParamTypeEnum.STRING
-                input_types = (
+        if process_description.inputs:
+            for input_id, input_details in process_description.inputs.items():
+                input_type = (
+                    input_id,
                     input_details.model_dump()
                     .get("var_schema", {})
                     .get("actual_instance", {})
-                    .get("required")
-                    or []
+                    .get("type", ""),
                 )
-                if "bbox" in input_types:
-                    input_type = ParamTypeEnum.BOUNDING_BOX
+                if isinstance(input_type, tuple):
+                    input_type = next(
+                        (
+                            t
+                            for t in input_type
+                            if t
+                            in [
+                                "date-interval",
+                                "bounding-box",
+                                "boolean",
+                                "integer",
+                                "double",
+                            ]
+                        ),
+                        None,
+                    )
+                if input_type:
+                    input_type = self.__class__.input_type_map.get(input_type)
 
-            input_options = (
-                input_details.model_dump()
-                .get("var_schema", {})
-                .get("actual_instance", {})
-                .get("enum")
-                or []
-            )
-            parameters.append(
-                Parameter(
-                    name=input_id,
-                    description=input_details.description,
-                    default=None,
-                    optional=(input_details.min_occurs == 0),
-                    type=input_type,
-                    options=input_options,
-                )
-            )
+                    if not input_type:
+                        input_type = ParamTypeEnum.STRING
+                        input_types = (
+                            input_details.model_dump()
+                            .get("var_schema", {})
+                            .get("actual_instance", {})
+                            .get("required")
+                            or []
+                        )
+                        if "bbox" in input_types:
+                            input_type = ParamTypeEnum.BOUNDING_BOX
+
+                    input_options = (
+                        input_details.model_dump()
+                        .get("var_schema", {})
+                        .get("actual_instance", {})
+                        .get("enum")
+                        or []
+                    )
+                    parameters.append(
+                        Parameter(
+                            name=input_id,
+                            description=input_details.description if input_details.description else f"Parameter: {input_id}",
+                            default=None,
+                            optional=(input_details.min_occurs == 0),
+                            type=input_type,
+                            options=input_options,
+                        )
+                    )
 
         return parameters
