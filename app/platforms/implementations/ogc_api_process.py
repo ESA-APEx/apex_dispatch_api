@@ -183,7 +183,27 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # results are obtained, we can now build the returning Collection
 
-        collection = Collection(
+        for result_name, result_value in result.items():
+            if not result_value.actual_instance:
+                logger.debug(f"Ignoring result '{result_name}' with None value")
+                continue
+
+            if isinstance(result_value.actual_instance, InputValueNoObject) or isinstance(result_value.actual_instance, OgcLink):
+                logger.debug(f"Ignoring result '{result_name}' of unmanaged type {type(result_value)}")
+                continue
+
+            qualified_value: QualifiedInputValue = result_value.actual_instance
+
+            logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
+
+            if isinstance(qualified_value.value, Dict) and "Collection" == qualified_value.value.get("type"):
+                logger.success(f"STAC Collection found in results!\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
+
+                return Collection.model_validate(qualified_value.value)
+
+        # result not found, send back an empty collection
+
+        return Collection(
             id=f"{details.application}-{internal_job_id}",
             stac_version=STAC_VERSION,
             title=f"Results for {details.application}",
@@ -199,23 +219,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
         )
-
-        for result_name, result_value in result.items():
-            if not result_value.actual_instance:
-                logger.debug(f"Ignoring result '{result_name}' with None value")
-                continue
-
-            if isinstance(result_value.actual_instance, InputValueNoObject) or isinstance(result_value.actual_instance, OgcLink):
-                logger.warning(f"TODO: type {type(result_value)} of result '{result_name}' not managed yet")
-                continue
-
-            qualified_value: QualifiedInputValue = result_value.actual_instance
-
-            logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
-
-            # TODO enrich previously created collection with qualified_value.value returned object
-
-        return collection
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
