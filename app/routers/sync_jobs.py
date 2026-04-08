@@ -117,6 +117,6 @@ async def create_sync_job(
     except Exception as e:
         logger.error(f"Error creating synchronous job: {e}")
         raise InternalException(
-            message="An error occurred while creating the synchronous job.", 
-            details=str(e)
+            message="An error occurred while creating the synchronous job.",
+            details=str(e),
         )

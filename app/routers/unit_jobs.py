@@ -269,6 +269,6 @@ async def delete_job(
     except Exception as e:
         logger.error(f"Error deleting processing job {job_id}: {e}")
         raise InternalException(
-            message="An error occurred while deleting the processing job.", 
+            message="An error occurred while deleting the processing job.",
             details=str(e)
         )
