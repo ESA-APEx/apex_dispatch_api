@@ -111,5 +111,5 @@ def split_in_tiles(
         )
         raise InternalException(
             message=f"An error occurred while calculating tiles for {payload.grid.value}",
-            details=str(e),
+            details={"error": str(e)},
         )
