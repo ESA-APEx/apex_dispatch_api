@@ -144,7 +144,8 @@ async def create_upscale_task(
     except Exception as e:
         logger.error(f"Error getting creating upscaling task: {e}")
         raise InternalException(
-            message="An error occurred while retrieving processing job results."
+            message="An error occurred while retrieving processing job results.", 
+            details=str(e)
         )
 
 
@@ -192,7 +193,8 @@ async def get_upscale_task(
     except Exception as e:
         logger.error(f"Error retrieving upscale task {task_id}: {e}")
         raise InternalException(
-            message="An error occurred while retrieving the upscale task."
+            message="An error occurred while retrieving the upscale task.", 
+            details=str(e)
         )
 
 

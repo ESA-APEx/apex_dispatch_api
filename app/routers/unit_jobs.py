@@ -131,7 +131,8 @@ async def create_unit_job(
     except Exception as e:
         logger.error(f"Error creating processing job: {e}")
         raise InternalException(
-            message="An error occurred while creating processing job."
+            message="An error occurred while creating processing job",
+            details={"error": str(e)}
         )
 
 
@@ -176,7 +177,8 @@ async def get_job(
     except Exception as e:
         logger.error(f"Error retrieving processing job {job_id}: {e}")
         raise InternalException(
-            message="An error occurred while retrieving the processing job."
+            message="An error occurred while retrieving the processing job.",
+            details={"error": str(e)}
         )
 
 
@@ -221,7 +223,8 @@ async def get_job_results(
     except Exception as e:
         logger.error(f"Error getting results for processing job {job_id}: {e}")
         raise InternalException(
-            message="An error occurred while retrieving processing job results."
+            message="An error occurred while retrieving processing job results.",
+            details=str(e)
         )
 
 
@@ -266,5 +269,6 @@ async def delete_job(
     except Exception as e:
         logger.error(f"Error deleting processing job {job_id}: {e}")
         raise InternalException(
-            message="An error occurred while deleting the processing job."
+            message="An error occurred while deleting the processing job.", 
+            details=str(e)
         )
