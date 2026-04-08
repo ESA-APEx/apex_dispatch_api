@@ -71,7 +71,7 @@ async def get_jobs_status(
         logger.error(f"Error retrieving job status: {e}")
         raise InternalException(
             message="An error occurred while retrieving the job status.",
-            details=str(e)
+            details={"error": str(e)},
         )
 
 

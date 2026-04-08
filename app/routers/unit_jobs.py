@@ -224,7 +224,7 @@ async def get_job_results(
         logger.error(f"Error getting results for processing job {job_id}: {e}")
         raise InternalException(
             message="An error occurred while retrieving processing job results.",
-            details=str(e)
+            details={"error": str(e)},
         )
 
 
@@ -270,5 +270,5 @@ async def delete_job(
         logger.error(f"Error deleting processing job {job_id}: {e}")
         raise InternalException(
             message="An error occurred while deleting the processing job.",
-            details=str(e)
+            details={"error": str(e)}
         )
