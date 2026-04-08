@@ -131,7 +131,7 @@ async def create_unit_job(
     except Exception as e:
         logger.error(f"Error creating processing job: {e}")
         raise InternalException(
-            message="An error occurred while creating processing job",
+            message="An error occurred while creating processing job.",
             details={"error": str(e)}
         )
 
