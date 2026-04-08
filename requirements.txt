@@ -31,3 +31,4 @@ types-requests
 types-shapely
 uvicorn[standard]
 ogc-api-processes-client @ git+https://github.com/EOEPCA/ogc-api-processes-client.git@refactoring
+geojson

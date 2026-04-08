@@ -9,6 +9,7 @@ from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
+from geojson import FeatureCollection, loads as geojson_loads
 from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
 from stac_pydantic.links import Links
 from stac_pydantic.shared import BBox
@@ -23,6 +24,11 @@ from ogc_api_processes_client.models.status_code import StatusCode
 from ogc_api_processes_client.models.status_info import StatusInfo
 from typing import Dict
 
+import json
+
+STAC_COLLECTION_SCHEMA = "https://schemas.stacspec.org/v1.0.0/collection-spec/json-schema/collection.json"
+
+GEOJSON_FEATURECOLLECTION_SCHEMA = "https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/schemas/featureCollectionGeoJSON.yaml"
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
@@ -194,12 +200,24 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
             qualified_value: QualifiedInputValue = result_value.actual_instance
 
-            logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
+            if qualified_value.var_schema and qualified_value.var_schema.actual_instance:
+                schema_reference = qualified_value.var_schema.actual_instance
+                logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.var_schema}...")
 
-            if isinstance(qualified_value.value, Dict) and "Collection" == qualified_value.value.get("type"):
-                logger.success(f"STAC Collection found in results!\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.model_json_schema}...")
+                if not isinstance(schema_reference, str):
+                    logger.warning(f"Processing result name: '{result_name}' can not be processed, schema of type {type(schema_reference)} not recognized")
+                    continue
 
-                return Collection.model_validate(qualified_value.value)
+                if STAC_COLLECTION_SCHEMA == schema_reference:
+                    logger.success(f"STAC Collection found in results!\n* Name: '{result_name}'")
+                    return Collection.model_validate(qualified_value.value)
+                elif GEOJSON_FEATURECOLLECTION_SCHEMA == schema_reference:
+                    feature_collection: FeatureCollection = geojson_loads(json.dumps(qualified_value.value))
+                    # TODO
+                    logger.warning("GeoJSON FeatureCollection not managed yet")
+                    continue
+                else:
+                    logger.warning(f"Processing result: '{result_name}' can not be processed, schema {schema_reference} not yet managed")
 
         # result not found, send back an empty collection
 
