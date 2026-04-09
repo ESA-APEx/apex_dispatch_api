@@ -9,7 +9,7 @@ from app.platforms.dispatcher import register_platform
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
-from geojson import FeatureCollection, loads as geojson_loads
+from httpx import get as http_get, Response
 from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
 from stac_pydantic.links import Links
 from stac_pydantic.shared import BBox
@@ -209,13 +209,22 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     continue
 
                 if STAC_COLLECTION_SCHEMA == schema_reference:
-                    logger.success(f"STAC Collection found in results!\n* Name: '{result_name}'")
-                    return Collection.model_validate(qualified_value.value)
+                    logger.success(f"STAC Collection found in results: '{result_name}'")
+                    return Collection.model_validate(qualified_value.value.actual_instance)
                 elif GEOJSON_FEATURECOLLECTION_SCHEMA == schema_reference:
-                    feature_collection: FeatureCollection = geojson_loads(json.dumps(qualified_value.value))
-                    # TODO
-                    logger.warning("GeoJSON FeatureCollection not managed yet")
-                    continue
+                    logger.success(f"GeoJSON FeatureCollection found in results: '{result_name}'")
+                    feature_collection = qualified_value.value.actual_instance
+
+                    for feature in feature_collection.get("features", []): # type: ignore Always 'object'
+                        for link in feature.get("links", []): # type: ignore Always 'object'
+                            if "collection" == link.get("rel") and link.get("href"): # type: ignore Always 'object'
+                                collection_link: str = link.get("href")
+                                logger.success(f"GeoJSON FeatureCollection results: '{result_name}' points to a valid collection URL: {collection_link}")
+
+                                response: Response = http_get(collection_link)
+                                response.raise_for_status()
+
+                                return Collection.model_validate(response.json())
                 else:
                     logger.warning(f"Processing result: '{result_name}' can not be processed, schema {schema_reference} not yet managed")
 
