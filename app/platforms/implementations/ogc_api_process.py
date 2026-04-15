@@ -28,7 +28,7 @@ STAC_COLLECTION_SCHEMA = (
 )
 
 GEOJSON_FEATURECOLLECTION_SCHEMA = "https://schemas.opengis.net/ogcapi/" \
-"features/part1/1.0/openapi/schemas/featureCollectionGeoJSON.yaml"
+    "features/part1/1.0/openapi/schemas/featureCollectionGeoJSON.yaml"
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
@@ -214,15 +214,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             ):
                 schema_reference = qualified_value.var_schema.actual_instance
                 logger.debug(
-                    f"Processing result\n* Name: '{result_name}'\n" \
-                    "* media type: {qualified_value.media_type}\n" \
-                    "* Python type: {type(qualified_value.value)}\n" \
+                    f"Processing result\n* Name: '{result_name}'\n"
+                    "* media type: {qualified_value.media_type}\n"
+                    "* Python type: {type(qualified_value.value)}\n"
                     "* schema {qualified_value.var_schema}..."
                 )
 
                 if not isinstance(schema_reference, str):
                     logger.warning(
-                        f"Processing result name: '{result_name}' can not be processed, " \
+                        f"Processing result name: '{result_name}' can not be processed, "
                         "schema of type {type(schema_reference)} not recognized"
                     )
                     continue
@@ -242,7 +242,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                             if "collection" == link.get("rel") and link.get("href"):
                                 collection_link: str = link.get("href")
                                 logger.success(
-                                    f"GeoJSON FeatureCollection results: '{result_name}' " \
+                                    f"GeoJSON FeatureCollection results: '{result_name}' "
                                     "points to a valid collection URL: {collection_link}"
                                 )
 
@@ -257,7 +257,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                                 return Collection.model_validate(response.json())
                 else:
                     logger.warning(
-                        f"Processing result: '{result_name}' can not be processed, " \
+                        f"Processing result: '{result_name}' can not be processed, "
                         "schema {schema_reference} not yet managed"
                     )
 
