@@ -188,7 +188,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         result: Dict[str, InlineOrRefData] = api_client.get_result(job_id=internal_job_id)
 
         # results are obtained, we can now build the returning Collection
-
         for result_name, result_value in result.items():
             if not result_value.actual_instance:
                 logger.debug(f"Ignoring result '{result_name}' with None value")
@@ -213,17 +212,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     return Collection.model_validate(qualified_value.value.actual_instance)
                 elif GEOJSON_FEATURECOLLECTION_SCHEMA == schema_reference:
                     logger.success(f"GeoJSON FeatureCollection found in results: '{result_name}'")
-                    feature_collection = qualified_value.value.actual_instance
-
+                    feature_collection = qualified_value.value.oneof_schema_2_validator
                     for feature in feature_collection.get("features", []): # type: ignore Always 'object'
                         for link in feature.get("links", []): # type: ignore Always 'object'
                             if "collection" == link.get("rel") and link.get("href"): # type: ignore Always 'object'
                                 collection_link: str = link.get("href")
                                 logger.success(f"GeoJSON FeatureCollection results: '{result_name}' points to a valid collection URL: {collection_link}")
 
-                                response: Response = http_get(collection_link)
+                                response: Response = http_get(collection_link, follow_redirects=True, headers={"Authorization": f"Bearer {exchanged_token}"})
                                 response.raise_for_status()
-
                                 return Collection.model_validate(response.json())
                 else:
                     logger.warning(f"Processing result: '{result_name}' can not be processed, schema {schema_reference} not yet managed")
@@ -231,7 +228,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # result not found, send back an empty collection
 
         return Collection(
-            id=f"{details.application}-{internal_job_id}",
+            id=f"{details.namespace}-{internal_job_id}",
             stac_version=STAC_VERSION,
             title=f"Results for {details.application}",
             description=(
@@ -294,34 +291,34 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 if input_type:
                     input_type = self.__class__.input_type_map.get(input_type)
 
-                    if not input_type:
-                        input_type = ParamTypeEnum.STRING
-                        input_types = (
-                            input_details.model_dump()
-                            .get("var_schema", {})
-                            .get("actual_instance", {})
-                            .get("required")
-                            or []
-                        )
-                        if "bbox" in input_types:
-                            input_type = ParamTypeEnum.BOUNDING_BOX
-
-                    input_options = (
+                if not input_type:
+                    input_type = ParamTypeEnum.STRING
+                    input_types = (
                         input_details.model_dump()
                         .get("var_schema", {})
                         .get("actual_instance", {})
-                        .get("enum")
+                        .get("required")
                         or []
                     )
-                    parameters.append(
-                        Parameter(
-                            name=input_id,
-                            description=input_details.description if input_details.description else f"Parameter: {input_id}",
-                            default=None,
-                            optional=(input_details.min_occurs == 0),
-                            type=input_type,
-                            options=input_options,
-                        )
+                    if "bbox" in input_types:
+                        input_type = ParamTypeEnum.BOUNDING_BOX
+
+                input_options = (
+                    input_details.model_dump()
+                    .get("var_schema", {})
+                    .get("actual_instance", {})
+                    .get("enum")
+                    or []
+                )
+                parameters.append(
+                    Parameter(
+                        name=input_id,
+                        description=input_details.description if input_details.description else f"Parameter: {input_id}",
+                        default=None,
+                        optional=(input_details.min_occurs == 0),
+                        type=input_type,
+                        options=input_options,
                     )
+                )
 
         return parameters
