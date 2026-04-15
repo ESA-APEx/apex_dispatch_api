@@ -26,9 +26,12 @@ from typing import Dict
 
 import json
 
-STAC_COLLECTION_SCHEMA = "https://schemas.stacspec.org/v1.0.0/collection-spec/json-schema/collection.json"
+STAC_COLLECTION_SCHEMA = (
+    "https://schemas.stacspec.org/v1.0.0/collection-spec/json-schema/collection.json"
+)
 
 GEOJSON_FEATURECOLLECTION_SCHEMA = "https://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/schemas/featureCollectionGeoJSON.yaml"
+
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
@@ -98,7 +101,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # Output format omitted from request
         api_client = await self._create_api_client_instance(
-            details.endpoint, details.namespace if details.namespace else "", exchanged_token
+            details.endpoint,
+            details.namespace if details.namespace else "",
+            exchanged_token,
         )
 
         headers = {
@@ -185,7 +190,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        result: Dict[str, InlineOrRefData] = api_client.get_result(job_id=internal_job_id)
+        result: Dict[str, InlineOrRefData] = api_client.get_result(
+            job_id=internal_job_id
+        )
 
         # results are obtained, we can now build the returning Collection
         for result_name, result_value in result.items():
@@ -193,37 +200,62 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 logger.debug(f"Ignoring result '{result_name}' with None value")
                 continue
 
-            if isinstance(result_value.actual_instance, InputValueNoObject) or isinstance(result_value.actual_instance, OgcLink):
-                logger.debug(f"Ignoring result '{result_name}' of unmanaged type {type(result_value)}")
+            if isinstance(
+                result_value.actual_instance, InputValueNoObject
+            ) or isinstance(result_value.actual_instance, OgcLink):
+                logger.debug(
+                    f"Ignoring result '{result_name}' of unmanaged type {type(result_value)}"
+                )
                 continue
 
             qualified_value: QualifiedInputValue = result_value.actual_instance
 
-            if qualified_value.var_schema and qualified_value.var_schema.actual_instance:
+            if (
+                qualified_value.var_schema
+                and qualified_value.var_schema.actual_instance
+            ):
                 schema_reference = qualified_value.var_schema.actual_instance
-                logger.debug(f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.var_schema}...")
+                logger.debug(
+                    f"Processing result\n* Name: '{result_name}'\n* media type: {qualified_value.media_type}\n* Python type: {type(qualified_value.value)}\n* schema {qualified_value.var_schema}..."
+                )
 
                 if not isinstance(schema_reference, str):
-                    logger.warning(f"Processing result name: '{result_name}' can not be processed, schema of type {type(schema_reference)} not recognized")
+                    logger.warning(
+                        f"Processing result name: '{result_name}' can not be processed, schema of type {type(schema_reference)} not recognized"
+                    )
                     continue
 
                 if STAC_COLLECTION_SCHEMA == schema_reference:
                     logger.success(f"STAC Collection found in results: '{result_name}'")
-                    return Collection.model_validate(qualified_value.value.actual_instance)
+                    return Collection.model_validate(
+                        qualified_value.value.actual_instance
+                    )
                 elif GEOJSON_FEATURECOLLECTION_SCHEMA == schema_reference:
-                    logger.success(f"GeoJSON FeatureCollection found in results: '{result_name}'")
+                    logger.success(
+                        f"GeoJSON FeatureCollection found in results: '{result_name}'"
+                    )
                     feature_collection = qualified_value.value.oneof_schema_2_validator
-                    for feature in feature_collection.get("features", []): # type: ignore Always 'object'
-                        for link in feature.get("links", []): # type: ignore Always 'object'
-                            if "collection" == link.get("rel") and link.get("href"): # type: ignore Always 'object'
+                    for feature in feature_collection.get("features", []):  # type: ignore Always 'object'
+                        for link in feature.get("links", []):  # type: ignore Always 'object'
+                            if "collection" == link.get("rel") and link.get("href"):  # type: ignore Always 'object'
                                 collection_link: str = link.get("href")
-                                logger.success(f"GeoJSON FeatureCollection results: '{result_name}' points to a valid collection URL: {collection_link}")
+                                logger.success(
+                                    f"GeoJSON FeatureCollection results: '{result_name}' points to a valid collection URL: {collection_link}"
+                                )
 
-                                response: Response = http_get(collection_link, follow_redirects=True, headers={"Authorization": f"Bearer {exchanged_token}"})
+                                response: Response = http_get(
+                                    collection_link,
+                                    follow_redirects=True,
+                                    headers={
+                                        "Authorization": f"Bearer {exchanged_token}"
+                                    },
+                                )
                                 response.raise_for_status()
                                 return Collection.model_validate(response.json())
                 else:
-                    logger.warning(f"Processing result: '{result_name}' can not be processed, schema {schema_reference} not yet managed")
+                    logger.warning(
+                        f"Processing result: '{result_name}' can not be processed, schema {schema_reference} not yet managed"
+                    )
 
         # result not found, send back an empty collection
 
@@ -259,7 +291,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
 
         api_client = await self._create_api_client_instance(
-            details.endpoint, details.namespace if details.namespace else "", exchanged_token
+            details.endpoint,
+            details.namespace if details.namespace else "",
+            exchanged_token,
         )
         process_description = api_client.get_process_description(details.application)
 
@@ -313,7 +347,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 parameters.append(
                     Parameter(
                         name=input_id,
-                        description=input_details.description if input_details.description else f"Parameter: {input_id}",
+                        description=input_details.description
+                        if input_details.description
+                        else f"Parameter: {input_id}",
                         default=None,
                         optional=(input_details.min_occurs == 0),
                         type=input_type,
