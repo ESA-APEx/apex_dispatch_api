@@ -98,12 +98,14 @@ async def exchange_token(user_token: str, url: str) -> str:
     :return: The bearer token as a string.
     """
 
+    logger.debug(f"Exchanging token for backend {url}")
+
     provider = settings.backend_auth_config[url].token_provider
     token_prefix = settings.backend_auth_config[url].token_prefix
 
-    if not provider or not token_prefix:
+    if not provider:
         raise ValueError(
-            f"Backend '{url}' must define 'token_provider' and 'token_prefix'"
+            f"Backend '{url}' must define 'token_provider'"
         )
 
     platform_token = await _exchange_token_for_provider(
