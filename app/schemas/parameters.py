@@ -51,7 +51,7 @@ class Parameter(BaseModel):
         examples=["default_value"],
     )
     options: list[Any] = Field(
-        None,
+        [],
         description="List of valid options for the parameter, if applicable",
         examples=[["option1", "option2"]]
     )

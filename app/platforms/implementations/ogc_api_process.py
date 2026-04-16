@@ -236,7 +236,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     logger.success(
                         f"GeoJSON FeatureCollection found in results: '{result_name}'"
                     )
-                    feature_collection = qualified_value.value.oneof_schema_2_validator
+                    feature_collection = qualified_value.value.oneof_schema_2_validator or {}
                     for feature in feature_collection.get("features", []):
                         for link in feature.get("links", []):
                             if "collection" == link.get("rel") and link.get("href"):
@@ -311,7 +311,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     .get("type", ""),
                 )
                 if isinstance(input_type, tuple):
-                    input_type = next(
+                    input_type_str = next(
                         (
                             t
                             for t in input_type
@@ -326,11 +326,14 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         ),
                         None,
                     )
-                if input_type:
-                    input_type = self.__class__.input_type_map.get(input_type)
+                else:
+                    input_type_str = None
 
-                if not input_type:
-                    input_type = ParamTypeEnum.STRING
+                if input_type_str:
+                    input_type_str = self.__class__.input_type_map.get(input_type_str)
+
+                if not input_type_str:
+                    input_type_str = ParamTypeEnum.STRING
                     input_types = (
                         input_details.model_dump()
                         .get("var_schema", {})
@@ -339,7 +342,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         or []
                     )
                     if "bbox" in input_types:
-                        input_type = ParamTypeEnum.BOUNDING_BOX
+                        input_type_str = ParamTypeEnum.BOUNDING_BOX
 
                 input_options = (
                     input_details.model_dump()
@@ -356,7 +359,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         else f"Parameter: {input_id}",
                         default=None,
                         optional=(input_details.min_occurs == 0),
-                        type=input_type,
+                        type=input_type_str,
                         options=input_options,
                     )
                 )
