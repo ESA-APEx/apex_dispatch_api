@@ -474,9 +474,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
             if param.type == ParamTypeEnum.BOUNDING_BOX and param.name in parameters:
                 # Transform GeoJSON to bounding box
                 value = parameters[param.name]
-                logger.debug(
-                    f"Transforming parameter {param.name} from GeoJSON to bounding box: {sorted(value.keys())}"
-                )
                 if value.get("type") == "Polygon":
                     coordinates = value.get("coordinates", [])
                     if coordinates and isinstance(coordinates, list):
