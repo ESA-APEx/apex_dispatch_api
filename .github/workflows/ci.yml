@@ -20,7 +20,9 @@ jobs:
       - name: Create .env file
         run: |
           echo "DATABASE_URL=sqlite:///:memory:" >> .env
-
+          echo "KEYCLOAK_HOST=http://localhost" >> .env
+          echo "KEYCLOAK_REALM=apex" >> .env
+          echo "KEYCLOAK_CLIENT_ID=apex-dispatcher-api-local" >> .env
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
