@@ -1055,6 +1055,37 @@ async def test_transform_parameters_passthrough_when_not_applicable(
 
 @pytest.mark.asyncio
 @patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_bbox_passthrough_when_already_bbox(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area",
+            description="Area of interest",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        )
+    ]
+
+    parameters = {
+        "area": {
+            "north": 52.0,
+            "west": 3.0,
+            "east": 5.0,
+            "south": 50.0,
+        },
+        "other": "untouched",
+    }
+
+    result = await platform._transform_parameters(
+        user_token="fake-token", details=service_details, parameters=parameters
+    )
+
+    assert result == parameters
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
 async def test_transform_parameters_raises_for_unsupported_geojson_type(
     mock_get_service_parameters, platform, service_details
 ):
@@ -1105,3 +1136,89 @@ async def test_transform_parameters_raises_for_invalid_polygon_coordinates(
         await platform._transform_parameters(
             user_token="fake-token", details=service_details, parameters=parameters
         )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_raises_for_non_list_polygon_coordinates(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area",
+            description="Area of interest",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        )
+    ]
+
+    parameters = {
+        "area": {
+            "type": "Polygon",
+            "coordinates": "not-a-list",
+        }
+    }
+
+    with pytest.raises(ValueError, match="Invalid GeoJSON geometry"):
+        await platform._transform_parameters(
+            user_token="fake-token", details=service_details, parameters=parameters
+        )
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_mixed_bbox_inputs(
+    mock_get_service_parameters, platform, service_details
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="area_polygon",
+            description="Polygon area",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+        Parameter(
+            name="area_bbox",
+            description="Bounding box area",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+        Parameter(
+            name="date",
+            description="Date interval",
+            type=ParamTypeEnum.DATE_INTERVAL,
+            optional=True,
+        ),
+    ]
+
+    parameters = {
+        "area_polygon": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [3.0, 50.0],
+                    [5.0, 50.0],
+                    [5.0, 52.0],
+                    [3.0, 52.0],
+                    [3.0, 50.0],
+                ]
+            ],
+        },
+        "area_bbox": {
+            "south": 49.0,
+            "east": 6.0,
+            "north": 53.0,
+            "west": 2.0,
+        },
+        "date": ["2024-01-01", "2024-12-31"],
+    }
+
+    result = await platform._transform_parameters(
+        user_token="fake-token", details=service_details, parameters=parameters
+    )
+
+    assert result == {
+        "area_polygon": {"west": 3.0, "south": 50.0, "east": 5.0, "north": 52.0},
+        "area_bbox": {"south": 49.0, "east": 6.0, "north": 53.0, "west": 2.0},
+        "date": ["2024-01-01", "2024-12-31"],
+    }

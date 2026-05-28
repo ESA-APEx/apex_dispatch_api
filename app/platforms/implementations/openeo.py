@@ -473,9 +473,12 @@ class OpenEOPlatform(BaseProcessingPlatform):
         for param in service_params:
             if param.type == ParamTypeEnum.BOUNDING_BOX and param.name in parameters:
                 # Transform GeoJSON to bounding box
-                geojson = parameters[param.name]
-                if geojson.get("type") == "Polygon":
-                    coordinates = geojson.get("coordinates", [])
+                value = parameters[param.name]
+                logger.debug(
+                    f"Transforming parameter {param.name} from GeoJSON to bounding box: {sorted(value.keys())}"
+                )
+                if value.get("type") == "Polygon":
+                    coordinates = value.get("coordinates", [])
                     if coordinates and isinstance(coordinates, list):
                         # Assuming the first set of coordinates defines the polygon
                         polygon_coords = coordinates[0]
@@ -489,12 +492,15 @@ class OpenEOPlatform(BaseProcessingPlatform):
                         }
                     else:
                         raise ValueError(
-                            f"Invalid GeoJSON geometry for parameter {param.name}: {geojson}"
+                            f"Invalid GeoJSON geometry for parameter {param.name}: {value}"
                         )
+                elif ["east", "north", "south", "west"] == sorted(value.keys()):
+                    # Already in bounding box format, no transformation needed
+                    transformed_parameters[param.name] = value
                 else:
                     raise ValueError(
                         f"Unsupported GeoJSON type for parameter {param.name}: "
-                        f"{geojson.get('type')}"
+                        f"{value.get('type')}"
                     )
         logger.debug(f"Transformed parameters for openEO: {transformed_parameters}")
         return transformed_parameters
