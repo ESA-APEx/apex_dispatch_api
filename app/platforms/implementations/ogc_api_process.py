@@ -100,6 +100,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             return ParamTypeEnum.POLYGON
         if schema_format == "date-time":
             return ParamTypeEnum.DATETIME
+        if schema_type == "object":
+            required = schema.get("required") or []
+            if "type" in required and "coordinates" in required:
+                type_properties = schema.get("properties", {}).get("type", {})
+                type_instance = type_properties
+                while "actual_instance" in type_instance:
+                    type_instance = type_instance["actual_instance"]
+                if "Polygon" in type_instance.get("enum", []):
+                    return ParamTypeEnum.POLYGON
 
         if isinstance(schema.get("$ref"), str):
             return self._get_type_from_schema(schema.get("$ref"), input_id)
@@ -113,10 +122,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 if detected_type != ParamTypeEnum.STRING:
                     return detected_type
 
-        required_fields = schema.get("required") or []
         properties = schema.get("properties") or {}
-        if "bbox" in required_fields or "bbox" in properties:
-            return ParamTypeEnum.BOUNDING_BOX
         if (
             schema.get("title") == "GeoJSON"
             or "geometry" in properties
