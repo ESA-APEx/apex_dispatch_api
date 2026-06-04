@@ -170,6 +170,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> str:
         logger.info(f"Executing OGC API job with title={title}")
 
+        parameters = await self._transform_parameters(user_token, details, parameters)
+
         # Exchanging token
         logger.debug("Exchanging user token for OGC API Process execution...")
         exchanged_token = await exchange_token(
@@ -218,6 +220,47 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if details.namespace:
             return f"{details.namespace}:{job_id}"
         return job_id
+
+    def _transform_bbox_parameter(self, param_name: str, value) -> list[float]:
+        if isinstance(value, (list, tuple)) and len(value) == 4:
+            return [float(coord) for coord in value]
+
+        if isinstance(value, dict):
+            if ["east", "north", "south", "west"] == sorted(value.keys()):
+                return [
+                    float(value["west"]),
+                    float(value["south"]),
+                    float(value["east"]),
+                    float(value["north"]),
+                ]
+
+        raise ValueError(
+            f"Unsupported bounding box value for parameter {param_name}: {value}"
+        )
+
+    async def _transform_parameters(
+        self, user_token: str, details: ServiceDetails, parameters: dict
+    ) -> dict:
+        service_params = await self.get_service_parameters(user_token, details)
+
+        transformed_parameters = parameters.copy()
+        for param in service_params:
+            if param.name not in parameters:
+                continue
+
+            modifier = {
+                ParamTypeEnum.BOUNDING_BOX: self._transform_bbox_parameter,
+            }.get(param.type)
+
+            if modifier:
+                transformed_parameters[param.name] = modifier(
+                    param.name, parameters[param.name]
+                )
+
+        logger.debug(
+            f"Transformed parameters for OGC API Process: {transformed_parameters}"
+        )
+        return transformed_parameters
 
     async def execute_synchronous_job(
         self,

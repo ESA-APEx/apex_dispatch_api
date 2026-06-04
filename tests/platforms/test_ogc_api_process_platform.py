@@ -216,6 +216,49 @@ def test_get_type_from_schema(platform, schema, input_id, expected_type):
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (
+            {"west": 4, "south": 50, "east": 5, "north": 51},
+            [4.0, 50.0, 5.0, 51.0],
+        ),
+        (
+            [4, 50, 5, 51],
+            [4.0, 50.0, 5.0, 51.0],
+        ),
+    ],
+)
+def test_transform_bbox_parameter(platform, value, expected):
+    assert platform._transform_bbox_parameter("bbox", value) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "invalid",
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]
+            ],
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]
+                ],
+            },
+        },
+    ],
+)
+def test_transform_bbox_parameter_invalid_value(platform, value):
+    with pytest.raises(ValueError, match="Unsupported bounding box value"):
+        platform._transform_bbox_parameter("bbox", value)
+
+
+@pytest.mark.parametrize(
     ("job_id", "expected"),
     [
         ("namespace:job-123", ("namespace", "job-123")),
@@ -240,6 +283,41 @@ def test_split_job_id(platform, job_id, expected):
 )
 def test_map_ogcapi_status(platform, ogc_status, expected_status):
     assert platform._map_ogcapi_status(ogc_status) == expected_status
+
+
+@pytest.mark.asyncio
+@patch.object(OGCAPIProcessPlatform, "get_service_parameters", new_callable=AsyncMock)
+async def test_transform_parameters_applies_bbox_modifier(
+    mock_get_service_parameters, platform
+):
+    mock_get_service_parameters.return_value = [
+        Parameter(
+            name="bbox",
+            description="Spatial extent",
+            type=ParamTypeEnum.BOUNDING_BOX,
+            optional=False,
+        ),
+        Parameter(
+            name="mode",
+            description="Execution mode",
+            type=ParamTypeEnum.STRING,
+            optional=False,
+        ),
+    ]
+
+    result = await platform._transform_parameters(
+        "token",
+        ServiceDetails(endpoint="https://example.com", application="buffer"),
+        {
+            "bbox": {"west": 4, "south": 50, "east": 5, "north": 51},
+            "mode": "fast",
+        },
+    )
+
+    assert result == {
+        "bbox": [4.0, 50.0, 5.0, 51.0],
+        "mode": "fast",
+    }
 
 
 @pytest.mark.asyncio
@@ -275,10 +353,16 @@ async def test_create_api_client_instance_with_token_and_namespace(
     new_callable=AsyncMock,
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
+@patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_execute_job_returns_namespaced_job_id(
-    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
+    mock_create_api_client,
+    mock_transform_parameters,
+    mock_get_current_user_claims,
+    mock_exchange_token,
+    platform,
 ):
+    mock_transform_parameters.return_value = {"bbox": [4.0, 50.0, 5.0, 51.0]}
     mock_exchange_token.return_value = "exchanged-token"
     mock_get_current_user_claims.return_value = {
         "sub": "user-123",
@@ -305,7 +389,7 @@ async def test_execute_job_returns_namespaced_job_id(
     api_client.execute_simple.assert_called_once_with(
         process_id="buffer",
         execute={
-            "inputs": {"geometry": {"type": "Polygon"}},
+            "inputs": {"bbox": [4.0, 50.0, 5.0, 51.0]},
             "properties": {
                 "title": "My job",
                 "application": "buffer",
@@ -328,10 +412,16 @@ async def test_execute_job_returns_namespaced_job_id(
     new_callable=AsyncMock,
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
+@patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_execute_job_returns_plain_job_id_without_namespace(
-    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
+    mock_create_api_client,
+    mock_transform_parameters,
+    mock_get_current_user_claims,
+    mock_exchange_token,
+    platform,
 ):
+    mock_transform_parameters.return_value = {"limit": 10}
     mock_exchange_token.return_value = None
     mock_get_current_user_claims.return_value = {"sub": "user-123"}
     api_client = MagicMock()
@@ -373,10 +463,16 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
     new_callable=AsyncMock,
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
+@patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_execute_job_omits_missing_optional_user_fields(
-    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
+    mock_create_api_client,
+    mock_transform_parameters,
+    mock_get_current_user_claims,
+    mock_exchange_token,
+    platform,
 ):
+    mock_transform_parameters.return_value = {"limit": 10}
     mock_exchange_token.return_value = "exchanged-token"
     mock_get_current_user_claims.return_value = {}
     api_client = MagicMock()
