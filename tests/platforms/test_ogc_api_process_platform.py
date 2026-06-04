@@ -163,9 +163,19 @@ def build_collection_payload(collection_id="collection-1", title="Test Collectio
         ({"type": "integer"}, "limit", ParamTypeEnum.INTEGER),
         ({"type": "double"}, "scale", ParamTypeEnum.DOUBLE),
         (
-            {"type": "object", "required": ["bbox"]},
+            {"type": "object", "required": ["coordinates", "type", "bbox"],
+             "properties": {
+                 "type": {
+                     "actual_instance": {
+                        "actual_instance": {
+                            "enum": ["Polygon"]
+                        }
+                     }
+                 }
+             }
+             },
             "bbox",
-            ParamTypeEnum.BOUNDING_BOX,
+            ParamTypeEnum.POLYGON,
         ),
         (
             {"type": "array", "items": {"type": "string"}},
