@@ -84,7 +84,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if not isinstance(schema, dict):
             return ParamTypeEnum.STRING
 
-        schema_type = schema.get("type")
+        schema_type = str(schema.get("type"))
         schema_format = schema.get("format")
         schema_subtype = schema.get("subtype")
 
