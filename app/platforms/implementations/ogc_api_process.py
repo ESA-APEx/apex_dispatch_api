@@ -34,11 +34,14 @@ GEOJSON_FEATURECOLLECTION_SCHEMA = "https://schemas.opengis.net/ogcapi/" \
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
 class OGCAPIProcessPlatform(BaseProcessingPlatform):
     input_type_map = {
+        "date-time": ParamTypeEnum.DATETIME,
         "date-interval": ParamTypeEnum.DATE_INTERVAL,
         "bounding-box": ParamTypeEnum.BOUNDING_BOX,
         "boolean": ParamTypeEnum.BOOLEAN,
         "integer": ParamTypeEnum.INTEGER,
         "double": ParamTypeEnum.DOUBLE,
+        "number": ParamTypeEnum.DOUBLE,
+        "string": ParamTypeEnum.STRING,
     }
 
     status_mapping = {
@@ -53,6 +56,12 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         r"(?P<namespace>.+)/processes/(?P<process_id>[^/]+)$"
     )
 
+    geojson_schema_references = {
+        GEOJSON_FEATURECOLLECTION_SCHEMA,
+        "https://geojson.org/schema/FeatureCollection.json",
+        "https://geojson.org/schema/Feature.json",
+    }
+
     """
     OGC API Process processing platform implementation.
     This class handles the execution of processing jobs on the OGC API Process platform.
@@ -63,6 +72,66 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if len(parts) != 2:
             return ("", job_id)
         return tuple(parts)
+
+    def _get_type_from_schema(
+        self, schema: dict | str | None, input_id: str = ""
+    ) -> ParamTypeEnum:
+        if isinstance(schema, str):
+            if schema in self.__class__.geojson_schema_references:
+                return ParamTypeEnum.POLYGON
+            return self.__class__.input_type_map.get(schema, ParamTypeEnum.STRING)
+
+        if not isinstance(schema, dict):
+            return ParamTypeEnum.STRING
+
+        schema_type = schema.get("type")
+        schema_format = schema.get("format")
+        schema_subtype = schema.get("subtype")
+
+        if schema_type == "array" and schema_subtype == "date-interval":
+            return ParamTypeEnum.DATE_INTERVAL
+        if schema_type == "array" and schema.get("items", {}).get("type") == "string":
+            return ParamTypeEnum.ARRAY_STRING
+        if schema_subtype == "geojson":
+            return ParamTypeEnum.POLYGON
+        if schema_subtype == "bounding-box":
+            return ParamTypeEnum.BOUNDING_BOX
+        if schema_format == "geojson":
+            return ParamTypeEnum.POLYGON
+        if schema_format == "date-time":
+            return ParamTypeEnum.DATETIME
+
+        if isinstance(schema.get("$ref"), str):
+            return self._get_type_from_schema(schema.get("$ref"), input_id)
+
+        for variant_key in ("oneOf", "anyOf", "allOf"):
+            variants = schema.get(variant_key) or []
+            if not isinstance(variants, list):
+                continue
+            for variant in variants:
+                detected_type = self._get_type_from_schema(variant, input_id)
+                if detected_type != ParamTypeEnum.STRING:
+                    return detected_type
+
+        required_fields = schema.get("required") or []
+        properties = schema.get("properties") or {}
+        if "bbox" in required_fields or "bbox" in properties:
+            return ParamTypeEnum.BOUNDING_BOX
+        if (
+            schema.get("title") == "GeoJSON"
+            or "geometry" in properties
+            or "features" in properties
+            or input_id.lower() in {"aoi", "geometry", "geom", "geojson"}
+        ):
+            return ParamTypeEnum.POLYGON
+
+        return self.__class__.input_type_map.get(schema_type, ParamTypeEnum.STRING)
+
+    def _get_options_from_schema(self, schema: dict | str | None) -> list:
+        if not isinstance(schema, dict):
+            return []
+        options = schema.get("enum")
+        return options if isinstance(options, list) else []
 
     async def _create_api_client_instance(
         self,
@@ -112,7 +181,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if exchanged_token:
             headers["Authorization"] = f"Bearer {exchanged_token}"
 
-        data = {"inputs": {key: value for key, value in parameters.items()}}
+        data = {"inputs": parameters, 
+                "properties": {"title": title, "application": details.application}}
 
         content = api_client.execute_simple(
             process_id=details.application, execute=data, _headers=headers
@@ -303,53 +373,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         if process_description.inputs:
             for input_id, input_details in process_description.inputs.items():
-                input_type = (
-                    input_id,
+                schema = (
                     input_details.model_dump()
                     .get("var_schema", {})
-                    .get("actual_instance", {})
-                    .get("type", ""),
-                )
-                if isinstance(input_type, tuple):
-                    input_type_str = next(
-                        (
-                            t
-                            for t in input_type
-                            if t
-                            in [
-                                "date-interval",
-                                "bounding-box",
-                                "boolean",
-                                "integer",
-                                "double",
-                            ]
-                        ),
-                        None,
-                    )
-                else:
-                    input_type_str = None
-
-                if input_type_str:
-                    input_type_str = self.__class__.input_type_map.get(input_type_str)
-
-                if not input_type_str:
-                    input_type_str = ParamTypeEnum.STRING
-                    input_types = (
-                        input_details.model_dump()
-                        .get("var_schema", {})
-                        .get("actual_instance", {})
-                        .get("required")
-                        or []
-                    )
-                    if "bbox" in input_types:
-                        input_type_str = ParamTypeEnum.BOUNDING_BOX
-
-                input_options = (
-                    input_details.model_dump()
-                    .get("var_schema", {})
-                    .get("actual_instance", {})
-                    .get("enum")
-                    or []
+                    .get("actual_instance")
                 )
                 parameters.append(
                     Parameter(
@@ -359,8 +386,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         else f"Parameter: {input_id}",
                         default=None,
                         optional=(input_details.min_occurs == 0),
-                        type=input_type_str,
-                        options=input_options,
+                        type=self._get_type_from_schema(schema, input_id),
+                        options=self._get_options_from_schema(schema),
                     )
                 )
 
