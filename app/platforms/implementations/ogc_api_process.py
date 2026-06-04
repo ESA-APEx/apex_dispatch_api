@@ -1,6 +1,6 @@
 import re
 from typing import List
-from app.auth import exchange_token
+from app.auth import exchange_token, get_current_user_claims
 from fastapi import Response
 from loguru import logger
 
@@ -181,8 +181,22 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if exchanged_token:
             headers["Authorization"] = f"Bearer {exchanged_token}"
 
-        data = {"inputs": parameters, 
-                "properties": {"title": title, "application": details.application}}
+        user_claims = get_current_user_claims(user_token)
+        properties = {
+            "title": title,
+            "application": details.application,
+        }
+        if user_claims.get("sub"):
+            properties["user_id"] = user_claims["sub"]
+        if user_claims.get("preferred_username"):
+            properties["username"] = user_claims["preferred_username"]
+        if user_claims.get("email"):
+            properties["email"] = user_claims["email"]
+
+        data = {
+            "inputs": parameters,
+            "properties": properties,
+        }
 
         content = api_client.execute_simple(
             process_id=details.application, execute=data, _headers=headers

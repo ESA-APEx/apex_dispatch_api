@@ -244,11 +244,17 @@ async def test_create_api_client_instance_with_token_and_namespace(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
+@patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_execute_job_returns_namespaced_job_id(
-    mock_create_api_client, mock_exchange_token, platform
+    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
 ):
     mock_exchange_token.return_value = "exchanged-token"
+    mock_get_current_user_claims.return_value = {
+        "sub": "user-123",
+        "preferred_username": "alice",
+        "email": "alice@example.com",
+    }
     api_client = MagicMock()
     api_client.execute_simple.return_value = SimpleNamespace(job_id="job-123")
     mock_create_api_client.return_value = api_client
@@ -270,7 +276,13 @@ async def test_execute_job_returns_namespaced_job_id(
         process_id="buffer",
         execute={
             "inputs": {"geometry": {"type": "Polygon"}},
-            "properties": {"title": "My job", "application": "buffer"},
+            "properties": {
+                "title": "My job",
+                "application": "buffer",
+                "user_id": "user-123",
+                "username": "alice",
+                "email": "alice@example.com",
+            },
         },
         _headers={
             "accept": "*/*",
@@ -285,11 +297,13 @@ async def test_execute_job_returns_namespaced_job_id(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
+@patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_execute_job_returns_plain_job_id_without_namespace(
-    mock_create_api_client, mock_exchange_token, platform
+    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
 ):
     mock_exchange_token.return_value = None
+    mock_get_current_user_claims.return_value = {"sub": "user-123"}
     api_client = MagicMock()
     api_client.execute_simple.return_value = SimpleNamespace(job_id="job-123")
     mock_create_api_client.return_value = api_client
@@ -310,11 +324,56 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
         process_id="buffer",
         execute={
             "inputs": {"limit": 10},
+            "properties": {
+                "title": "My job",
+                "application": "buffer",
+                "user_id": "user-123",
+            },
+        },
+        _headers={
+            "accept": "*/*",
+            "Content-Type": "application/json",
+        },
+    )
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.platforms.implementations.ogc_api_process.exchange_token",
+    new_callable=AsyncMock,
+)
+@patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
+@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+async def test_execute_job_omits_missing_optional_user_fields(
+    mock_create_api_client, mock_get_current_user_claims, mock_exchange_token, platform
+):
+    mock_exchange_token.return_value = "exchanged-token"
+    mock_get_current_user_claims.return_value = {}
+    api_client = MagicMock()
+    api_client.execute_simple.return_value = SimpleNamespace(job_id="job-123")
+    mock_create_api_client.return_value = api_client
+
+    await platform.execute_job(
+        user_token="token",
+        title="My job",
+        details=ServiceDetails(
+            endpoint="https://example.com",
+            application="buffer",
+        ),
+        parameters={"limit": 10},
+        format=OutputFormatEnum.GEOTIFF,
+    )
+
+    api_client.execute_simple.assert_called_once_with(
+        process_id="buffer",
+        execute={
+            "inputs": {"limit": 10},
             "properties": {"title": "My job", "application": "buffer"},
         },
         _headers={
             "accept": "*/*",
             "Content-Type": "application/json",
+            "Authorization": "Bearer exchanged-token",
         },
     )
 

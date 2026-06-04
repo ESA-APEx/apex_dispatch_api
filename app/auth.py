@@ -49,8 +49,11 @@ def _decode_token(token: str):
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)):
-    user: dict = _decode_token(token)
-    return user["sub"]
+    return get_current_user_claims(token)["sub"]
+
+
+def get_current_user_claims(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+    return _decode_token(token)
 
 
 async def websocket_authenticate(websocket: WebSocket) -> str | None:
