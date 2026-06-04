@@ -109,6 +109,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     type_instance = type_instance["actual_instance"]
                 if "Polygon" in type_instance.get("enum", []):
                     return ParamTypeEnum.POLYGON
+                if "Point" in type_instance.get("enum", []):
+                    return ParamTypeEnum.POINT
+            elif "bbox" in required:
+                return ParamTypeEnum.BOUNDING_BOX
 
         if isinstance(schema.get("$ref"), str):
             return self._get_type_from_schema(schema.get("$ref"), input_id)

@@ -11,6 +11,7 @@ class ParamTypeEnum(str, Enum):
     DATE_INTERVAL = "date-interval"
     BOUNDING_BOX = "bounding-box"
     POLYGON = "polygon"
+    POINT = "point"
     BOOLEAN = "boolean"
     INTEGER = "integer"
     DOUBLE = "double"

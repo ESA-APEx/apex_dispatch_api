@@ -174,8 +174,28 @@ def build_collection_payload(collection_id="collection-1", title="Test Collectio
                  }
              }
              },
-            "bbox",
+            "aoi",
             ParamTypeEnum.POLYGON,
+        ),
+        (
+            {"type": "object", "required": ["coordinates", "type", "bbox"],
+             "properties": {
+                 "type": {
+                     "actual_instance": {
+                        "actual_instance": {
+                            "enum": ["Point"]
+                        }
+                     }
+                 }
+             }
+             },
+            "poi",
+            ParamTypeEnum.POINT,
+        ),
+        (
+            {"type": "object", "required": ["bbox", "crs"]},
+            "bbox",
+            ParamTypeEnum.BOUNDING_BOX,
         ),
         (
             {"type": "array", "items": {"type": "string"}},
