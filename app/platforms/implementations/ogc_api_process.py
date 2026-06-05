@@ -243,14 +243,16 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     ) -> dict:
         service_params = await self.get_service_parameters(user_token, details)
 
+        modifiers = {
+            ParamTypeEnum.BOUNDING_BOX: self._transform_bbox_parameter,
+        }
+
         transformed_parameters = parameters.copy()
         for param in service_params:
             if param.name not in parameters:
                 continue
 
-            modifier = {
-                ParamTypeEnum.BOUNDING_BOX: self._transform_bbox_parameter,
-            }.get(param.type)
+            modifier = modifiers.get(param.type)
 
             if modifier:
                 transformed_parameters[param.name] = modifier(
