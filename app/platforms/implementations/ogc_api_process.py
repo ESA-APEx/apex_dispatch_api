@@ -3,6 +3,8 @@ from typing import List
 from app.auth import exchange_token, get_current_user_claims
 from fastapi import Response
 from loguru import logger
+import jwt
+from urllib.parse import urlparse
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
@@ -160,6 +162,23 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         return ApiClientWrapper(configuration, **additional_args)
 
+    async def _get_token_for_api(self, user_token: str, url: str) -> str:
+        payload = jwt.decode(user_token, options={"verify_signature": False})
+
+        # Extract the 'iss' (issuer) claim safely
+        issuer = payload.get("iss")
+        parsed_uri = urlparse(issuer)
+
+        # Return token if it is a Terradue/Geohazards-TEP token
+        # (issued by iam.terradue.com)
+        if parsed_uri.netloc == "iam.terradue.com":
+            logger.debug(f"Skipping token exchange (token issued by {parsed_uri.netloc})")
+            return user_token
+
+        # Otherwise perform token exchange (using APEx token as input)
+        return await exchange_token(user_token, url)
+
+
     async def execute_job(
         self,
         user_token: str,
@@ -174,7 +193,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # Exchanging token
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -298,7 +317,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         logger.debug(f"Fetching job status for OGC API job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -317,7 +336,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -429,7 +448,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
