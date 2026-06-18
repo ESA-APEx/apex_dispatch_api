@@ -3,13 +3,47 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import httpx
 from fastapi import status
 
-from app.auth import exchange_token, _exchange_token_for_provider
+from app.auth import (
+    exchange_token,
+    _exchange_token_for_provider,
+    get_current_user_claims,
+    get_current_user_id,
+)
 from app.config.settings import settings
 from app.config.schemas import BackendAuthConfig, AuthMethod
 from app.error import AuthException
 
 
 # Tests for exchange_token function
+@patch("app.auth._decode_token")
+def test_get_current_user_claims(mock_decode_token):
+    mock_decode_token.return_value = {
+        "sub": "user-123",
+        "preferred_username": "alice",
+    }
+
+    result = get_current_user_claims("token")
+
+    assert result == {
+        "sub": "user-123",
+        "preferred_username": "alice",
+    }
+    mock_decode_token.assert_called_once_with("token")
+
+
+@patch("app.auth._decode_token")
+def test_get_current_user_id(mock_decode_token):
+    mock_decode_token.return_value = {
+        "sub": "user-123",
+        "preferred_username": "alice",
+    }
+
+    result = get_current_user_id("token")
+
+    assert result == "user-123"
+    mock_decode_token.assert_called_once_with("token")
+
+
 @pytest.mark.asyncio
 async def test_exchange_token_missing_provider():
 
