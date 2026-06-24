@@ -33,7 +33,7 @@ services:
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      DATABASE_URL: postgresql+psycopg2://apex_user:apex_pass@db:5432/apex_db
+      DATABASE_URL: ${DATABASE_URL}
       BACKENDS: '{"https://processing.geohazards-tep.eu": {"auth_method": "USER_CREDENTIALS", "token_provider": "gep", "token_prefix": ""}}'
     depends_on:
       db:
@@ -50,7 +50,7 @@ services:
   migrate:
     image: apex-dispatch-api:latest
     environment:
-      DATABASE_URL: postgresql+psycopg2://apex_user:apex_pass@db:5432/apex_db
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       db:
         condition: service_healthy
