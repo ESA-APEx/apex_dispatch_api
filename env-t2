@@ -6,7 +6,7 @@ APP_ENV=development
 CORS_ALLOWED_ORIGINS=http://localhost:5173
 
 # Database Settings
-DATABASE_URL=sqlite:///test.db
+DATABASE_URL=postgresql+psycopg2://apex_user:apex_pass@db:5432/apex_db
 
 # Keycloak Settings
 KEYCLOAK_HOST="https://iam.terradue.com"
