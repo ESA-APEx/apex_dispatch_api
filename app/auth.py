@@ -39,6 +39,7 @@ def _decode_token(token: str):
             signing_key,
             algorithms=[ALGORITHM],
             issuer=KEYCLOAK_BASE_URL,
+            options={"verify_aud": False}
         )
         return payload
     except Exception:

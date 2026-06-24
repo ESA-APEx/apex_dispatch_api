@@ -1,0 +1,18 @@
+# General Settings
+APP_NAME="APEx Dispatch API"
+APP_DESCRIPTION="APEx Dispatch Service API to run jobs and upscaling tasks"
+APP_ENV=development
+
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+
+# Database Settings
+DATABASE_URL=sqlite:///test.db
+
+# Keycloak Settings
+KEYCLOAK_HOST="https://iam.terradue.com"
+KEYCLOAK_REALM=master
+KEYCLOAK_CLIENT_ID=apex-client-id
+KEYCLOAK_CLIENT_SECRET=apex-client-secret
+
+
+BACKENDS='"https://openeo.backend2.com": {"auth_method": "USER_CREDENTIALS",  "token_provider": "backend", "token_prefix": "oidc/backend"}}'
