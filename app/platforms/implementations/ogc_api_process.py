@@ -296,8 +296,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     def _extract_download_link_from_asset(self, asset: dict) -> str | None:
         """
-        Extracts the download link from an asset dictionary. Checks if the `href` field is present and contains an HTTPS URL.
-        If this is not the case, look for an alternative link in `alternate` field. If no valid link is found, return None.
+        Extracts the download link from an asset dictionary. Checks if the
+        `href` field is present and contains an HTTPS URL. If this is not
+        the case, look for an alternative link in `alternate`
+        field. If no valid link is found, return None.
 
         Args:
             asset (dict): The asset dictionary.
@@ -317,7 +319,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     def _generate_signed_url(self, href: str, user_token: str) -> str:
         """
         Generate a signed URL for the given href using the provided user token.
-        This is a placeholder implementation and should be replaced with actual logic to generate signed URLs.
+        This is a placeholder implementation and should be replaced with
+        actual logic to generate signed URLs.
 
         Args:
             href (str): The original href.
@@ -326,11 +329,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # TODO - Add implementation
         logger.debug(f"Generating signed URL for href: {href} with user token.")
         return href
-    
+
     def _update_assets_hrefs(self, assets: dict, user_token: str) -> dict:
         """
-        Update the hrefs of the assets to be HTTPS URLs. If the current href is an S3 URL, the code will look into 
-        `alternate` links to find an HTTPS URL. If no HTTPS URL is found, the original href will be kept.
+        Update the hrefs of the assets to be HTTPS URLs. If the current
+        href is an S3 URL, the code will look into `alternate` links to
+        find an HTTPS URL. If no HTTPS URL is found, the original href
+        will be kept.
         """
         updated_assets = {}
         for asset_name, asset in assets.items():
@@ -338,7 +343,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             href = self._extract_download_link_from_asset(asset)
             if not href:
                 logger.warning(
-                    f"No valid HTTPS download link found for asset '{asset_name}'. Keeping original href. "
+                    "No valid HTTPS download link found for asset "
+                    f"'{asset_name}'. Keeping original href. "
                     "Skipping asset..."
                 )
             else:
@@ -350,7 +356,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     def _extract_assets_from_feature_collection(
         self, feature_collection: dict, *, result_name: str, user_token: str
-    ) -> dict:
+    ) -> tuple[dict, Collection | None]:
         assets: dict = {}
         for feature in feature_collection.get("features", []):
             feature_assets = feature.get("assets")
@@ -358,7 +364,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 assets.update(feature_assets)
                 continue
 
-            # Some providers expose assets through an item link instead of inlining them in the feature.
+            # Some providers expose assets through an item link
+            # instead of inlining them in the feature.
             for link in feature.get("links", []):
                 if "collection" == link.get("rel") and link.get("href"):
                     collection_link: str = link.get("href")
@@ -374,12 +381,14 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     )
                     response.raise_for_status()
                     collection = Collection.model_validate(response.json())
+                    collection_assets = collection.assets or {}
                     logger.debug(
-                        f"Extracted collection '{collection.id}' with assets: {list(collection.assets.keys())}"
+                        f"Extracted collection '{collection.id}' "
+                        f"with assets: {list(collection_assets.keys())}"
                     )
                     assets.update(collection.to_dict().get("assets", {}))
-                    break
-        return assets
+                    return assets, collection
+        return assets, None
 
     async def get_job_status(
         self, user_token: str, job_id: str, details: ServiceDetails
@@ -442,9 +451,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 and qualified_value.var_schema.actual_instance
             ):
                 schema_reference = qualified_value.var_schema.actual_instance
+                media_type = getattr(qualified_value, "media_type", None)
                 logger.debug(
                     f"Processing result\n* Name: '{result_name}'\n"
-                    f"* media type: {qualified_value.media_type}\n"
+                    f"* media type: {media_type}\n"
                     f"* Python type: {type(qualified_value.value)}\n"
                     f"* schema {qualified_value.var_schema}..."
                 )
@@ -468,13 +478,17 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     feature_collection = (
                         qualified_value.value.oneof_schema_2_validator or {}
                     )
-                    assets.update(
+                    download_token = exchanged_token or user_token
+                    extracted_assets, linked_collection = (
                         self._extract_assets_from_feature_collection(
                             feature_collection,
                             result_name=result_name,
-                            user_token=user_token,
+                            user_token=download_token,
                         )
                     )
+                    if linked_collection:
+                        return linked_collection
+                    assets.update(extracted_assets)
                 else:
                     logger.warning(
                         f"Processing result: '{result_name}' can not be processed, "
