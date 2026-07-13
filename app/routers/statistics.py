@@ -35,11 +35,17 @@ async def get_statistics(
     db: Session = Depends(get_db),
     date_from: date | None = Query(
         default=None,
-        description="Start date (inclusive) for filtering records by creation date, format YYYY-MM-DD",
+        description=(
+            "Start date (inclusive) for filtering records by creation date, "
+            "format YYYY-MM-DD"
+        ),
     ),
     date_to: date | None = Query(
         default=None,
-        description="End date (inclusive) for filtering records by creation date, format YYYY-MM-DD",
+        description=(
+            "End date (inclusive) for filtering records by creation date, "
+            "format YYYY-MM-DD"
+        ),
     ),
 ) -> PublicStatisticsResponse:
     try:

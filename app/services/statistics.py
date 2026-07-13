@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 import json
 from threading import Lock
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable, Sequence, Tuple, cast
 from urllib.parse import unquote, urlparse
 
 from sqlalchemy import func
@@ -20,11 +20,12 @@ _STATISTICS_CACHE: Dict[tuple[str, str], tuple[datetime, dict]] = {}
 _STATISTICS_CACHE_LOCK = Lock()
 
 
-def _normalize_grouped_counts(rows: Iterable[Tuple[Any, int]]) -> Dict[str, int]:
+def _normalize_grouped_counts(rows: Iterable[Any]) -> Dict[str, int]:
     counts: Dict[str, int] = {}
-    for key, count in rows:
+    for row in rows:
+        key, count = cast(Sequence[Any], row)
         normalized_key = key.value if hasattr(key, "value") else str(key)
-        counts[normalized_key] = count
+        counts[normalized_key] = int(count)
     return counts
 
 
