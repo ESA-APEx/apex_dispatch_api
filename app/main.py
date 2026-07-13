@@ -11,6 +11,7 @@ from app.routers import (
     jobs_status,
     unit_jobs,
     health,
+    statistics,
     tiles,
     upscale_tasks,
     sync_jobs,
@@ -47,3 +48,4 @@ app.include_router(sync_jobs.router)
 app.include_router(upscale_tasks.router)
 app.include_router(health.router)
 app.include_router(parameters.router)
+app.include_router(statistics.router)
