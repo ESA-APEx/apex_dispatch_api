@@ -1,5 +1,7 @@
 import re
 from typing import List
+
+import requests
 from app.auth import exchange_token, get_current_user_claims
 from fastapi import Response
 from loguru import logger
@@ -179,6 +181,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         exchanged_token = await exchange_token(
             user_token=user_token, url=details.endpoint
         )
+        logger.debug(f"Exchanged token: {exchanged_token}")
 
         # Output format omitted from request
         api_client = await self._create_api_client_instance(
@@ -327,8 +330,11 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             user_token (str): The user token to be used for signing.
         """
         # TODO - Add implementation
-        logger.debug(f"Generating signed URL for href: {href} with user token.")
-        return href
+        logger.debug(f"Generating signed URL for href: {href} with user token.") 
+        response = requests.get(href, headers={"Authorization": f"Bearer {user_token}"}, allow_redirects=False)
+        signed_url = response.headers["location"]
+        logger.debug(f"Signed URL: {signed_url}")
+        return signed_url
 
     def _update_assets_hrefs(self, assets: dict, user_token: str) -> dict:
         """
