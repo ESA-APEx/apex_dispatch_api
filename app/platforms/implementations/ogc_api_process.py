@@ -181,7 +181,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         exchanged_token = await exchange_token(
             user_token=user_token, url=details.endpoint
         )
-        logger.debug(f"Exchanged token: {exchanged_token}")
 
         # Output format omitted from request
         api_client = await self._create_api_client_instance(
