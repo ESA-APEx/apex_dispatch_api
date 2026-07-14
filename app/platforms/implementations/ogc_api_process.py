@@ -402,8 +402,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 max_x = max(max_x, float(bbox[2]))
                 max_y = max(max_y, float(bbox[3]))
                 found_bbox = True
-        spatial_bbox = (
-            [min_x, min_y, max_x, max_y] if found_bbox else [-180.0, -90.0, 180.0, 90.0]
+        spatial_bbox: tuple[float, float, float, float] = (
+            (min_x, min_y, max_x, max_y) if found_bbox else (-180.0, -90.0, 180.0, 90.0)
         )
 
         # Temporal extent — min/max of all datetime-like properties
