@@ -1,3 +1,4 @@
+import json
 import re
 from typing import List
 
@@ -329,8 +330,12 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             user_token (str): The user token to be used for signing.
         """
         # TODO - Add implementation
-        logger.debug(f"Generating signed URL for href: {href} with user token.") 
-        response = requests.get(href, headers={"Authorization": f"Bearer {user_token}"}, allow_redirects=False)
+        logger.debug(f"Generating signed URL for href: {href} with user token.")
+        response = requests.get(
+            href,
+            headers={"Authorization": f"Bearer {user_token}"},
+            allow_redirects=False,
+        )
         signed_url = response.headers["location"]
         logger.debug(f"Signed URL: {signed_url}")
         return signed_url
@@ -359,11 +364,98 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         return updated_assets
 
+    def _build_collection_from_features(
+        self,
+        features: list,
+        assets: dict,
+        result_name: str,
+        user_token: str,
+        details: ServiceDetails,
+        internal_job_id: str,
+    ) -> Collection:
+        """
+        Build a STAC Collection from a list of GeoJSON features and their
+        aggregated assets. The spatial extent is derived from the feature
+        bounding boxes and the temporal extent from the feature datetime
+        properties.
+
+        Args:
+            features: GeoJSON feature list.
+            assets: Aggregated asset dict collected from those features.
+            result_name: Identifier used as the collection ID.
+            user_token: Token used to sign asset hrefs.
+            details: Service details containing namespace and application information.
+            internal_job_id: Internal job identifier.
+
+        Returns:
+            A STAC Collection.
+        """
+        # Spatial extent — union of per-feature bboxes
+        min_x, min_y = float("inf"), float("inf")
+        max_x, max_y = float("-inf"), float("-inf")
+        found_bbox = False
+        for feature in features:
+            bbox = feature.get("bbox")
+            if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+                min_x = min(min_x, float(bbox[0]))
+                min_y = min(min_y, float(bbox[1]))
+                max_x = max(max_x, float(bbox[2]))
+                max_y = max(max_y, float(bbox[3]))
+                found_bbox = True
+        spatial_bbox = (
+            [min_x, min_y, max_x, max_y] if found_bbox else [-180.0, -90.0, 180.0, 90.0]
+        )
+
+        # Temporal extent — min/max of all datetime-like properties
+        datetimes: list[str] = []
+        for feature in features:
+            props = feature.get("properties") or {}
+            for dt_key in ("datetime", "start_datetime", "end_datetime"):
+                dt_val = props.get(dt_key)
+                if isinstance(dt_val, str):
+                    datetimes.append(dt_val)
+        temporal_interval: list[list] = (
+            [[min(datetimes), max(datetimes)]] if datetimes else [[None, None]]
+        )
+
+        updated_assets = self._update_assets_hrefs(assets, user_token)
+
+        logger.debug(
+            f"Building STAC Collection '{result_name}' from {len(features)} feature(s) "
+            f"with {len(updated_assets)} asset(s)."
+        )
+
+        return Collection(
+            id=f"{details.namespace}-{internal_job_id}",
+            stac_version=STAC_VERSION,
+            title=f"Results for {details.application}",
+            description=(
+                f"OGC API process result items for job '{internal_job_id}' "
+                f"of application '{details.application}'."
+            ),
+            type="Collection",
+            license="proprietary",
+            links=Links([]),
+            extent=Extent(
+                spatial=SpatialExtent(bbox=[spatial_bbox]),
+                temporal=TimeInterval(interval=temporal_interval),
+            ),
+            assets=updated_assets,
+        )
+
     def _extract_assets_from_feature_collection(
-        self, feature_collection: dict, *, result_name: str, user_token: str
-    ) -> tuple[dict, Collection | None]:
+        self,
+        feature_collection: dict,
+        *,
+        result_name: str,
+        user_token: str,
+        details: ServiceDetails,
+        internal_job_id: str,
+    ) -> Collection:
         assets: dict = {}
-        for feature in feature_collection.get("features", []):
+        features = feature_collection.get("features", [])
+        logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
+        for feature in features:
             feature_assets = feature.get("assets")
             if isinstance(feature_assets, dict):
                 assets.update(feature_assets)
@@ -385,15 +477,25 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         headers={"Authorization": f"Bearer {user_token}"},
                     )
                     response.raise_for_status()
-                    collection = Collection.model_validate(response.json())
-                    collection_assets = collection.assets or {}
+                    collection_data = response.json()
+                    collection_data["assets"] = self._update_assets_hrefs(
+                        collection_data.get("assets", {}), user_token
+                    )
+                    collection = Collection.model_validate(collection_data)
                     logger.debug(
                         f"Extracted collection '{collection.id}' "
-                        f"with assets: {list(collection_assets.keys())}"
+                        f"with assets: {list((collection.assets or {}).keys())}"
                     )
-                    assets.update(collection.to_dict().get("assets", {}))
-                    return assets, collection
-        return assets, None
+                    return collection
+
+        return self._build_collection_from_features(
+            features,
+            assets,
+            result_name,
+            user_token,
+            details,
+            internal_job_id
+        )
 
     async def get_job_status(
         self, user_token: str, job_id: str, details: ServiceDetails
@@ -417,7 +519,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
     ) -> Collection:
-        assets: dict = {}
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
@@ -483,17 +584,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     feature_collection = (
                         qualified_value.value.oneof_schema_2_validator or {}
                     )
-                    download_token = exchanged_token or user_token
-                    extracted_assets, linked_collection = (
-                        self._extract_assets_from_feature_collection(
-                            feature_collection,
-                            result_name=result_name,
-                            user_token=download_token,
-                        )
+                    return self._extract_assets_from_feature_collection(
+                        feature_collection,
+                        result_name=result_name,
+                        user_token=exchanged_token or user_token,
+                        details=details,
+                        internal_job_id=internal_job_id,
                     )
-                    if linked_collection:
-                        return linked_collection
-                    assets.update(extracted_assets)
                 else:
                     logger.warning(
                         f"Processing result: '{result_name}' can not be processed, "
@@ -517,7 +614,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
-            assets=self._update_assets_hrefs(assets, exchanged_token),
+            assets={},
         )
 
     async def get_service_parameters(
