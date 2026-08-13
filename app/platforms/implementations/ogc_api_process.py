@@ -319,26 +319,60 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 return href
         return None
 
-    def _generate_signed_url(self, href: str, user_token: str) -> str:
+    def _generate_signed_url(self, href: str, user_token: str) -> str | None:
         """
         Generate a signed URL for the given href using the provided user token.
-        This is a placeholder implementation and should be replaced with
-        actual logic to generate signed URLs.
+        The endpoint is expected to answer with a redirect and a `Location`
+        header that points to the signed resource.
 
         Args:
             href (str): The original href.
             user_token (str): The user token to be used for signing.
+
+        Returns:
+            str | None: The signed URL if it can be extracted, otherwise None.
         """
-        # TODO - Add implementation
         logger.debug(f"Generating signed URL for href: {href} with user token.")
-        response = requests.get(
-            href,
-            headers={"Authorization": f"Bearer {user_token}"},
-            allow_redirects=False,
+        try:
+            response = requests.get(
+                href,
+                headers={"Authorization": f"Bearer {user_token}"},
+                allow_redirects=False,
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning(
+                "Could not generate signed URL due to HTTP/network error "
+                f"for href '{href}': {exc}"
+            )
+            return None
+
+        location_header = response.headers.get("location") or response.headers.get(
+            "Location"
         )
-        signed_url = response.headers["location"]
-        logger.debug(f"Signed URL: {signed_url}")
-        return signed_url
+        if location_header:
+            logger.debug(f"Signed URL generated for href '{href}'.")
+            return location_header
+
+        # Some providers may return 200 with a direct link instead of redirecting.
+        if response.url and response.url != href:
+            logger.warning(
+                "Missing Location header while generating signed URL for "
+                f"href '{href}'. Falling back to response URL '{response.url}'."
+            )
+            return response.url
+
+        response_content_type = response.headers.get("content-type", "unknown")
+        response_body_preview = (response.text or "")[:250].replace("\n", " ")
+        logger.warning(
+            "Missing Location header while generating signed URL for "
+            f"href '{href}'. Status={response.status_code}, "
+            f"content-type='{response_content_type}', "
+            f"headers={dict(response.headers)}, "
+            f"body-preview='{response_body_preview}'."
+        )
+        return None
 
     def _update_assets_hrefs(self, assets: dict, user_token: str) -> dict:
         """
@@ -358,8 +392,14 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     "Skipping asset..."
                 )
             else:
-                href = self._generate_signed_url(href, user_token)
-                updated_asset["href"] = href
+                signed_url = self._generate_signed_url(href, user_token)
+                if not signed_url:
+                    logger.warning(
+                        f"Could not sign asset href for '{asset_name}'. Keeping "
+                        "original HTTPS href."
+                    )
+                    signed_url = href
+                updated_asset["href"] = signed_url
                 updated_assets[asset_name] = updated_asset
 
         return updated_assets

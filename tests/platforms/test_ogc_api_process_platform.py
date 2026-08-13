@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import requests
 
 
 def _install_ogc_api_processes_client_stub():
@@ -256,6 +257,86 @@ def test_transform_bbox_parameter(platform, value, expected):
 def test_transform_bbox_parameter_invalid_value(platform, value):
     with pytest.raises(ValueError, match="Unsupported bounding box value"):
         platform._transform_bbox_parameter("bbox", value)
+
+
+@patch("app.platforms.implementations.ogc_api_process.requests.get")
+def test_generate_signed_url_returns_location_header(mock_requests_get, platform):
+    mock_response = MagicMock()
+    mock_response.headers = {"location": "https://signed.example.com/file.tif"}
+    mock_response.url = "https://download.example.com/resource"
+    mock_response.status_code = 302
+    mock_response.raise_for_status.return_value = None
+    mock_requests_get.return_value = mock_response
+
+    result = platform._generate_signed_url(
+        "https://download.example.com/resource", "token"
+    )
+
+    assert result == "https://signed.example.com/file.tif"
+
+
+@patch("app.platforms.implementations.ogc_api_process.requests.get")
+def test_generate_signed_url_falls_back_to_response_url(mock_requests_get, platform):
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    mock_response.url = "https://signed.example.com/direct-link.tif"
+    mock_response.status_code = 200
+    mock_response.raise_for_status.return_value = None
+    mock_requests_get.return_value = mock_response
+
+    result = platform._generate_signed_url(
+        "https://download.example.com/resource", "token"
+    )
+
+    assert result == "https://signed.example.com/direct-link.tif"
+
+
+@patch("app.platforms.implementations.ogc_api_process.requests.get")
+def test_generate_signed_url_returns_none_when_location_is_missing(
+    mock_requests_get, platform
+):
+    mock_response = MagicMock()
+    mock_response.headers = {}
+    mock_response.url = "https://download.example.com/resource"
+    mock_response.status_code = 200
+    mock_response.text = '{"detail":"missing redirect"}'
+    mock_response.raise_for_status.return_value = None
+    mock_requests_get.return_value = mock_response
+
+    result = platform._generate_signed_url(
+        "https://download.example.com/resource", "token"
+    )
+
+    assert result is None
+
+
+@patch("app.platforms.implementations.ogc_api_process.requests.get")
+def test_generate_signed_url_returns_none_on_request_exception(
+    mock_requests_get, platform
+):
+    mock_requests_get.side_effect = requests.RequestException("connection error")
+
+    result = platform._generate_signed_url(
+        "https://download.example.com/resource", "token"
+    )
+
+    assert result is None
+
+
+def test_update_assets_hrefs_keeps_original_href_when_signing_fails(platform):
+    assets = {
+        "result": {
+            "href": "s3://bucket/result.tif",
+            "alternate": {
+                "https": {"href": "https://download.example.com/resource"}
+            },
+        }
+    }
+
+    with patch.object(platform, "_generate_signed_url", return_value=None):
+        updated = platform._update_assets_hrefs(assets, "token")
+
+    assert updated["result"]["href"] == "https://download.example.com/resource"
 
 
 @pytest.mark.parametrize(
