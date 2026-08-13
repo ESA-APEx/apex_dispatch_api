@@ -1,10 +1,20 @@
+import traceback
 from typing import Any
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from loguru import logger
+
 from app.error import DispatcherException, ErrorResponse
 from app.middleware.correlation_id import correlation_id_ctx
-from loguru import logger
+
+
+def _format_traceback_with_request_id(exc: Exception, request_id: str) -> str:
+    """Prefix each traceback line so line-based filters keep the full stacktrace."""
+    traceback_text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    prefix = f"request_id={request_id} | "
+    return "\n".join(f"{prefix}{line}" for line in traceback_text.splitlines())
 
 
 def get_dispatcher_error_response(
@@ -20,22 +30,26 @@ def get_dispatcher_error_response(
 
 async def dispatch_exception_handler(request: Request, exc: DispatcherException):
 
-    content = get_dispatcher_error_response(exc, correlation_id_ctx.get())
-    logger.exception(f"DispatcherException raised: {exc.message}")
+    request_id = correlation_id_ctx.get()
+    content = get_dispatcher_error_response(exc, request_id)
+    logger.error(f"DispatcherException raised: {exc.message}")
+    logger.error(_format_traceback_with_request_id(exc, request_id))
     return JSONResponse(status_code=exc.http_status, content=content.dict())
 
 
 async def generic_exception_handler(request: Request, exc: Exception):
 
     # DO NOT expose internal exceptions to the client
+    request_id = correlation_id_ctx.get()
     content = ErrorResponse(
         error_code="INTERNAL_SERVER_ERROR",
         message="An unexpected error occurred.",
         details=None,
-        request_id=correlation_id_ctx.get(),
+        request_id=request_id,
     )
 
-    logger.exception(f"GenericException raised: {exc}")
+    logger.error(f"GenericException raised: {exc}")
+    logger.error(_format_traceback_with_request_id(exc, request_id))
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=content.dict()
     )
