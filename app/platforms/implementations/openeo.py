@@ -340,7 +340,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             "created": ProcessingStatusEnum.CREATED,
             "queued": ProcessingStatusEnum.QUEUED,
             "running": ProcessingStatusEnum.RUNNING,
-            "cancelled": ProcessingStatusEnum.CANCELED,
+            "canceled": ProcessingStatusEnum.CANCELED,
             "finished": ProcessingStatusEnum.FINISHED,
             "error": ProcessingStatusEnum.FAILED,
         }
@@ -368,6 +368,10 @@ class OpenEOPlatform(BaseProcessingPlatform):
                         f"job {job_id} after refresh: {retry_error}"
                     )
                     return ProcessingStatusEnum.UNKNOWN
+            if e.http_status_code == 404 and e.code == "JobNotFound":
+                logger.warning(f"Job {job_id} not found on OpenEO backend.")
+                return ProcessingStatusEnum.DELETED
+
             logger.error(
                 f"Error occurred while fetching job status for job {job_id}: {e}"
             )
