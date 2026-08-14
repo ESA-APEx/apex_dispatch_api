@@ -188,7 +188,7 @@ async def test_execute_job_process_openeo_error(
         ("created", ProcessingStatusEnum.CREATED),
         ("queued", ProcessingStatusEnum.QUEUED),
         ("running", ProcessingStatusEnum.RUNNING),
-        ("cancelled", ProcessingStatusEnum.CANCELED),
+        ("canceled", ProcessingStatusEnum.CANCELED),
         ("finished", ProcessingStatusEnum.FINISHED),
         ("error", ProcessingStatusEnum.FAILED),
         ("CrEaTeD", ProcessingStatusEnum.CREATED),  # Case insensitivity
@@ -286,6 +286,44 @@ async def test_get_job_status_non_auth_openeo_error_returns_unknown(
     job = MagicMock()
     job.status.side_effect = OpenEoApiError(
         message="server-error", code="ServerError", http_status_code=500
+    )
+    connection = MagicMock()
+    connection.job.return_value = job
+    mock_setup_connection.return_value = connection
+
+    details = ServiceDetails(endpoint="foo", application="bar")
+    result = await platform.get_job_status("foobar", "job123", details)
+
+    assert result == ProcessingStatusEnum.UNKNOWN
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock)
+async def test_get_job_status_returns_deleted_when_job_not_found(
+    mock_setup_connection, platform
+):
+    job = MagicMock()
+    job.status.side_effect = OpenEoApiError(
+        message="not found", code="JobNotFound", http_status_code=404
+    )
+    connection = MagicMock()
+    connection.job.return_value = job
+    mock_setup_connection.return_value = connection
+
+    details = ServiceDetails(endpoint="foo", application="bar")
+    result = await platform.get_job_status("foobar", "job123", details)
+
+    assert result == ProcessingStatusEnum.DELETED
+
+
+@pytest.mark.asyncio
+@patch.object(OpenEOPlatform, "_setup_connection", new_callable=AsyncMock)
+async def test_get_job_status_404_with_other_code_returns_unknown(
+    mock_setup_connection, platform
+):
+    job = MagicMock()
+    job.status.side_effect = OpenEoApiError(
+        message="not found", code="SomethingElse", http_status_code=404
     )
     connection = MagicMock()
     connection.job.return_value = job
