@@ -1,0 +1,60 @@
+version: "3.9"
+
+volumes:
+  apex-db-data:
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: apex_user
+      POSTGRES_PASSWORD: apex_pass
+      POSTGRES_DB: apex_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - apex-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apex_user -d apex_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: apex-dispatch-api:latest
+    restart: unless-stopped
+    environment:
+      APP_ENV: development
+      KEYCLOAK_HOST: ${KEYCLOAK_HOST}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+      BACKENDS: '{"https://processing.geohazards-tep.eu": {"auth_method": "USER_CREDENTIALS", "token_provider": "gep", "token_prefix": ""}}'
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    healthcheck:
+      # adjust path if your health endpoint differs
+      test: ["CMD-SHELL", "curl -f http://localhost:${APP_PORT:-8000}/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    image: apex-dispatch-api:latest
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    # run the migration only after the app is reachable, then exit
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "alembic upgrade head"
