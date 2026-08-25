@@ -470,6 +470,66 @@ async def test_get_processing_job_by_user_id_inactive_status(
 
 
 @pytest.mark.asyncio
+@patch("app.services.processing._refresh_job_status")
+@patch("app.services.processing.get_job_by_user_id")
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_job_by_user_id_deleted_status_skips_refresh(
+    mock_current_user, mock_get_job, mock_refresh_status, fake_db_session
+):
+
+    fake_service_details = {
+        "endpoint": "https://openeofed.dataspace.copernicus.eu",
+        "application": "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/"
+        "32ea3c9a6fa24fe063cb59164cd318cceb7209b0/openeo_udp/variabilitymap/"
+        "variabilitymap.json",
+    }
+    fake_result = make_job_record(ProcessingStatusEnum.DELETED, fake_service_details)
+    mock_get_job.return_value = fake_result
+
+    mock_current_user.return_value = "foobar"
+
+    result = await get_processing_job_by_user_id("foobar-token", fake_db_session, 1)
+
+    mock_get_job.assert_called_once_with(fake_db_session, 1, "foobar")
+    mock_refresh_status.assert_not_called()
+    assert isinstance(result, ProcessingJob)
+    assert result.status == ProcessingStatusEnum.DELETED
+
+
+@pytest.mark.asyncio
+@patch("app.services.processing.update_job_status_by_id")
+@patch("app.services.processing.get_job_status")
+@patch("app.services.processing.get_jobs_by_user_id")
+@patch("app.services.processing.get_current_user_id")
+async def test_get_processing_jobs_skips_refresh_for_deleted_status(
+    mock_current_user,
+    mock_get_jobs,
+    mock_get_job_status,
+    mock_update_job_status,
+    fake_db_session,
+):
+    deleted_job = ProcessingJobRecord(
+        id=4,
+        platform_job_id="platform789",
+        label=ProcessTypeEnum.OPENEO,
+        title="Deleted Job",
+        status=ProcessingStatusEnum.DELETED,
+        parameters="{}",
+        service=json.dumps({"application": "foo", "endpoint": "bar"}),
+    )
+    mock_get_jobs.return_value = [deleted_job]
+
+    mock_current_user.return_value = "foobar"
+
+    results = await get_processing_jobs_by_user_id("foobar-token", fake_db_session)
+
+    assert len(results) == 1
+    assert results[0].status == ProcessingStatusEnum.DELETED
+    mock_get_job_status.assert_not_called()
+    mock_update_job_status.assert_not_called()
+
+
+@pytest.mark.asyncio
 @patch("app.services.processing.get_job_by_user_id")
 @patch("app.services.processing.get_current_user_id")
 async def test_get_processing_job_by_user_id_returns_none(

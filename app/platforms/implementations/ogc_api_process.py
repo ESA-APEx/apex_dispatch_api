@@ -1,5 +1,8 @@
+import json
 import re
 from typing import List
+
+import requests
 from app.auth import exchange_token, get_current_user_claims
 from fastapi import Response
 from loguru import logger
@@ -29,8 +32,10 @@ STAC_COLLECTION_SCHEMA = (
     "https://schemas.stacspec.org/v1.0.0/collection-spec/json-schema/collection.json"
 )
 
-GEOJSON_FEATURECOLLECTION_SCHEMA = "https://schemas.opengis.net/ogcapi/" \
+GEOJSON_FEATURECOLLECTION_SCHEMA = (
+    "https://schemas.opengis.net/ogcapi/"
     "features/part1/1.0/openapi/schemas/featureCollectionGeoJSON.yaml"
+)
 
 
 @register_platform(ProcessTypeEnum.OGC_API_PROCESS)
@@ -311,6 +316,246 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             logger.warning(f"Mapping of unknown OGC API status: {ogcapi_status}")
             return ProcessingStatusEnum.UNKNOWN
 
+    def _extract_download_link_from_asset(self, asset: dict) -> str | None:
+        """
+        Extracts the download link from an asset dictionary. Checks if the
+        `href` field is present and contains an HTTPS URL. If this is not
+        the case, look for an alternative link in `alternate`
+        field. If no valid link is found, return None.
+
+        Args:
+            asset (dict): The asset dictionary.
+
+        Returns:
+            str | None: The download link if available, otherwise None.
+        """
+        refs = [
+            asset.get("href"),
+            asset.get("alternate", {}).get("https", {}).get("href"),
+        ]
+        for href in refs:
+            if href and href.startswith("https://"):
+                return href
+        return None
+
+    def _generate_signed_url(self, href: str, user_token: str) -> str | None:
+        """
+        Generate a signed URL for the given href using the provided user token.
+        The endpoint is expected to answer with a redirect and a `Location`
+        header that points to the signed resource.
+
+        Args:
+            href (str): The original href.
+            user_token (str): The user token to be used for signing.
+
+        Returns:
+            str | None: The signed URL if it can be extracted, otherwise None.
+        """
+        logger.debug(f"Generating signed URL for href: {href} with user token.")
+        try:
+            response = requests.get(
+                href,
+                headers={"Authorization": f"Bearer {user_token}"},
+                allow_redirects=False,
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning(
+                "Could not generate signed URL due to HTTP/network error "
+                f"for href '{href}': {exc}"
+            )
+            return None
+
+        location_header = response.headers.get("location") or response.headers.get(
+            "Location"
+        )
+        if location_header:
+            logger.debug(f"Signed URL generated for href '{href}'.")
+            return location_header
+
+        # Some providers may return 200 with a direct link instead of redirecting.
+        if response.url and response.url != href:
+            logger.warning(
+                "Missing Location header while generating signed URL for "
+                f"href '{href}'. Falling back to response URL '{response.url}'."
+            )
+            return response.url
+
+        response_content_type = response.headers.get("content-type", "unknown")
+        response_body_preview = (response.text or "")[:250].replace("\n", " ")
+        logger.warning(
+            "Missing Location header while generating signed URL for "
+            f"href '{href}'. Status={response.status_code}, "
+            f"content-type='{response_content_type}', "
+            f"headers={dict(response.headers)}, "
+            f"body-preview='{response_body_preview}'."
+        )
+        return None
+
+    def _update_assets_hrefs(self, assets: dict, user_token: str) -> dict:
+        """
+        Update the hrefs of the assets to be HTTPS URLs. If the current
+        href is an S3 URL, the code will look into `alternate` links to
+        find an HTTPS URL. If no HTTPS URL is found, the original href
+        will be kept.
+        """
+        updated_assets = {}
+        for asset_name, asset in assets.items():
+            updated_asset = asset.copy()
+            href = self._extract_download_link_from_asset(asset)
+            if not href:
+                logger.warning(
+                    "No valid HTTPS download link found for asset "
+                    f"'{asset_name}'. Keeping original href. "
+                    "Skipping asset..."
+                )
+            else:
+                signed_url = self._generate_signed_url(href, user_token)
+                if not signed_url:
+                    logger.warning(
+                        f"Could not sign asset href for '{asset_name}'. Keeping "
+                        "original HTTPS href."
+                    )
+                    signed_url = href
+                updated_asset["href"] = signed_url
+                updated_assets[asset_name] = updated_asset
+
+        return updated_assets
+
+    def _build_collection_from_features(
+        self,
+        features: list,
+        assets: dict,
+        result_name: str,
+        user_token: str,
+        details: ServiceDetails,
+        internal_job_id: str,
+    ) -> Collection:
+        """
+        Build a STAC Collection from a list of GeoJSON features and their
+        aggregated assets. The spatial extent is derived from the feature
+        bounding boxes and the temporal extent from the feature datetime
+        properties.
+
+        Args:
+            features: GeoJSON feature list.
+            assets: Aggregated asset dict collected from those features.
+            result_name: Identifier used as the collection ID.
+            user_token: Token used to sign asset hrefs.
+            details: Service details containing namespace and application information.
+            internal_job_id: Internal job identifier.
+
+        Returns:
+            A STAC Collection.
+        """
+        # Spatial extent — union of per-feature bboxes
+        min_x, min_y = float("inf"), float("inf")
+        max_x, max_y = float("-inf"), float("-inf")
+        found_bbox = False
+        for feature in features:
+            bbox = feature.get("bbox")
+            if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+                min_x = min(min_x, float(bbox[0]))
+                min_y = min(min_y, float(bbox[1]))
+                max_x = max(max_x, float(bbox[2]))
+                max_y = max(max_y, float(bbox[3]))
+                found_bbox = True
+        spatial_bbox: tuple[float, float, float, float] = (
+            (min_x, min_y, max_x, max_y) if found_bbox else (-180.0, -90.0, 180.0, 90.0)
+        )
+
+        # Temporal extent — min/max of all datetime-like properties
+        datetimes: list[str] = []
+        for feature in features:
+            props = feature.get("properties") or {}
+            for dt_key in ("datetime", "start_datetime", "end_datetime"):
+                dt_val = props.get(dt_key)
+                if isinstance(dt_val, str):
+                    datetimes.append(dt_val)
+        temporal_interval: list[list] = (
+            [[min(datetimes), max(datetimes)]] if datetimes else [[None, None]]
+        )
+
+        updated_assets = self._update_assets_hrefs(assets, user_token)
+
+        logger.debug(
+            f"Building STAC Collection '{result_name}' from {len(features)} feature(s) "
+            f"with {len(updated_assets)} asset(s)."
+        )
+
+        return Collection(
+            id=f"{details.namespace}-{internal_job_id}",
+            stac_version=STAC_VERSION,
+            title=f"Results for {details.application}",
+            description=(
+                f"OGC API process result items for job '{internal_job_id}' "
+                f"of application '{details.application}'."
+            ),
+            type="Collection",
+            license="proprietary",
+            links=Links([]),
+            extent=Extent(
+                spatial=SpatialExtent(bbox=[spatial_bbox]),
+                temporal=TimeInterval(interval=temporal_interval),
+            ),
+            assets=updated_assets,
+        )
+
+    def _extract_assets_from_feature_collection(
+        self,
+        feature_collection: dict,
+        *,
+        result_name: str,
+        user_token: str,
+        details: ServiceDetails,
+        internal_job_id: str,
+    ) -> Collection:
+        assets: dict = {}
+        features = feature_collection.get("features", [])
+        logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
+        for feature in features:
+            feature_assets = feature.get("assets")
+            if isinstance(feature_assets, dict):
+                assets.update(feature_assets)
+                continue
+
+            # Some providers expose assets through an item link
+            # instead of inlining them in the feature.
+            for link in feature.get("links", []):
+                if "collection" == link.get("rel") and link.get("href"):
+                    collection_link: str = link.get("href")
+                    logger.debug(
+                        f"GeoJSON FeatureCollection results: '{result_name}' "
+                        f"points to a valid collection URL: {collection_link}"
+                    )
+
+                    response: HTTPXResponse = http_get(
+                        collection_link,
+                        follow_redirects=True,
+                        headers={"Authorization": f"Bearer {user_token}"},
+                    )
+                    response.raise_for_status()
+                    collection_data = response.json()
+                    collection_data["assets"] = self._update_assets_hrefs(
+                        collection_data.get("assets", {}), user_token
+                    )
+                    collection = Collection.model_validate(collection_data)
+                    logger.debug(
+                        f"Extracted collection '{collection.id}' "
+                        f"with assets: {list((collection.assets or {}).keys())}"
+                    )
+                    return collection
+
+        return self._build_collection_from_features(
+            features,
+            assets,
+            result_name,
+            user_token,
+            details,
+            internal_job_id
+        )
+
     async def get_job_status(
         self, user_token: str, job_id: str, details: ServiceDetails
     ) -> ProcessingStatusEnum:
@@ -371,17 +616,18 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 and qualified_value.var_schema.actual_instance
             ):
                 schema_reference = qualified_value.var_schema.actual_instance
+                media_type = getattr(qualified_value, "media_type", None)
                 logger.debug(
                     f"Processing result\n* Name: '{result_name}'\n"
-                    "* media type: {qualified_value.media_type}\n"
-                    "* Python type: {type(qualified_value.value)}\n"
-                    "* schema {qualified_value.var_schema}..."
+                    f"* media type: {media_type}\n"
+                    f"* Python type: {type(qualified_value.value)}\n"
+                    f"* schema {qualified_value.var_schema}..."
                 )
 
                 if not isinstance(schema_reference, str):
                     logger.warning(
                         f"Processing result name: '{result_name}' can not be processed, "
-                        "schema of type {type(schema_reference)} not recognized"
+                        f"schema of type {type(schema_reference)} not recognized"
                     )
                     continue
 
@@ -394,29 +640,20 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     logger.success(
                         f"GeoJSON FeatureCollection found in results: '{result_name}'"
                     )
-                    feature_collection = qualified_value.value.oneof_schema_2_validator or {}
-                    for feature in feature_collection.get("features", []):
-                        for link in feature.get("links", []):
-                            if "collection" == link.get("rel") and link.get("href"):
-                                collection_link: str = link.get("href")
-                                logger.success(
-                                    f"GeoJSON FeatureCollection results: '{result_name}' "
-                                    "points to a valid collection URL: {collection_link}"
-                                )
-
-                                response: HTTPXResponse = http_get(
-                                    collection_link,
-                                    follow_redirects=True,
-                                    headers={
-                                        "Authorization": f"Bearer {exchanged_token}"
-                                    },
-                                )
-                                response.raise_for_status()
-                                return Collection.model_validate(response.json())
+                    feature_collection = (
+                        qualified_value.value.oneof_schema_2_validator or {}
+                    )
+                    return self._extract_assets_from_feature_collection(
+                        feature_collection,
+                        result_name=result_name,
+                        user_token=exchanged_token or user_token,
+                        details=details,
+                        internal_job_id=internal_job_id,
+                    )
                 else:
                     logger.warning(
                         f"Processing result: '{result_name}' can not be processed, "
-                        "schema {schema_reference} not yet managed"
+                        f"schema {schema_reference} not yet managed"
                     )
 
         # result not found, send back an empty collection
@@ -436,6 +673,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
                 temporal=TimeInterval(interval=[[None, None]]),
             ),
+            assets={},
         )
 
     async def get_service_parameters(

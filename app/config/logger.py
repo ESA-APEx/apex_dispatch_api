@@ -25,11 +25,10 @@ class InterceptHandler(logging.Handler):
         while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
-        logger.opt(depth=depth, exception=record.exc_info).log(
+        bound_logger = logger.bind(correlation_id=corr_id)
+        bound_logger.opt(depth=depth, exception=record.exc_info).log(
             level, record.getMessage()
         )
-        if corr_id:
-            logger.bind(correlation_id=corr_id)
 
 
 def correlation_id_filter(record):

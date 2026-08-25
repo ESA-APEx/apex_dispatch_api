@@ -3,6 +3,9 @@ from typing import List, Optional
 
 from fastapi import Response
 from loguru import logger
+from sqlalchemy.orm import Session
+from stac_pydantic import Collection
+
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
     ProcessingJobRecord,
@@ -13,10 +16,8 @@ from app.database.models.processing_job import (
     update_job_status_by_id,
 )
 from app.platforms.dispatcher import get_processing_platform
-from sqlalchemy.orm import Session
-
 from app.schemas.enum import ProcessingStatusEnum
-from app.schemas.parameters import ParamRequest, Parameter
+from app.schemas.parameters import Parameter, ParamRequest
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -24,9 +25,8 @@ from app.schemas.unit_job import (
     ServiceDetails,
 )
 
-from stac_pydantic import Collection
-
 INACTIVE_JOB_STATUSES = {
+    ProcessingStatusEnum.DELETED,
     ProcessingStatusEnum.CANCELED,
     ProcessingStatusEnum.FAILED,
     ProcessingStatusEnum.FINISHED,

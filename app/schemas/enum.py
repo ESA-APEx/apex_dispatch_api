@@ -13,6 +13,7 @@ class ProcessingStatusEnum(str, Enum):
     FINISHED = "finished"
     CANCELED = "canceled"
     FAILED = "failed"
+    DELETED = "deleted"
     UNKNOWN = "unknown"
 
 

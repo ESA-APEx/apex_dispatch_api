@@ -12,6 +12,7 @@ mkdocs-material
 mkdocs-material[diagrams]
 mypy
 mypy_extensions
+typing_extensions>=4.12.2
 openeo
 psycopg2-binary
 pydantic
