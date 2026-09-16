@@ -169,8 +169,6 @@ class OpenEOPlatform(BaseProcessingPlatform):
         service = await self._build_datacube(user_token, title, details, parameters)
         logger.info("Executing synchronous OpenEO job")
         response = service.execute(auto_decode=False)
-        if not isinstance(response, requests.Response):
-            raise TypeError("Expected OpenEO synchronous execution to return a response")
         return Response(
             content=response.content,
             status_code=response.status_code,
