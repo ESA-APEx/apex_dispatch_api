@@ -1,5 +1,5 @@
 # Use official Python slim image
-FROM python:3.11-slim
+FROM docker.io/python:3.11-slim
 
 ARG APP_VERSION=development
 
