@@ -13,3 +13,11 @@ class BackendAuthConfig(BaseModel):
     client_credentials: Optional[str] = None
     token_provider: Optional[str] = None
     token_prefix: Optional[str] = None
+
+    # Values to be set in case of 
+    # Cross-Domain Federation/Trusted Token Delegation
+    token_url: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    subject_issuer: Optional[str] = None
+    audience: Optional[str] = None

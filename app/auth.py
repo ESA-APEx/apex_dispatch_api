@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.error import AuthException, DispatcherException
 from app.schemas.websockets import WSStatusMessage
+from app.config.schemas import BackendAuthConfig
 
 from .config.settings import settings
 
@@ -33,12 +34,19 @@ def _decode_token(token: str):
     try:
         logger.debug(f"Decoding token for user authentication: {token} with "
                      f"issuer {KEYCLOAK_BASE_URL}")
-        signing_key = jwks_client.get_signing_key_from_jwt(token).key
+        try:
+            signing_key = jwks_client.get_signing_key_from_jwt(token).key
+        except Exception as e:
+            raise
+            logger.warning(f"Signing key error: {str(e)}")
+            signing_key = ""
+        logger.warning("Before decode")
         payload = jwt.decode(
             token,
             signing_key,
             algorithms=[ALGORITHM],
             issuer=KEYCLOAK_BASE_URL,
+            options={"verify_aud": False},
         )
         return payload
     except Exception:
@@ -101,64 +109,93 @@ async def exchange_token(user_token: str, url: str) -> str:
     :return: The bearer token as a string.
     """
 
-    provider = settings.backend_auth_config[url].token_provider
-    token_prefix = settings.backend_auth_config[url].token_prefix
+    backend_idp = settings.backend_auth_config[url]
 
-    if not provider:
+    if not backend_idp.token_provider:
         raise ValueError(
             f"Backend '{url}' must define 'token_provider'"
         )
 
     platform_token = await _exchange_token_for_provider(
-        initial_token=user_token, provider=provider
+        initial_token=user_token,
+        backend_idp=backend_idp
     )
     return (
-        f"{token_prefix}/{platform_token['access_token']}"
-        if token_prefix
+        f"{backend_idp.token_prefix}/{platform_token['access_token']}"
+        if backend_idp.token_prefix
         else platform_token["access_token"]
     )
 
 
 async def _exchange_token_for_provider(
-    initial_token: str, provider: str
+    initial_token: str, backend_idp: BackendAuthConfig
 ) -> Dict[str, Any]:
     """
     Exchange a Keycloak access token for a token/audience targeted at `provider`
     using the Keycloak Token Exchange (grant_type=urn:ietf:params:oauth:grant-type:token-exchange).
 
     :param initial_token: token obtained from the client (Bearer token)
-    :param provider: target provider name or client_id.
+    :param backend_idp: target IDP.
 
     :return: The token response (dict) on success.
 
     :raise: Raises AuthException with an appropriate status and message on error.
     """
-    token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
+    if backend_idp.token_url:
+        # Cross-Domain Federation/Trusted Token Delegation
+        # Payload will be sent to the backend IDP and receive a valid access token from it
+        logger.info(f"Using Cross-Domain Federation/Trusted Token Delegation with IDP {backend_idp.token_url}")
+        if not backend_idp.client_id:
+            raise AuthException(
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Token exchange not configured on the server (missing client credentials).",
+            )
+        token_url = backend_idp.token_url
+        payload = {
+            "client_id": backend_idp.client_id,
+            "client_secret": backend_idp.client_secret, 
+            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange", 
+            "subject_token": initial_token, 
+            "subject_token_type": "urn:ietf:params:oauth:token-type:access_token", 
+            "subject_issuer": backend_idp.subject_issuer,
+            "audience": backend_idp.audience, 
+            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token", 
+            "scope": "openid profile email"
+        }
 
-    # Check if the necessary settings are in place
-    if not settings.keycloak_client_id:
-        raise AuthException(
-            http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Token exchange not configured on the server (missing client credentials).",
-        )
+    else:
+        # Internal-to-External Token Exchange
+        # Payload will be sent to the backend IDP and receive a valid access token from it
+        logger.info(f"Using Internal-to-External Token Exchange with IDP {backend_idp.token_provider}")
 
-    payload = {
-        "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-        "client_id": settings.keycloak_client_id,
-        "client_secret": settings.keycloak_client_secret,
-        "subject_token": initial_token,
-        "requested_issuer": provider,
-    }
+        token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
+        #token_url = "https://iam.terradue.com/realms/master/protocol/openid-connect/token"
 
+        # Check if the necessary settings are in place
+        if not settings.keycloak_client_id:
+            raise AuthException(
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Token exchange not configured on the server (missing client credentials).",
+            )
+        payload = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "client_id": settings.keycloak_client_id,
+            "client_secret": settings.keycloak_client_secret,
+            "subject_token": initial_token,
+            "requested_issuer": backend_idp.token_provider,
+        }
+
+    provider_str = backend_idp.token_provider or backend_idp.token_url
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(token_url, data=payload)
     except httpx.RequestError as exc:
-        logger.error(f"Token exchange network error for provider={provider}: {exc}")
+        logger.error(
+            f"Token exchange network error for provider={provider_str}: {exc}")
         raise AuthException(
             http_status=status.HTTP_502_BAD_GATEWAY,
             message=(
-                f"Could not authenticate with {provider}. Please contact APEx support or reach out "
+                f"Could not authenticate with {provider_str}. Please contact APEx support or reach out "
                 "through the <a href='https://forum.apex.esa.int/'>APEx User Forum</a>."
             ),
         )
@@ -173,7 +210,7 @@ async def _exchange_token_for_provider(
         raise AuthException(
             http_status=status.HTTP_502_BAD_GATEWAY,
             message=(
-                f"Could not authenticate with {provider}. Please contact APEx support or reach out "
+                f"Could not authenticate with {provider_str}. Please contact APEx support or reach out "
                 "through the <a href='https://forum.apex.esa.int/'>APEx User Forum</a>."
             ),
         )
@@ -182,7 +219,7 @@ async def _exchange_token_for_provider(
         # Keycloak returns error and error_description fields for token errors
         err = body.get("error_description") or body.get("error") or resp.text
         logger.error(
-            f"Token exchange failed for provider={provider}, status={resp.status_code}, error={err}"
+            f"Token exchange failed for provider={provider_str}, status={resp.status_code}, error={err}"
         )
         # Map common upstream statuses to meaningful client statuses
         client_status = (
@@ -191,15 +228,20 @@ async def _exchange_token_for_provider(
             else status.HTTP_502_BAD_GATEWAY
         )
 
-        raise AuthException(
-            http_status=client_status,
-            message=(
-                f"Please link your account with {provider} in your "
+        if backend_idp.token_provider:
+            message = (
+                f"Please link your account with {provider_str} in your "
                 f"<a href='{settings.keycloak_host}/realms/{settings.keycloak_realm}/"
                 "account'>Account Dashboard</a>"
                 if body.get("error", "") == "not_linked"
-                else f"Could not authenticate with {provider}: {err}"
-            ),
+                else f"Could not authenticate with {provider_str}: {err}"
+            )
+        else:
+            message = f"Could not authenticate with {provider_str}: {err}"
+
+        raise AuthException(
+            http_status=client_status,
+            message=message
         )
 
     # Successful exchange, return token response (access_token, expires_in, etc.)
