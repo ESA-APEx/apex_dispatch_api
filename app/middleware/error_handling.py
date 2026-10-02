@@ -1,6 +1,8 @@
+import json
 import traceback
 from typing import Any
 
+from eoap_problems_registry.fastapi import ProblemRegistryException
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -78,11 +80,33 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+async def problem_registry_exception_handler(
+    request: Request, exc: ProblemRegistryException
+):
+    request_id = correlation_id_ctx.get()
+    logger.error(
+        f"ProblemRegistryException raised (request_id={request_id}): "
+        f"status={exc.status_code}, detail={exc.detail}"
+    )
+    try:
+        content = json.loads(exc.detail)
+    except Exception:
+        content = {"detail": exc.detail}
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        media_type="application/problem+json",
+        headers=exc.headers,
+    )
+
+
 def register_exception_handlers(app):
     """
     Call this in main.py after creating the FastAPI() instance.
     """
 
+    app.add_exception_handler(ProblemRegistryException, problem_registry_exception_handler)
     app.add_exception_handler(DispatcherException, dispatch_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)

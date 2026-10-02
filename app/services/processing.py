@@ -6,9 +6,11 @@ from loguru import logger
 from sqlalchemy.orm import Session
 from stac_pydantic import Collection
 
+
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
     ProcessingJobRecord,
+    get_job_by_id,
     get_job_by_user_id,
     get_jobs_by_user_id,
     remove_job_by_id,
@@ -142,6 +144,43 @@ async def _refresh_job_status(
         update_job_status_by_id(database, record.id, new_status)
         record.status = new_status
     return record
+
+
+def get_job_by_platform_or_id(
+    database: Session, job_identifier: str
+) -> Optional[ProcessingJobRecord]:
+    logger.info(f"Retrieving processing job with identifier {job_identifier}")
+    if job_identifier.isdigit():
+        return get_job_by_id(database, int(job_identifier))
+
+    suffix = job_identifier.split(":")[-1]
+    return (
+        database.query(ProcessingJobRecord)
+        .filter(
+            (ProcessingJobRecord.platform_job_id == job_identifier)
+            | (ProcessingJobRecord.platform_job_id == suffix)
+            | (ProcessingJobRecord.platform_job_id.endswith(f":{suffix}"))
+        )
+        .first()
+    )
+
+
+def update_job_status_from_callback(
+    database: Session, job_identifier: str, status: ProcessingStatusEnum
+) -> Optional[ProcessingJobRecord]:
+    logger.info(
+        f"Updating status of job '{job_identifier}' from callback to {status}"
+    )
+    job = get_job_by_platform_or_id(database, job_identifier)
+    if not job:
+        logger.warning(
+            f"Job '{job_identifier}' not found for status update callback"
+        )
+        return None
+
+    update_job_status_by_id(database, job.id, status)
+    job.status = status
+    return job
 
 
 async def get_processing_jobs_by_user_id(

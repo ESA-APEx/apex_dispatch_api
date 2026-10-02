@@ -711,6 +711,93 @@
           }
         }
       }
+    },
+    "/unit_jobs/{job_id}/success": {
+      "post": {
+        "operationId": "onSuccessJob",
+        "summary": "URIs for success callbacks for jobs.",
+        "description": "The callback URL will be invoked after a job succeeded its execution.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/job_id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SuccessRequestBody"
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Accepted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/unit_jobs/{job_id}/inProgress": {
+      "post": {
+        "operationId": "onProgressJob",
+        "summary": "URIs for progress callbacks for jobs.",
+        "description": "The callback URL will be invoked while a job is changing its status during its execution.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/job_id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InProgressRequestBody"
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Accepted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/unit_jobs/{job_id}/failed": {
+      "post": {
+        "operationId": "onFailedJob",
+        "summary": "URIs for failed callbacks for jobs.",
+        "description": "The callback URL will be invoked after a job failed its execution.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/job_id"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FailedRequestBody"
+        },
+        "responses": {
+          "202": {
+            "$ref": "#/components/responses/Accepted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2544,6 +2631,82 @@
             "tokenUrl": "https://auth.dev.apex.esa.int/realms/apex/protocol/openid-connect/token"
           }
         }
+      }
+    },
+    "parameters": {
+      "job_id": {
+        "name": "job_id",
+        "in": "path",
+        "description": "local identifier of a Job",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "SuccessRequestBody": {
+        "description": "A structured-mode CloudEvent request body for successes.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PipedCloudEvent"
+            }
+          }
+        }
+      },
+      "InProgressRequestBody": {
+        "description": "A structured-mode CloudEvent request body for failures.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/SubmittedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/DismissedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PreparedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/CompletedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/StagedCloudEvent"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "FailedRequestBody": {
+        "description": "A structured-mode CloudEvent request body for failures.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/FailedCloudEvent"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Accepted": {
+        "description": "Request has been accepted for processing, but processing will be asychronously executed.\n"
+      },
+      "BadRequest": {
+        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/BadRequest"
+      },
+      "NotFound": {
+        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/NotFound"
+      },
+      "ServerError": {
+        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/ServerError"
       }
     }
   }

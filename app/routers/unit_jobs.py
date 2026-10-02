@@ -12,7 +12,24 @@ from app.error import (
     JobNotFoundException,
 )
 from app.middleware.error_handling import get_dispatcher_error_response
-from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum
+from eoap_problems_registry import NotFound, ServerError
+from eoap_problems_registry.fastapi import ProblemRegistryException
+from stage_events_client.models import (
+    CompletedCloudEvent,
+    DismissedCloudEvent,
+    FailedCloudEvent,
+    PipedCloudEvent,
+    PreparedCloudEvent,
+    StagedCloudEvent,
+    SubmittedCloudEvent,
+)
+from app.schemas.callbacks import (
+    STAGE_TO_APEX_STATUS,
+    UnitJobsJobIdFailedPostResponse,
+    UnitJobsJobIdInProgressPostResponse,
+    UnitJobsJobIdSuccessPostResponse,
+)
+from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
     ProcessingJob,
@@ -24,6 +41,7 @@ from app.services.processing import (
     delete_processing_job,
     get_processing_job_by_user_id,
     get_processing_job_results,
+    update_job_status_from_callback,
 )
 
 from stac_pydantic import Collection
@@ -271,4 +289,137 @@ async def delete_job(
         raise InternalException(
             message="An error occurred while deleting the processing job.",
             details={"error": str(e)}
+        )
+
+
+@router.post(
+    "/unit_jobs/{job_id}/success",
+    response_model=None,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Unit Jobs"],
+    summary="URIs for success callbacks for jobs.",
+    description="The callback URL will be invoked after a job succeeded its execution.\n",
+    operation_id="onSuccessJob",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdSuccessPostResponse},
+        status.HTTP_404_NOT_FOUND: {"model": NotFound},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+    },
+)
+async def on_success_job(
+    job_id: str,
+    body: PipedCloudEvent,
+    db: Session = Depends(get_db),
+) -> None:
+    """URIs for success callbacks for jobs."""
+    try:
+        job = update_job_status_from_callback(
+            db, job_id, ProcessingStatusEnum.FINISHED
+        )
+        if not job:
+            raise ProblemRegistryException(
+                problem=NotFound(
+                    instance=f"/unit_jobs/{job_id}/success",
+                )
+            )
+    except ProblemRegistryException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling success callback for job {job_id}: {e}")
+        raise ProblemRegistryException(
+            problem=ServerError(
+                instance=f"/unit_jobs/{job_id}/success",
+            )
+        )
+
+
+@router.post(
+    "/unit_jobs/{job_id}/inProgress",
+    response_model=None,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Unit Jobs"],
+    summary="URIs for progress callbacks for jobs.",
+    description=(
+        "The callback URL will be invoked while a job is changing "
+        "its status during its execution.\n"
+    ),
+    operation_id="onProgressJob",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdInProgressPostResponse},
+        status.HTTP_404_NOT_FOUND: {"model": NotFound},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+    },
+)
+async def on_progress_job(
+    job_id: str,
+    body: (
+        SubmittedCloudEvent
+        | DismissedCloudEvent
+        | PreparedCloudEvent
+        | CompletedCloudEvent
+        | StagedCloudEvent
+    ),
+    db: Session = Depends(get_db),
+) -> None:
+    """URIs for progress callbacks for jobs."""
+    try:
+        target_status = STAGE_TO_APEX_STATUS.get(
+            body.type, ProcessingStatusEnum.RUNNING
+        )
+        job = update_job_status_from_callback(db, job_id, target_status)
+        if not job:
+            raise ProblemRegistryException(
+                problem=NotFound(
+                    instance=f"/unit_jobs/{job_id}/inProgress",
+                )
+            )
+    except ProblemRegistryException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling inProgress callback for job {job_id}: {e}")
+        raise ProblemRegistryException(
+            problem=ServerError(
+                instance=f"/unit_jobs/{job_id}/inProgress",
+            )
+        )
+
+
+@router.post(
+    "/unit_jobs/{job_id}/failed",
+    response_model=None,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["Unit Jobs"],
+    summary="URIs for failed callbacks for jobs.",
+    description="The callback URL will be invoked after a job failed its execution.\n",
+    operation_id="onFailedJob",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdFailedPostResponse},
+        status.HTTP_404_NOT_FOUND: {"model": NotFound},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+    },
+)
+async def on_failed_job(
+    job_id: str,
+    body: FailedCloudEvent,
+    db: Session = Depends(get_db),
+) -> None:
+    """URIs for failed callbacks for jobs."""
+    try:
+        job = update_job_status_from_callback(
+            db, job_id, ProcessingStatusEnum.FAILED
+        )
+        if not job:
+            raise ProblemRegistryException(
+                problem=NotFound(
+                    instance=f"/unit_jobs/{job_id}/failed",
+                )
+            )
+    except ProblemRegistryException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling failed callback for job {job_id}: {e}")
+        raise ProblemRegistryException(
+            problem=ServerError(
+                instance=f"/unit_jobs/{job_id}/failed",
+            )
         )
