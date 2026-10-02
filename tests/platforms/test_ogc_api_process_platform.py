@@ -478,6 +478,11 @@ async def test_execute_job_returns_namespaced_job_id(
                 "username": "alice",
                 "email": "alice@example.com",
             },
+            "subscriber": {
+                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+            },
         },
         _headers={
             "accept": "*/*",
@@ -530,6 +535,11 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
                 "application": "buffer",
                 "user_id": "user-123",
             },
+            "subscriber": {
+                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+            },
         },
         _headers={
             "accept": "*/*",
@@ -576,6 +586,11 @@ async def test_execute_job_omits_missing_optional_user_fields(
         execute={
             "inputs": {"limit": 10},
             "properties": {"title": "My job", "application": "buffer"},
+            "subscriber": {
+                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+            },
         },
         _headers={
             "accept": "*/*",

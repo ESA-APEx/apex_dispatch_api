@@ -4,6 +4,7 @@ from typing import List
 
 import requests
 from app.auth import exchange_token, get_current_user_claims
+from app.config.settings import settings
 from fastapi import Response
 from loguru import logger
 
@@ -210,9 +211,17 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if user_claims.get("email"):
             properties["email"] = user_claims["email"]
 
+        base_url = settings.dispatch_api_public_url.rstrip("/")
+        subscriber = {
+            "successUri": f"{base_url}/unit_jobs/{{job_id}}/success",
+            "inProgressUri": f"{base_url}/unit_jobs/{{job_id}}/inProgress",
+            "failedUri": f"{base_url}/unit_jobs/{{job_id}}/failed",
+        }
+
         data = {
             "inputs": parameters,
             "properties": properties,
+            "subscriber": subscriber,
         }
 
         content = api_client.execute_simple(
