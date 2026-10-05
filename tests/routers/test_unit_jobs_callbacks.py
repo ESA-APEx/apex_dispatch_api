@@ -113,6 +113,9 @@ def test_callback_success_404_problem_details(mock_update, client):
     assert data["status"] == 404
     assert data["title"] == "Not Found"
     assert data["instance"] == "/unit_jobs/nonexistent/success"
+    assert data["errors"] == [
+        {"detail": "Job nonexistent does not exist in the Job registry", "parameter": "job_id"}
+    ]
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")

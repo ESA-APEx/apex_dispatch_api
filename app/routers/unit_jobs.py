@@ -12,7 +12,7 @@ from app.error import (
     JobNotFoundException,
 )
 from app.middleware.error_handling import get_dispatcher_error_response
-from eoap_problems_registry import NotFound, ServerError
+from eoap_problems_registry import ErrorDetail, NotFound, ServerError
 from eoap_problems_registry.fastapi import ProblemRegistryException
 from stage_events_client.models import (
     CompletedCloudEvent,
@@ -320,6 +320,12 @@ async def on_success_job(
             raise ProblemRegistryException(
                 problem=NotFound(
                     instance=f"/unit_jobs/{job_id}/success",
+                    errors=[
+                        ErrorDetail(
+                            parameter="job_id",
+                            detail=f"Job {job_id} does not exist in the Job registry",
+                        )
+                    ],
                 )
             )
     except ProblemRegistryException:
@@ -329,6 +335,12 @@ async def on_success_job(
         raise ProblemRegistryException(
             problem=ServerError(
                 instance=f"/unit_jobs/{job_id}/success",
+                errors=[
+                    ErrorDetail(
+                        parameter="job_id",
+                        detail=f"An error occurred when updating status of Job {job_id}: {e}",
+                    )
+                ],
             )
         )
 
@@ -371,6 +383,12 @@ async def on_progress_job(
             raise ProblemRegistryException(
                 problem=NotFound(
                     instance=f"/unit_jobs/{job_id}/inProgress",
+                    errors=[
+                        ErrorDetail(
+                            parameter="job_id",
+                            detail=f"Job {job_id} does not exist in the Job registry",
+                        )
+                    ],
                 )
             )
     except ProblemRegistryException:
@@ -380,6 +398,12 @@ async def on_progress_job(
         raise ProblemRegistryException(
             problem=ServerError(
                 instance=f"/unit_jobs/{job_id}/inProgress",
+                errors=[
+                    ErrorDetail(
+                        parameter="job_id",
+                        detail=f"An error occurred when updating status of Job {job_id}: {e}",
+                    )
+                ],
             )
         )
 
@@ -412,6 +436,12 @@ async def on_failed_job(
             raise ProblemRegistryException(
                 problem=NotFound(
                     instance=f"/unit_jobs/{job_id}/failed",
+                    errors=[
+                        ErrorDetail(
+                            parameter="job_id",
+                            detail=f"Job {job_id} does not exist in the Job registry",
+                        )
+                    ],
                 )
             )
     except ProblemRegistryException:
@@ -421,5 +451,11 @@ async def on_failed_job(
         raise ProblemRegistryException(
             problem=ServerError(
                 instance=f"/unit_jobs/{job_id}/failed",
+                errors=[
+                    ErrorDetail(
+                        parameter="job_id",
+                        detail=f"An error occurred when updating status of Job {job_id}: {e}",
+                    )
+                ],
             )
         )
