@@ -726,8 +726,8 @@
           "$ref": "#/components/requestBodies/SuccessRequestBody"
         },
         "responses": {
-          "202": {
-            "$ref": "#/components/responses/Accepted"
+          "200": {
+            "$ref": "#/components/responses/Ok"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -755,8 +755,8 @@
           "$ref": "#/components/requestBodies/InProgressRequestBody"
         },
         "responses": {
-          "202": {
-            "$ref": "#/components/responses/Accepted"
+          "200": {
+            "$ref": "#/components/responses/Ok"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -784,8 +784,8 @@
           "$ref": "#/components/requestBodies/FailedRequestBody"
         },
         "responses": {
-          "202": {
-            "$ref": "#/components/responses/Accepted"
+          "200": {
+            "$ref": "#/components/responses/Ok"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -2696,8 +2696,8 @@
       }
     },
     "responses": {
-      "Accepted": {
-        "description": "Request has been accepted for processing, but processing will be asychronously executed.\n"
+      "Ok": {
+        "description": "Request has been processed and job status has been successfully updated.\n"
       },
       "BadRequest": {
         "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/BadRequest"

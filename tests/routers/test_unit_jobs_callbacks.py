@@ -86,13 +86,13 @@ FAILED_PAYLOAD = {
 # --- Inbound Callback Tests ---
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_success_202(mock_update, client):
+def test_callback_success_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/success",
         json=PIPED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     mock_update.assert_called_once()
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
@@ -119,65 +119,65 @@ def test_callback_success_404_problem_details(mock_update, client):
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_staged_202(mock_update, client):
+def test_callback_in_progress_staged_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/inProgress",
         json=STAGED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
     assert args[2] == ProcessingStatusEnum.RUNNING
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_prepared_202(mock_update, client):
+def test_callback_in_progress_prepared_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/inProgress",
         json=PREPARED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
     assert args[2] == ProcessingStatusEnum.QUEUED
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_submitted_202(mock_update, client):
+def test_callback_in_progress_submitted_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/inProgress",
         json=SUBMITTED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
     assert args[2] == ProcessingStatusEnum.CREATED
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_dismissed_202(mock_update, client):
+def test_callback_in_progress_dismissed_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/inProgress",
         json=DISMISSED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
     assert args[2] == ProcessingStatusEnum.CANCELED
 
 
 @patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_failed_202(mock_update, client):
+def test_callback_failed_200(mock_update, client):
     r = client.post(
         "/unit_jobs/job-123/failed",
         json=FAILED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_202_ACCEPTED
+    assert r.status_code == status.HTTP_200_OK
     args, _ = mock_update.call_args
     assert args[1] == "job-123"
     assert args[2] == ProcessingStatusEnum.FAILED
