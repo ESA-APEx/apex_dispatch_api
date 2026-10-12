@@ -213,9 +213,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         base_url = settings.dispatch_api_public_url.rstrip("/")
         subscriber = {
-            "successUri": f"{base_url}/unit_jobs/{{job_id}}/success",
-            "inProgressUri": f"{base_url}/unit_jobs/{{job_id}}/inProgress",
-            "failedUri": f"{base_url}/unit_jobs/{{job_id}}/failed",
+            "successUri": f"{base_url}/unit_jobs/success",
+            "inProgressUri": f"{base_url}/unit_jobs/inProgress",
+            "failedUri": f"{base_url}/unit_jobs/failed",
         }
 
         data = {

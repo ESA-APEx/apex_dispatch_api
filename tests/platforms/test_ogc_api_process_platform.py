@@ -479,9 +479,9 @@ async def test_execute_job_returns_namespaced_job_id(
                 "email": "alice@example.com",
             },
             "subscriber": {
-                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
-                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
-                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+                "successUri": "http://localhost:8000/unit_jobs/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/failed",
             },
         },
         _headers={
@@ -536,9 +536,9 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
                 "user_id": "user-123",
             },
             "subscriber": {
-                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
-                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
-                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+                "successUri": "http://localhost:8000/unit_jobs/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/failed",
             },
         },
         _headers={
@@ -587,9 +587,9 @@ async def test_execute_job_omits_missing_optional_user_fields(
             "inputs": {"limit": 10},
             "properties": {"title": "My job", "application": "buffer"},
             "subscriber": {
-                "successUri": "http://localhost:8000/unit_jobs/{job_id}/success",
-                "inProgressUri": "http://localhost:8000/unit_jobs/{job_id}/inProgress",
-                "failedUri": "http://localhost:8000/unit_jobs/{job_id}/failed",
+                "successUri": "http://localhost:8000/unit_jobs/success",
+                "inProgressUri": "http://localhost:8000/unit_jobs/inProgress",
+                "failedUri": "http://localhost:8000/unit_jobs/failed",
             },
         },
         _headers={

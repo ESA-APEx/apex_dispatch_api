@@ -15,6 +15,7 @@ from app.middleware.error_handling import get_dispatcher_error_response
 from eoap_problems_registry import ErrorDetail, NotFound, ServerError
 from eoap_problems_registry.fastapi import ProblemRegistryException
 from stage_events_client.models import (
+    BaseCloudEvent,
     CompletedCloudEvent,
     DismissedCloudEvent,
     FailedCloudEvent,
@@ -292,24 +293,46 @@ async def delete_job(
         )
 
 
+def _extract_job_identifier_from_cloudevent(cloud_event: BaseCloudEvent) -> str | None:
+    """Extract job_identifier strictly from CloudEvent subject metadata."""
+    # CloudEvent subject pattern: "<namespace>:<workflow_uid>:<workflow_name>"
+    subject = getattr(cloud_event, "subject", None)
+    if not subject:
+        return None
+
+    parts = subject.split(":")
+    if len(parts) == 3:
+        return f"{parts[0]}:{parts[2]}"
+    return subject
+
+
 def _handle_callback_status_update(
     db: Session,
-    job_id: str,
+    cloud_event: BaseCloudEvent,
     target_status: ProcessingStatusEnum,
     endpoint_name: str,
 ) -> None:
-    """Internal helper to update job status and handle RFC 7807 problem exceptions."""
-    instance_uri = f"/unit_jobs/{job_id}/{endpoint_name}"
+    """Internal helper to update job status from callback CloudEvents."""
+    job_identifier = _extract_job_identifier_from_cloudevent(cloud_event) or ""
+    instance_uri = f"/unit_jobs/{endpoint_name}"
+
+    logger.info(f"Callback '{endpoint_name}' received for job '{job_identifier}'")
+
     try:
-        job = update_job_status_from_callback(db, job_id, target_status)
+        job = update_job_status_from_callback(db, job_identifier, target_status)
         if not job:
+            if endpoint_name == "inProgress":
+                # An early inProgress callback may arrive before initial job commit finishes; acknowledge gracefully without returning 404.
+                logger.debug(f"Job '{job_identifier}' is not registered in database yet; acknowledging in progress")
+                return
+
             raise ProblemRegistryException(
                 problem=NotFound(
                     instance=instance_uri,
                     errors=[
                         ErrorDetail(
                             parameter="job_id",
-                            detail=f"Job {job_id} does not exist in the Job registry",
+                            detail=f"Job {job_identifier} does not exist in the Job registry",
                         )
                     ],
                 )
@@ -317,14 +340,14 @@ def _handle_callback_status_update(
     except ProblemRegistryException:
         raise
     except Exception as e:
-        logger.error(f"Error handling {endpoint_name} callback for job {job_id}: {e}")
+        logger.error(f"Error handling {endpoint_name} callback for job {job_identifier}: {e}")
         raise ProblemRegistryException(
             problem=ServerError(
                 instance=instance_uri,
                 errors=[
                     ErrorDetail(
                         parameter="job_id",
-                        detail=f"An error occurred when updating status of Job {job_id}: {e}",
+                        detail=f"An error occurred when updating status of Job {job_identifier}: {e}",
                     )
                 ],
             )
@@ -332,7 +355,7 @@ def _handle_callback_status_update(
 
 
 @router.post(
-    "/unit_jobs/{job_id}/success",
+    "/unit_jobs/success",
     response_model=None,
     status_code=status.HTTP_200_OK,
     tags=["Unit Jobs"],
@@ -347,18 +370,17 @@ def _handle_callback_status_update(
     },
 )
 def on_success_job(
-    job_id: str,
-    body: PipedCloudEvent,
+    body: PipedCloudEvent | CompletedCloudEvent,
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for success callbacks for jobs."""
     _handle_callback_status_update(
-        db, job_id, ProcessingStatusEnum.FINISHED, "success"
+        db, body, ProcessingStatusEnum.FINISHED, "success"
     )
 
 
 @router.post(
-    "/unit_jobs/{job_id}/inProgress",
+    "/unit_jobs/inProgress",
     response_model=None,
     status_code=status.HTTP_200_OK,
     tags=["Unit Jobs"],
@@ -376,12 +398,10 @@ def on_success_job(
     },
 )
 def on_progress_job(
-    job_id: str,
     body: (
         SubmittedCloudEvent
         | DismissedCloudEvent
         | PreparedCloudEvent
-        | CompletedCloudEvent
         | StagedCloudEvent
     ),
     db: Session = Depends(get_db),
@@ -390,11 +410,11 @@ def on_progress_job(
     target_status = STAGE_TO_APEX_STATUS.get(
         body.type, ProcessingStatusEnum.RUNNING
     )
-    _handle_callback_status_update(db, job_id, target_status, "inProgress")
+    _handle_callback_status_update(db, body, target_status, "inProgress")
 
 
 @router.post(
-    "/unit_jobs/{job_id}/failed",
+    "/unit_jobs/failed",
     response_model=None,
     status_code=status.HTTP_200_OK,
     tags=["Unit Jobs"],
@@ -409,11 +429,10 @@ def on_progress_job(
     },
 )
 def on_failed_job(
-    job_id: str,
     body: FailedCloudEvent,
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for failed callbacks for jobs."""
     _handle_callback_status_update(
-        db, job_id, ProcessingStatusEnum.FAILED, "failed"
+        db, body, ProcessingStatusEnum.FAILED, "failed"
     )

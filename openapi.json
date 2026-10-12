@@ -712,16 +712,11 @@
         }
       }
     },
-    "/unit_jobs/{job_id}/success": {
+    "/unit_jobs/success": {
       "post": {
         "operationId": "onSuccessJob",
         "summary": "URIs for success callbacks for jobs.",
         "description": "The callback URL will be invoked after a job succeeded its execution.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/job_id"
-          }
-        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/SuccessRequestBody"
         },
@@ -741,16 +736,11 @@
         }
       }
     },
-    "/unit_jobs/{job_id}/inProgress": {
+    "/unit_jobs/inProgress": {
       "post": {
         "operationId": "onProgressJob",
         "summary": "URIs for progress callbacks for jobs.",
         "description": "The callback URL will be invoked while a job is changing its status during its execution.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/job_id"
-          }
-        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/InProgressRequestBody"
         },
@@ -770,16 +760,11 @@
         }
       }
     },
-    "/unit_jobs/{job_id}/failed": {
+    "/unit_jobs/failed": {
       "post": {
         "operationId": "onFailedJob",
         "summary": "URIs for failed callbacks for jobs.",
         "description": "The callback URL will be invoked after a job failed its execution.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/job_id"
-          }
-        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/FailedRequestBody"
         },
@@ -2651,13 +2636,20 @@
         "content": {
           "application/cloudevents+json": {
             "schema": {
-              "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PipedCloudEvent"
+              "oneOf": [
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PipedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/CompletedCloudEvent"
+                }
+              ]
             }
           }
         }
       },
       "InProgressRequestBody": {
-        "description": "A structured-mode CloudEvent request body for failures.",
+        "description": "A structured-mode CloudEvent request body for in-progress updates.",
         "required": true,
         "content": {
           "application/cloudevents+json": {
@@ -2671,9 +2663,6 @@
                 },
                 {
                   "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PreparedCloudEvent"
-                },
-                {
-                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/CompletedCloudEvent"
                 },
                 {
                   "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/StagedCloudEvent"
