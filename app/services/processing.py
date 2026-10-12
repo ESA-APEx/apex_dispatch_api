@@ -59,7 +59,7 @@ async def create_processing_job(
             title=request.title,
             label=request.label,
             status=(
-                ProcessingStatusEnum.CREATED if job_id else ProcessingStatusEnum.FAILED
+                ProcessingStatusEnum.QUEUED if job_id else ProcessingStatusEnum.FAILED
             ),
             user_id=user,
             platform_job_id=job_id,

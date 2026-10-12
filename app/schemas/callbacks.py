@@ -19,13 +19,14 @@ from stage_events_client.models import (
     PreparedCloudEvent,
     CompletedCloudEvent,
     StagedCloudEvent,
+    PipedCloudEvent,
 )
 
 from app.schemas.enum import ProcessingStatusEnum
 
 STAGE_TO_APEX_STATUS: dict[str, ProcessingStatusEnum] = {
-    "prepared": ProcessingStatusEnum.QUEUED,
-    "submitted": ProcessingStatusEnum.CREATED,
+    "submitted": ProcessingStatusEnum.QUEUED,
+    "prepared": ProcessingStatusEnum.RUNNING,
     "staged": ProcessingStatusEnum.RUNNING,
     "piped": ProcessingStatusEnum.FINISHED,
     "completed": ProcessingStatusEnum.FINISHED,

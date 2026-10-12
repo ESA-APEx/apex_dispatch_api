@@ -51,7 +51,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     }
 
     status_mapping = {
-        StatusCode.ACCEPTED: ProcessingStatusEnum.CREATED,
+        StatusCode.ACCEPTED: ProcessingStatusEnum.QUEUED,
         StatusCode.RUNNING: ProcessingStatusEnum.RUNNING,
         StatusCode.DISMISSED: ProcessingStatusEnum.CANCELED,
         StatusCode.SUCCESSFUL: ProcessingStatusEnum.FINISHED,

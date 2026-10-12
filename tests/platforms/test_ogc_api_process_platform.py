@@ -353,7 +353,7 @@ def test_split_job_id(platform, job_id, expected):
 @pytest.mark.parametrize(
     ("ogc_status, expected_status"),
     [
-        ("accepted", ProcessingStatusEnum.CREATED),
+        ("accepted", ProcessingStatusEnum.QUEUED),
         ("running", ProcessingStatusEnum.RUNNING),
         ("dismissed", ProcessingStatusEnum.CANCELED),
         ("successful", ProcessingStatusEnum.FINISHED),
