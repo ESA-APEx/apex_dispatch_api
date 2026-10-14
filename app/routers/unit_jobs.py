@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import Body, APIRouter, Depends, status
+from fastapi import Body, APIRouter, Depends, Request, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -310,11 +310,12 @@ def _handle_callback_status_update(
     db: Session,
     cloud_event: BaseCloudEvent,
     target_status: ProcessingStatusEnum,
-    endpoint_name: str,
+    request: Request,
 ) -> None:
     """Internal helper to update job status from callback CloudEvents."""
     job_identifier = _extract_job_identifier_from_cloudevent(cloud_event) or ""
-    instance_uri = f"/unit_jobs/{endpoint_name}"
+    instance_uri = request.url.path
+    endpoint_name = instance_uri.split("/")[-1]
 
     logger.info(f"Callback '{endpoint_name}' received for job '{job_identifier}'")
 
@@ -370,12 +371,13 @@ def _handle_callback_status_update(
     },
 )
 def on_success_job(
+    request: Request,
     body: PipedCloudEvent | CompletedCloudEvent,
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for success callbacks for jobs."""
     _handle_callback_status_update(
-        db, body, ProcessingStatusEnum.FINISHED, "success"
+        db, body, ProcessingStatusEnum.FINISHED, request
     )
 
 
@@ -398,6 +400,7 @@ def on_success_job(
     },
 )
 def on_progress_job(
+    request: Request,
     body: (
         SubmittedCloudEvent
         | DismissedCloudEvent
@@ -410,7 +413,7 @@ def on_progress_job(
     target_status = STAGE_TO_APEX_STATUS.get(
         body.type, ProcessingStatusEnum.RUNNING
     )
-    _handle_callback_status_update(db, body, target_status, "inProgress")
+    _handle_callback_status_update(db, body, target_status, request)
 
 
 @router.post(
@@ -429,10 +432,11 @@ def on_progress_job(
     },
 )
 def on_failed_job(
+    request: Request,
     body: FailedCloudEvent,
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for failed callbacks for jobs."""
     _handle_callback_status_update(
-        db, body, ProcessingStatusEnum.FAILED, "failed"
+        db, body, ProcessingStatusEnum.FAILED, request
     )
