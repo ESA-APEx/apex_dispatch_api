@@ -1,0 +1,30 @@
+apiVersion: skaffold/v4beta14
+kind: Config
+
+build:
+  tagPolicy:
+    customTemplate:
+      template: "latest-dev"
+  local:
+    push: true
+  artifacts:
+    - image: apex-dispatch-api
+      context: .
+      docker:
+        dockerfile: ./dockerfile
+
+deploy:
+  helm:
+    releases:
+      - name: my-release
+        remoteChart: oci://ghcr.io/esa-apex/helm/apex-dispatch-api
+        version: 0.2.0
+        namespace: mmiraftab
+        setValues:
+          contour.enabled: false
+          serviceAccount:
+            create: false
+            existingName: default
+        setValueTemplates:
+          image.repository: "{{.IMAGE_REPO_apex_dispatch_api}}"
+          image.tag: "{{.IMAGE_TAG_apex_dispatch_api}}@{{.IMAGE_DIGEST_apex_dispatch_api}}"
