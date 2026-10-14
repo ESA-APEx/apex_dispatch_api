@@ -19,7 +19,6 @@ from stage_events_client.models import (
     PreparedCloudEvent,
     CompletedCloudEvent,
     StagedCloudEvent,
-    PipedCloudEvent,
 )
 
 from app.schemas.enum import ProcessingStatusEnum

@@ -142,7 +142,10 @@ def test_callback_success_404_problem_details(mock_update, client):
     assert data["title"] == "Not Found"
     assert data["instance"] == "/unit_jobs/success"
     assert data["errors"] == [
-        {"detail": "Job default:nonexistent does not exist in the Job registry", "parameter": "job_id"}
+        {
+            "detail": "Job default:nonexistent does not exist in the Job registry",
+            "parameter": "job_id",
+        }
     ]
 
 
@@ -317,4 +320,3 @@ async def test_ogc_platform_execute_job_injects_subscriber(
         assert subscriber["successUri"].endswith("/unit_jobs/success")
         assert subscriber["inProgressUri"].endswith("/unit_jobs/inProgress")
         assert subscriber["failedUri"].endswith("/unit_jobs/failed")
-

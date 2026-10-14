@@ -323,8 +323,12 @@ def _handle_callback_status_update(
         job = update_job_status_from_callback(db, job_identifier, target_status)
         if not job:
             if endpoint_name == "inProgress":
-                # An early inProgress callback may arrive before initial job commit finishes; acknowledge gracefully without returning 404.
-                logger.debug(f"Job '{job_identifier}' is not registered in database yet; acknowledging in progress")
+                # An early inProgress callback may arrive before initial job commit finishes;
+                # acknowledge gracefully without returning 404.
+                logger.debug(
+                    f"Job '{job_identifier}' is not registered in database yet; "
+                    "acknowledging in progress"
+                )
                 return
 
             raise ProblemRegistryException(
@@ -348,7 +352,9 @@ def _handle_callback_status_update(
                 errors=[
                     ErrorDetail(
                         parameter="job_id",
-                        detail=f"An error occurred when updating status of Job {job_identifier}: {e}",
+                        detail=(
+                            f"An error occurred when updating status of Job {job_identifier}: {e}"
+                        ),
                     )
                 ],
             )
