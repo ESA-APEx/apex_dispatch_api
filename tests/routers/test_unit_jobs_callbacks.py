@@ -140,7 +140,7 @@ def test_callback_success_404_problem_details(mock_update, client):
     data = r.json()
     assert data["status"] == 404
     assert data["title"] == "Not Found"
-    assert data["instance"] == "/unit_jobs/success"
+    assert data["instance"].endswith("/unit_jobs/success")
     assert data["errors"] == [
         {
             "detail": "Job default:nonexistent does not exist in the Job registry",

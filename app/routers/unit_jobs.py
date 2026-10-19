@@ -13,7 +13,11 @@ from app.error import (
 )
 from app.middleware.error_handling import get_dispatcher_error_response
 from eoap_problems_registry import ErrorDetail, NotFound, ServerError
-from eoap_problems_registry.fastapi import ProblemRegistryException
+from eoap_problems_registry.fastapi import (
+    ServerErrorException,
+    NotFoundException,
+    ProblemRegistryException
+)
 from stage_events_client.models import (
     BaseCloudEvent,
     CompletedCloudEvent,
@@ -314,8 +318,7 @@ def _handle_callback_status_update(
 ) -> None:
     """Internal helper to update job status from callback CloudEvents."""
     job_identifier = _extract_job_identifier_from_cloudevent(cloud_event) or ""
-    instance_uri = request.url.path
-    endpoint_name = instance_uri.split("/")[-1]
+    endpoint_name = request.url.path.split("/")[-1]
 
     logger.info(f"Callback '{endpoint_name}' received for job '{job_identifier}'")
 
@@ -331,33 +334,29 @@ def _handle_callback_status_update(
                 )
                 return
 
-            raise ProblemRegistryException(
-                problem=NotFound(
-                    instance=instance_uri,
-                    errors=[
-                        ErrorDetail(
-                            parameter="job_id",
-                            detail=f"Job {job_identifier} does not exist in the Job registry",
-                        )
-                    ],
-                )
+            raise NotFoundException(
+                request=request,
+                errors=[
+                    ErrorDetail(
+                        parameter="job_id",
+                        detail=f"Job {job_identifier} does not exist in the Job registry",
+                    )
+                ]
             )
     except ProblemRegistryException:
         raise
     except Exception as e:
         logger.error(f"Error handling {endpoint_name} callback for job {job_identifier}: {e}")
-        raise ProblemRegistryException(
-            problem=ServerError(
-                instance=instance_uri,
-                errors=[
-                    ErrorDetail(
-                        parameter="job_id",
-                        detail=(
-                            f"An error occurred when updating status of Job {job_identifier}: {e}"
-                        ),
-                    )
-                ],
-            )
+        raise ServerErrorException(
+            request=request,
+            errors=[
+                ErrorDetail(
+                    parameter="job_id",
+                    detail=(
+                        f"An error occurred when updating status of Job {job_identifier}: {e}"
+                    ),
+                )
+            ]
         )
 
 
