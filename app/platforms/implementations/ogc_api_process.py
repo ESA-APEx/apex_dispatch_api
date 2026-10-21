@@ -16,6 +16,8 @@ from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
 from httpx import get as http_get, Response as HTTPXResponse
 from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
+from stac_pydantic.item_collection import ItemCollection
+from stac_pydantic.item import Item
 from stac_pydantic.links import Links
 from stac_pydantic.version import STAC_VERSION
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
@@ -330,8 +332,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             str | None: The download link if available, otherwise None.
         """
         refs = [
-            asset.get("href"),
-            asset.get("alternate", {}).get("https", {}).get("href"),
+            asset.href,
+            asset.to_dict().get("alternate", {}).get("https", {}).get("href"),
         ]
         for href in refs:
             if href and href.startswith("https://"):
@@ -418,7 +420,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         "original HTTPS href."
                     )
                     signed_url = href
-                updated_asset["href"] = signed_url
+                updated_asset.href = signed_url
                 updated_assets[asset_name] = updated_asset
 
         return updated_assets
@@ -426,21 +428,18 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     def _build_collection_from_features(
         self,
         features: list,
-        assets: dict,
         result_name: str,
         user_token: str,
         details: ServiceDetails,
         internal_job_id: str,
     ) -> Collection:
         """
-        Build a STAC Collection from a list of GeoJSON features and their
-        aggregated assets. The spatial extent is derived from the feature
-        bounding boxes and the temporal extent from the feature datetime
-        properties.
+        Build a STAC Collection from a list of GeoJSON features.
+        The spatial extent is derived from the feature bounding boxes
+        and the temporal extent from the feature datetime properties.
 
         Args:
             features: GeoJSON feature list.
-            assets: Aggregated asset dict collected from those features.
             result_name: Identifier used as the collection ID.
             user_token: Token used to sign asset hrefs.
             details: Service details containing namespace and application information.
@@ -454,7 +453,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         max_x, max_y = float("-inf"), float("-inf")
         found_bbox = False
         for feature in features:
-            bbox = feature.get("bbox")
+            bbox = feature.bbox
             if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
                 min_x = min(min_x, float(bbox[0]))
                 min_y = min(min_y, float(bbox[1]))
@@ -468,23 +467,19 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # Temporal extent — min/max of all datetime-like properties
         datetimes: list[str] = []
         for feature in features:
-            props = feature.get("properties") or {}
-            for dt_key in ("datetime", "start_datetime", "end_datetime"):
-                dt_val = props.get(dt_key)
+            props = feature.properties
+            for dt_val in (props.datetime, props.start_datetime, props.end_datetime):
                 if isinstance(dt_val, str):
                     datetimes.append(dt_val)
         temporal_interval: list[list] = (
             [[min(datetimes), max(datetimes)]] if datetimes else [[None, None]]
         )
 
-        updated_assets = self._update_assets_hrefs(assets, user_token)
-
         logger.debug(
             f"Building STAC Collection '{result_name}' from {len(features)} feature(s) "
-            f"with {len(updated_assets)} asset(s)."
         )
 
-        return Collection(
+        collection = Collection(
             id=f"{details.namespace}-{internal_job_id}",
             stac_version=STAC_VERSION,
             title=f"Results for {details.application}",
@@ -499,10 +494,21 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 spatial=SpatialExtent(bbox=[spatial_bbox]),
                 temporal=TimeInterval(interval=temporal_interval),
             ),
-            assets=updated_assets,
+            assets={},
         )
+        collection.features = features
 
-    def _extract_assets_from_feature_collection(
+        return collection
+    
+
+    def _remove_stac_links(self, links: Links):
+        stac_links = [link for link in links.root if link.rel in ["self", "item", "items", "collection", "parent", "root"] or link.rel.endswith("queryables")]
+        for link in stac_links:
+            links.root.remove(link)
+        return links.root
+
+
+    def _process_feature_collection(
         self,
         feature_collection: dict,
         *,
@@ -511,50 +517,60 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         details: ServiceDetails,
         internal_job_id: str,
     ) -> Collection:
-        assets: dict = {}
-        features = feature_collection.get("features", [])
         logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
+
+        features_dict = feature_collection.get("features", [])
+        features = [Item.model_validate(f) for f in features_dict]
+        logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
+        
+        collection = None
+
         for feature in features:
-            feature_assets = feature.get("assets")
-            if isinstance(feature_assets, dict):
-                assets.update(feature_assets)
-                continue
+            collection_link = next((link for link in feature.links.root if link.rel == "collection"), None)
+            self._remove_stac_links(feature.links)
+            feature.links = Links(self._remove_stac_links(feature.links))
+            feature.assets = self._update_assets_hrefs(feature.assets, user_token)
 
             # Some providers expose assets through an item link
             # instead of inlining them in the feature.
-            for link in feature.get("links", []):
-                if "collection" == link.get("rel") and link.get("href"):
-                    collection_link: str = link.get("href")
-                    logger.debug(
-                        f"GeoJSON FeatureCollection results: '{result_name}' "
-                        f"points to a valid collection URL: {collection_link}"
-                    )
+            if collection is None and collection_link is not None:
+                logger.debug(
+                    f"GeoJSON FeatureCollection results: '{result_name}' "
+                    f"points to a valid collection URL: {collection_link.href}"
+                )
 
-                    response: HTTPXResponse = http_get(
-                        collection_link,
-                        follow_redirects=True,
-                        headers={"Authorization": f"Bearer {user_token}"},
-                    )
-                    response.raise_for_status()
-                    collection_data = response.json()
-                    collection_data["assets"] = self._update_assets_hrefs(
-                        collection_data.get("assets", {}), user_token
-                    )
-                    collection = Collection.model_validate(collection_data)
-                    logger.debug(
-                        f"Extracted collection '{collection.id}' "
-                        f"with assets: {list((collection.assets or {}).keys())}"
-                    )
-                    return collection
+                response: HTTPXResponse = http_get(
+                    collection_link.href,
+                    follow_redirects=True,
+                    headers={"Authorization": f"Bearer {user_token}"},
+                )
+                response.raise_for_status()
+                collection_data = response.json()
+                collection = Collection.model_validate(collection_data)
+                collection.assets = self._update_assets_hrefs(
+                    collection.assets, user_token
+                )
+                logger.debug(
+                    f"Extracted collection '{collection.id}' "
+                    f"with assets: {list((collection.assets or {}).keys())}"
+                )
+                self._remove_stac_links(collection.links)
+                collection.links = Links(self._remove_stac_links(collection.links))
 
-        return self._build_collection_from_features(
-            features,
-            assets,
-            result_name,
-            user_token,
-            details,
-            internal_job_id
-        )
+
+        if collection is None:
+            collection = self._build_collection_from_features(
+                features,
+                result_name,
+                user_token,
+                details,
+                internal_job_id
+            )
+        else:
+            collection.features = features
+
+        return collection
+
 
     async def get_job_status(
         self, user_token: str, job_id: str, details: ServiceDetails
@@ -574,6 +590,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         status_info: StatusInfo = api_client.get_status(job_id=internal_job_id)
         return self._map_ogcapi_status(status_info.status)
+
 
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
@@ -643,7 +660,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     feature_collection = (
                         qualified_value.value.oneof_schema_2_validator or {}
                     )
-                    return self._extract_assets_from_feature_collection(
+                    return self._process_feature_collection(
                         feature_collection,
                         result_name=result_name,
                         user_token=exchanged_token or user_token,
