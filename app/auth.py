@@ -8,7 +8,7 @@ from loguru import logger
 
 from app.error import AuthException, DispatcherException
 from app.schemas.websockets import WSStatusMessage
-from app.config.schemas import BackendAuthConfig
+from app.config.schemas import BackendAuthConfig, TokenExchangeMethod
 
 from .config.settings import settings
 
@@ -32,8 +32,10 @@ jwks_client = PyJWKClient(JWKS_URL, cache_keys=True)
 
 def _decode_token(token: str):
     try:
-        logger.debug(f"Decoding token for user authentication: {token} with "
-                     f"issuer {KEYCLOAK_BASE_URL}")
+        logger.debug(
+            f"Decoding token for user authentication: {token} with "
+            f"issuer {KEYCLOAK_BASE_URL}"
+        )
         try:
             signing_key = jwks_client.get_signing_key_from_jwt(token).key
         except Exception as e:
@@ -112,13 +114,10 @@ async def exchange_token(user_token: str, url: str) -> str:
     backend_idp = settings.backend_auth_config[url]
 
     if not backend_idp.token_provider:
-        raise ValueError(
-            f"Backend '{url}' must define 'token_provider'"
-        )
+        raise ValueError(f"Backend '{url}' must define 'token_provider'")
 
     platform_token = await _exchange_token_for_provider(
-        initial_token=user_token,
-        backend_idp=backend_idp
+        initial_token=user_token, backend_idp=backend_idp
     )
     return (
         f"{backend_idp.token_prefix}/{platform_token['access_token']}"
@@ -141,35 +140,15 @@ async def _exchange_token_for_provider(
 
     :raise: Raises AuthException with an appropriate status and message on error.
     """
-    if backend_idp.token_url:
-        # Cross-Domain Federation/Trusted Token Delegation
-        # Payload will be sent to the backend IDP and receive a valid access token from it
-        logger.info(f"Using Cross-Domain Federation/Trusted Token Delegation with IDP {backend_idp.token_url}")
-        if not backend_idp.client_id:
-            raise AuthException(
-                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="Token exchange not configured on the server (missing client credentials).",
-            )
-        token_url = backend_idp.token_url
-        payload = {
-            "client_id": backend_idp.client_id,
-            "client_secret": backend_idp.client_secret, 
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange", 
-            "subject_token": initial_token, 
-            "subject_token_type": "urn:ietf:params:oauth:token-type:access_token", 
-            "subject_issuer": backend_idp.subject_issuer,
-            "audience": backend_idp.audience, 
-            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token", 
-            "scope": "openid profile email"
-        }
-
-    else:
+    if backend_idp.exchange_method == TokenExchangeMethod.IDENTITY_BROKERING:
         # Internal-to-External Token Exchange
         # Payload will be sent to the backend IDP and receive a valid access token from it
-        logger.info(f"Using Internal-to-External Token Exchange with IDP {backend_idp.token_provider}")
+        logger.info(
+            f"Using Internal-to-External Token Exchange with IDP {backend_idp.token_provider}"
+        )
 
         token_url = f"{KEYCLOAK_BASE_URL}/protocol/openid-connect/token"
-        #token_url = "https://iam.terradue.com/realms/master/protocol/openid-connect/token"
+        # token_url = "https://iam.terradue.com/realms/master/protocol/openid-connect/token"
 
         # Check if the necessary settings are in place
         if not settings.keycloak_client_id:
@@ -185,13 +164,41 @@ async def _exchange_token_for_provider(
             "requested_issuer": backend_idp.token_provider,
         }
 
+    elif backend_idp.exchange_method == TokenExchangeMethod.TRUSTED_TOKEN_DELEGATION:
+        # Cross-Domain Federation/Trusted Token Delegation
+        # Payload will be sent to the backend IDP and receive a valid access token from it
+        if not backend_idp.token_url:
+            raise AuthException(
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Trusted Token Delegation not configured (missing token URL).",
+            )
+        if not backend_idp.client_id:
+            raise AuthException(
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Trusted Token Delegation not configured (missing client ID).",
+            )
+        logger.info(
+            f"Using Cross-Domain Federation/Trusted Token Delegation with IDP {backend_idp.token_url}"
+        )
+        token_url = backend_idp.token_url
+        payload = {
+            "client_id": backend_idp.client_id,
+            "client_secret": backend_idp.client_secret,
+            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "subject_token": initial_token,
+            "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
+            "subject_issuer": backend_idp.subject_issuer,
+            "audience": backend_idp.audience,
+            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
+            "scope": "openid profile email",
+        }
+
     provider_str = backend_idp.token_provider or backend_idp.token_url
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(token_url, data=payload)
     except httpx.RequestError as exc:
-        logger.error(
-            f"Token exchange network error for provider={provider_str}: {exc}")
+        logger.error(f"Token exchange network error for provider={provider_str}: {exc}")
         raise AuthException(
             http_status=status.HTTP_502_BAD_GATEWAY,
             message=(
@@ -239,10 +246,7 @@ async def _exchange_token_for_provider(
         else:
             message = f"Could not authenticate with {provider_str}: {err}"
 
-        raise AuthException(
-            http_status=client_status,
-            message=message
-        )
+        raise AuthException(http_status=client_status, message=message)
 
     # Successful exchange, return token response (access_token, expires_in, etc.)
     return body
