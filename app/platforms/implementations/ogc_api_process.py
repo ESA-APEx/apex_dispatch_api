@@ -425,14 +425,14 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         return updated_assets
 
-    def _build_collection_from_features(
+    def _build_item_collection_from_features(
         self,
         features: list,
         result_name: str,
         user_token: str,
         details: ServiceDetails,
         internal_job_id: str,
-    ) -> Collection:
+    ) -> ItemCollection:
         """
         Build a STAC Collection from a list of GeoJSON features.
         The spatial extent is derived from the feature bounding boxes
@@ -479,26 +479,10 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             f"Building STAC Collection '{result_name}' from {len(features)} feature(s) "
         )
 
-        collection = Collection(
-            id=f"{details.namespace}-{internal_job_id}",
-            stac_version=STAC_VERSION,
-            title=f"Results for {details.application}",
-            description=(
-                f"OGC API process result items for job '{internal_job_id}' "
-                f"of application '{details.application}'."
-            ),
-            type="Collection",
-            license="proprietary",
-            links=Links([]),
-            extent=Extent(
-                spatial=SpatialExtent(bbox=[spatial_bbox]),
-                temporal=TimeInterval(interval=temporal_interval),
-            ),
-            assets={},
+        return ItemCollection(
+            bbox=[spatial_bbox],
+            features=features
         )
-        collection.features = features
-
-        return collection
     
 
     def _remove_stac_links(self, links: Links):
@@ -516,7 +500,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         user_token: str,
         details: ServiceDetails,
         internal_job_id: str,
-    ) -> Collection:
+    ) -> ItemCollection:
         logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
 
         features_dict = feature_collection.get("features", [])
@@ -558,18 +542,15 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 collection.links = Links(self._remove_stac_links(collection.links))
 
 
-        if collection is None:
-            collection = self._build_collection_from_features(
-                features,
-                result_name,
-                user_token,
-                details,
-                internal_job_id
-            )
-        else:
-            collection.features = features
+        item_collection = self._build_item_collection_from_features(
+            features,
+            result_name,
+            user_token,
+            details,
+            internal_job_id
+        )
 
-        return collection
+        return item_collection
 
 
     async def get_job_status(
@@ -594,7 +575,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection:
+    ) -> Collection | ItemCollection:
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")

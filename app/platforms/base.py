@@ -7,7 +7,8 @@ from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.parameters import Parameter
 from app.schemas.unit_job import ServiceDetails
 
-from stac_pydantic import Collection
+from stac_pydantic.collection import Collection
+from stac_pydantic.item_collection import ItemCollection
 
 
 class BaseProcessingPlatform(ABC):
@@ -75,7 +76,7 @@ class BaseProcessingPlatform(ABC):
     @abstractmethod
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection:
+    ) -> Collection | ItemCollection:
         """
         Retrieve the job results of a processing job that is running on the platform.
 
