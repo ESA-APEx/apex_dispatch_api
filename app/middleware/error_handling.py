@@ -1,7 +1,7 @@
 import traceback
 from typing import Any
 
-from eoap_problems_registry.fastapi import (
+from http_apis_problems_detail.fastapi import (
     ProblemRegistryException,
     problem_registry_exception_handler,
 )

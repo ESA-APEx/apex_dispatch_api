@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pydantic import RootModel
-from eoap_problems_registry import (
+from http_apis_problems_detail import (
     BadRequest,
     InvalidBodyPropertyFormat,
     InvalidBodyPropertyValue,

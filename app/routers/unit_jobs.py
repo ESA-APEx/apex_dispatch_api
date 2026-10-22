@@ -12,8 +12,9 @@ from app.error import (
     JobNotFoundException,
 )
 from app.middleware.error_handling import get_dispatcher_error_response
-from eoap_problems_registry import ErrorDetail, NotFound, ServerError
-from eoap_problems_registry.fastapi import (
+from http_apis_problems_detail import ErrorDetail
+from http_apis_problems_detail.fastapi import (
+    PROBLEM_RESPONSES,
     ServerErrorException,
     NotFoundException,
     ProblemRegistryException
@@ -28,12 +29,7 @@ from stage_events_client.models import (
     StagedCloudEvent,
     SubmittedCloudEvent,
 )
-from app.schemas.callbacks import (
-    STAGE_TO_APEX_STATUS,
-    UnitJobsJobIdFailedPostResponse,
-    UnitJobsJobIdInProgressPostResponse,
-    UnitJobsJobIdSuccessPostResponse,
-)
+from app.schemas.callbacks import STAGE_TO_APEX_STATUS
 from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
 from app.schemas.unit_job import (
     BaseJobRequest,
@@ -370,9 +366,11 @@ def _handle_callback_status_update(
     operation_id="onSuccessJob",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
-        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdSuccessPostResponse},
-        status.HTTP_404_NOT_FOUND: {"model": NotFound},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+        status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
+        status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_500_INTERNAL_SERVER_ERROR: (
+            PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
+        ),
     },
 )
 def on_success_job(
@@ -399,9 +397,11 @@ def on_success_job(
     operation_id="onProgressJob",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
-        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdInProgressPostResponse},
-        status.HTTP_404_NOT_FOUND: {"model": NotFound},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+        status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
+        status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_500_INTERNAL_SERVER_ERROR: (
+            PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
+        ),
     },
 )
 def on_progress_job(
@@ -431,9 +431,11 @@ def on_progress_job(
     operation_id="onFailedJob",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
-        status.HTTP_400_BAD_REQUEST: {"model": UnitJobsJobIdFailedPostResponse},
-        status.HTTP_404_NOT_FOUND: {"model": NotFound},
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ServerError},
+        status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
+        status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_500_INTERNAL_SERVER_ERROR: (
+            PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
+        ),
     },
 )
 def on_failed_job(

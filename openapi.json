@@ -2689,13 +2689,13 @@
         "description": "Request has been processed and job status has been successfully updated.\n"
       },
       "BadRequest": {
-        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/BadRequest"
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/BadRequest"
       },
       "NotFound": {
-        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/NotFound"
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/NotFound"
       },
       "ServerError": {
-        "$ref": "https://eoap.github.io/problems-registry/openapi.yaml#/components/responses/ServerError"
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/ServerError"
       }
     }
   }
