@@ -161,7 +161,7 @@ def get_public_statistics(
         .group_by(ProcessingJobRecord.status)
         .all()
     )
-    processing_jobs_by_platform = _normalize_grouped_counts(
+    processing_jobs_by_interface = _normalize_grouped_counts(
         processing_jobs_query.with_entities(
             ProcessingJobRecord.label, func.count(ProcessingJobRecord.id)
         )
@@ -178,7 +178,7 @@ def get_public_statistics(
         .group_by(UpscalingTaskRecord.status)
         .all()
     )
-    upscaling_tasks_by_platform = _normalize_grouped_counts(
+    upscaling_tasks_by_interface = _normalize_grouped_counts(
         upscaling_tasks_query.with_entities(
             UpscalingTaskRecord.label, func.count(UpscalingTaskRecord.id)
         )
@@ -207,13 +207,13 @@ def get_public_statistics(
         processing_jobs=EntityStatistics(
             total=processing_jobs_total,
             by_status=processing_jobs_by_status,
-            by_platform=processing_jobs_by_platform,
+            by_interface=processing_jobs_by_interface,
             by_service=processing_jobs_by_service,
         ),
         upscaling_tasks=UpscalingStatistics(
             total=upscaling_tasks_total,
             by_status=upscaling_tasks_by_status,
-            by_platform=upscaling_tasks_by_platform,
+            by_interface=upscaling_tasks_by_interface,
             by_service=upscaling_tasks_by_service,
             average_processing_jobs_per_upscaling_task=average_jobs_per_upscaling_task,
         ),

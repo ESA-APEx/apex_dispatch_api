@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field
 class EntityStatistics(BaseModel):
     total: int = Field(..., description="Total amount of records")
     by_status: Dict[str, int] = Field(..., description="Totals grouped by status")
-    by_platform: Dict[str, int] = Field(
-        ..., description="Totals grouped by platform label"
+    by_interface: Dict[str, int] = Field(
+        ..., description="Totals grouped by interface label"
     )
     by_service: Dict[str, int] = Field(
         ...,
