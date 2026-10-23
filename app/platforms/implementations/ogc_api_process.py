@@ -1,25 +1,13 @@
 import json
 import re
-from typing import List
-
-import requests
-from app.auth import exchange_token, get_current_user_claims
-from fastapi import Response
-from loguru import logger
-import jwt
 from urllib.parse import urlparse
 
-from app.platforms.base import BaseProcessingPlatform
-from app.platforms.dispatcher import register_platform
-from app.schemas.enum import OutputFormatEnum, ProcessTypeEnum, ProcessingStatusEnum
-from app.schemas.parameters import ParamTypeEnum, Parameter
-from app.schemas.unit_job import ServiceDetails
-from httpx import get as http_get, Response as HTTPXResponse
-from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
-from stac_pydantic.item_collection import ItemCollection
-from stac_pydantic.item import Item
-from stac_pydantic.links import Links
-from stac_pydantic.version import STAC_VERSION
+import jwt
+import requests
+from fastapi import Response
+from httpx import Response as HTTPXResponse
+from httpx import get as http_get
+from loguru import logger
 from ogc_api_processes_client.api_client_wrapper import ApiClientWrapper
 from ogc_api_processes_client.configuration import Configuration
 from ogc_api_processes_client.models.inline_or_ref_data import InlineOrRefData
@@ -28,7 +16,18 @@ from ogc_api_processes_client.models.link import Link as OgcLink
 from ogc_api_processes_client.models.qualified_input_value import QualifiedInputValue
 from ogc_api_processes_client.models.status_code import StatusCode
 from ogc_api_processes_client.models.status_info import StatusInfo
-from typing import Dict
+from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
+from stac_pydantic.item import Item
+from stac_pydantic.item_collection import ItemCollection
+from stac_pydantic.links import Links
+from stac_pydantic.version import STAC_VERSION
+
+from app.auth import exchange_token, get_current_user_claims
+from app.platforms.base import BaseProcessingPlatform
+from app.platforms.dispatcher import register_platform
+from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum, ProcessTypeEnum
+from app.schemas.parameters import Parameter, ParamTypeEnum
+from app.schemas.unit_job import ServiceDetails
 
 STAC_COLLECTION_SCHEMA = (
     "https://schemas.stacspec.org/v1.0.0/collection-spec/json-schema/collection.json"
@@ -179,12 +178,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # Return token if it is a Terradue/Geohazards-TEP token
         # (issued by iam.terradue.com)
         if parsed_uri.netloc == "iam.terradue.com":
-            logger.debug(f"Skipping token exchange (token issued by {parsed_uri.netloc})")
+            logger.debug(
+                f"Skipping token exchange (token issued by {parsed_uri.netloc})"
+            )
             return user_token
 
         # Otherwise perform token exchange (using APEx token as input)
         return await exchange_token(user_token, url)
-
 
     async def execute_job(
         self,
@@ -471,26 +471,35 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             for dt_val in (props.datetime, props.start_datetime, props.end_datetime):
                 if isinstance(dt_val, str):
                     datetimes.append(dt_val)
-        temporal_interval: list[list] = (
-            [[min(datetimes), max(datetimes)]] if datetimes else [[None, None]]
-        )
+
+        logger.debug(f"Features: {features}")
 
         logger.debug(
             f"Building STAC Collection '{result_name}' from {len(features)} feature(s) "
         )
 
-        return ItemCollection(
-            bbox=[spatial_bbox],
-            features=features
-        )
-    
+        logger.debug(f"bbox = {spatial_bbox}")
 
-    def _remove_stac_links(self, links: Links):
-        stac_links = [link for link in links.root if link.rel in ["self", "item", "items", "collection", "parent", "root"] or link.rel.endswith("queryables")]
+        return ItemCollection(
+            bbox=spatial_bbox,
+            type="FeatureCollection",
+            links=Links([]),
+            features=features,
+        )
+
+    def _remove_stac_links(self, links: Links, keep: list[str] | None = None):
+        if not keep:
+            keep = []
+        stac_links = [
+            link
+            for link in links.root
+            if link.rel in ["self", "item", "items", "collection", "parent", "root"]
+            and not link.rel in keep
+            or link.rel.endswith("queryables")
+        ]
         for link in stac_links:
             links.root.remove(link)
         return links.root
-
 
     def _process_feature_collection(
         self,
@@ -505,14 +514,16 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         features_dict = feature_collection.get("features", [])
         features = [Item.model_validate(f) for f in features_dict]
-        logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
-        
+
         collection = None
 
         for feature in features:
-            collection_link = next((link for link in feature.links.root if link.rel == "collection"), None)
-            self._remove_stac_links(feature.links)
-            feature.links = Links(self._remove_stac_links(feature.links))
+            collection_link = next(
+                (link for link in feature.links.root if link.rel == "collection"), None
+            )
+            feature.links = Links(
+                self._remove_stac_links(feature.links, keep=["collection"])
+            )
             feature.assets = self._update_assets_hrefs(feature.assets, user_token)
 
             # Some providers expose assets through an item link
@@ -538,20 +549,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     f"Extracted collection '{collection.id}' "
                     f"with assets: {list((collection.assets or {}).keys())}"
                 )
-                self._remove_stac_links(collection.links)
                 collection.links = Links(self._remove_stac_links(collection.links))
 
-
         item_collection = self._build_item_collection_from_features(
-            features,
-            result_name,
-            user_token,
-            details,
-            internal_job_id
+            features, result_name, user_token, details, internal_job_id
         )
 
         return item_collection
-
 
     async def get_job_status(
         self, user_token: str, job_id: str, details: ServiceDetails
@@ -572,7 +576,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         status_info: StatusInfo = api_client.get_status(job_id=internal_job_id)
         return self._map_ogcapi_status(status_info.status)
 
-
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
     ) -> Collection | ItemCollection:
@@ -589,7 +592,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             details.endpoint, namespace, exchanged_token
         )
 
-        result: Dict[str, InlineOrRefData] = api_client.get_result(
+        result: dict[str, InlineOrRefData] = api_client.get_result(
             job_id=internal_job_id
         )
 
@@ -676,7 +679,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails
-    ) -> List[Parameter]:
+    ) -> list[Parameter]:
 
         parameters = []
         logger.debug(
