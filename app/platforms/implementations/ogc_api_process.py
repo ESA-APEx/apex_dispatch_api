@@ -177,9 +177,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # Return token if it is a Terradue/Geohazards-TEP token
         # (issued by iam.terradue.com)
         if parsed_uri.netloc == "iam.terradue.com":
-            logger.debug(
-                f"Skipping token exchange (token issued by {parsed_uri.netloc})"
-            )
+            logger.debug("Skipping token exchange for iam.terradue.com issuer")
             return user_token
 
         # Otherwise perform token exchange (using APEx token as input)
