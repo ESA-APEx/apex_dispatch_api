@@ -177,12 +177,13 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         # Return token if it is a Terradue/Geohazards-TEP token
         # (issued by iam.terradue.com)
         if parsed_uri.netloc == "iam.terradue.com":
-            logger.debug(f"Skipping token exchange (token issued by {parsed_uri.netloc})")
+            logger.debug(
+                f"Skipping token exchange (token issued by {parsed_uri.netloc})"
+            )
             return user_token
 
         # Otherwise perform token exchange (using APEx token as input)
         return await exchange_token(user_token, url)
-
 
     async def execute_job(
         self,
@@ -548,12 +549,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     return collection
 
         return self._build_collection_from_features(
-            features,
-            assets,
-            result_name,
-            user_token,
-            details,
-            internal_job_id
+            features, assets, result_name, user_token, details, internal_job_id
         )
 
     async def get_job_status(

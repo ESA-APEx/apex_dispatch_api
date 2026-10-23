@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
-#from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.database.db import Base
