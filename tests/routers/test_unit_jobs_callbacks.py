@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 import pytest
 from fastapi import status
 
@@ -99,154 +99,171 @@ COMPLETED_PAYLOAD = {
 
 # --- Inbound Callback Tests ---
 
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_success_piped_200(mock_update, client):
-    r = client.post(
+@pytest.fixture
+def callback_dependencies(fake_processing_job_record):
+    with (
+        patch(
+            "app.routers.unit_jobs.get_job_by_platform_or_id",
+            return_value=fake_processing_job_record,
+        ) as lookup,
+        patch(
+            "app.routers.unit_jobs.ProcessingStateMachine.can_transition",
+            return_value=True,
+        ) as can_transition,
+        patch("app.routers.unit_jobs.update_job_status_by_id") as update,
+    ):
+        yield lookup, can_transition, update
+
+
+CALLBACK_CASES = [
+    pytest.param("success", PIPED_PAYLOAD, ProcessingStatusEnum.FINISHED, id="piped"),
+    pytest.param("success", COMPLETED_PAYLOAD, ProcessingStatusEnum.FINISHED, id="completed"),
+    pytest.param("inProgress", STAGED_PAYLOAD, ProcessingStatusEnum.RUNNING, id="staged"),
+    pytest.param("inProgress", PREPARED_PAYLOAD, ProcessingStatusEnum.RUNNING, id="prepared"),
+    pytest.param("inProgress", SUBMITTED_PAYLOAD, ProcessingStatusEnum.QUEUED, id="submitted"),
+    pytest.param("inProgress", DISMISSED_PAYLOAD, ProcessingStatusEnum.CANCELED, id="dismissed"),
+    pytest.param("failed", FAILED_PAYLOAD, ProcessingStatusEnum.FAILED, id="failed"),
+]
+
+
+@pytest.mark.parametrize("endpoint,payload,target_status", CALLBACK_CASES)
+def test_callback_updates_job_status(
+    client, callback_dependencies, fake_processing_job_record,
+    endpoint, payload, target_status,
+):
+    lookup, can_transition, update = callback_dependencies
+    initial_status = fake_processing_job_record.status
+
+    response = client.post(
+        f"/unit_jobs/{endpoint}",
+        json=payload,
+        headers={"Content-Type": "application/cloudevents+json"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    lookup.assert_called_once_with(ANY, "default:job-123")
+    can_transition.assert_called_once_with(initial_status, target_status)
+    update.assert_called_once_with(
+        lookup.call_args.args[0], fake_processing_job_record.id, target_status
+    )
+    assert fake_processing_job_record.status == target_status
+
+
+@pytest.mark.parametrize("endpoint,payload,target_status", CALLBACK_CASES)
+def test_callback_rejects_invalid_transition(
+    client, callback_dependencies, fake_processing_job_record,
+    endpoint, payload, target_status,
+):
+    lookup, can_transition, update = callback_dependencies
+    fake_processing_job_record.status = ProcessingStatusEnum.DELETED
+    can_transition.return_value = False
+
+    response = client.post(
+        f"/unit_jobs/{endpoint}",
+        json=payload,
+        headers={"Content-Type": "application/cloudevents+json"},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.headers["content-type"] == "application/problem+json"
+    data = response.json()
+    assert data["status"] == 422
+    assert data["instance"].endswith(f"/unit_jobs/{endpoint}")
+    assert len(data["errors"]) == 1
+    assert data["errors"][0]["pointer"] == "subject"
+    assert "default:job-123" in data["errors"][0]["detail"]
+    lookup.assert_called_once_with(ANY, "default:job-123")
+    can_transition.assert_called_once_with(ProcessingStatusEnum.DELETED, target_status)
+    update.assert_not_called()
+    assert fake_processing_job_record.status == ProcessingStatusEnum.DELETED
+
+
+@pytest.mark.parametrize("endpoint,payload", [
+    ("success", PIPED_PAYLOAD),
+    ("failed", FAILED_PAYLOAD),
+])
+def test_callback_missing_job_404_problem_details(
+    client, callback_dependencies, endpoint, payload,
+):
+    lookup, can_transition, update = callback_dependencies
+    lookup.return_value = None
+
+    response = client.post(
+        f"/unit_jobs/{endpoint}",
+        json={**payload, "subject": "default:test-uid:nonexistent"},
+        headers={"Content-Type": "application/cloudevents+json"},
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.headers["content-type"] == "application/problem+json"
+    data = response.json()
+    assert data["status"] == 404
+    assert data["title"] == "Not Found"
+    assert data["instance"].endswith(f"/unit_jobs/{endpoint}")
+    assert data["errors"] == [
+        {
+            "detail": "Job default:nonexistent does not exist in the Job registry",
+            "pointer": "subject",
+        }
+    ]
+    lookup.assert_called_once_with(ANY, "default:nonexistent")
+    can_transition.assert_not_called()
+    update.assert_not_called()
+
+
+@pytest.mark.parametrize("payload", [
+    SUBMITTED_PAYLOAD, PREPARED_PAYLOAD, STAGED_PAYLOAD, DISMISSED_PAYLOAD,
+])
+def test_callback_in_progress_uncommitted_job_acknowledges_cleanly(
+    client, callback_dependencies, payload,
+):
+    lookup, can_transition, update = callback_dependencies
+    lookup.return_value = None
+
+    response = client.post(
+        "/unit_jobs/inProgress",
+        json=payload,
+        headers={"Content-Type": "application/cloudevents+json"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    lookup.assert_called_once_with(ANY, "default:job-123")
+    can_transition.assert_not_called()
+    update.assert_not_called()
+
+
+@pytest.mark.parametrize("failure_point", ["lookup", "transition", "update"])
+def test_callback_unexpected_error_returns_500(
+    client, callback_dependencies, fake_processing_job_record, failure_point,
+):
+    lookup, can_transition, update = callback_dependencies
+    initial_status = fake_processing_job_record.status
+    dependencies = {"lookup": lookup, "transition": can_transition, "update": update}
+    dependencies[failure_point].side_effect = RuntimeError("callback failure")
+
+    response = client.post(
         "/unit_jobs/success",
         json=PIPED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
-    assert r.status_code == status.HTTP_200_OK
-    mock_update.assert_called_once()
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.FINISHED
 
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_success_completed_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/success",
-        json=COMPLETED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    mock_update.assert_called_once()
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.FINISHED
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_success_404_problem_details(mock_update, client):
-    mock_update.return_value = None
-    r = client.post(
-        "/unit_jobs/success",
-        json={**PIPED_PAYLOAD, "subject": "default:test-uid:nonexistent"},
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_404_NOT_FOUND
-    assert r.headers.get("content-type") == "application/problem+json"
-    data = r.json()
-    assert data["status"] == 404
-    assert data["title"] == "Not Found"
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.headers["content-type"] == "application/problem+json"
+    data = response.json()
+    assert data["status"] == 500
     assert data["instance"].endswith("/unit_jobs/success")
-    assert data["errors"] == [
-        {
-            "detail": "Job default:nonexistent does not exist in the Job registry",
-            "parameter": "job_id",
-        }
-    ]
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_staged_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/inProgress",
-        json=STAGED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.RUNNING
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_prepared_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/inProgress",
-        json=PREPARED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.RUNNING
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_submitted_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/inProgress",
-        json=SUBMITTED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.QUEUED
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_dismissed_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/inProgress",
-        json=DISMISSED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.CANCELED
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_failed_200(mock_update, client):
-    r = client.post(
-        "/unit_jobs/failed",
-        json=FAILED_PAYLOAD,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    args, _ = mock_update.call_args
-    assert args[1] == "default:job-123"
-    assert args[2] == ProcessingStatusEnum.FAILED
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_resolves_3part_subject_from_cloudevent(mock_update, client):
-    payload = {
-        **PIPED_PAYLOAD,
-        "source": "mmiraftab:opensartoolkit:stage-out",
-        "subject": "mmiraftab:test-uid:opensartoolkit-v2-2-1-p6ms6",
-    }
-    r = client.post(
-        "/unit_jobs/success",
-        json=payload,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
-    mock_update.assert_called_once()
-    args, _ = mock_update.call_args
-    assert args[1] == "mmiraftab:opensartoolkit-v2-2-1-p6ms6"
-    assert args[2] == ProcessingStatusEnum.FINISHED
-
-
-@patch("app.routers.unit_jobs.update_job_status_from_callback")
-def test_callback_in_progress_uncommitted_job_acknowledges_cleanly(mock_update, client):
-    mock_update.return_value = None  # simulate job not committed yet
-    payload = {
-        **SUBMITTED_PAYLOAD,
-        "source": "mmiraftab:opensartoolkit:main",
-        "subject": "mmiraftab:test-uid:opensartoolkit-v2-2-1-p6ms6",
-    }
-    r = client.post(
-        "/unit_jobs/inProgress",
-        json=payload,
-        headers={"Content-Type": "application/cloudevents+json"},
-    )
-    assert r.status_code == status.HTTP_200_OK
+    assert data["errors"] == [{
+        "parameter": "job_id",
+        "detail": (
+            "An error occurred when updating status of Job default:job-123: "
+            "callback failure"
+        ),
+    }]
+    assert fake_processing_job_record.status == initial_status
+    if failure_point != "update":
+        update.assert_not_called()
+    if failure_point == "lookup":
+        can_transition.assert_not_called()
 
 
 def test_extract_job_identifier_from_cloudevent():

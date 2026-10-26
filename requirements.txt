@@ -34,3 +34,4 @@ uvicorn[standard]
 ogc-api-processes-client==0.6.0
 http-apis-problems-detail>=2
 stage-events-client==1.3.0
+python-statemachine==3.2.2

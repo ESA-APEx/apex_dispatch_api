@@ -2691,6 +2691,9 @@
       "BadRequest": {
         "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/BadRequest"
       },
+      "BusinessRuleViolation": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/BusinessRuleViolation"
+      },
       "NotFound": {
         "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/NotFound"
       },

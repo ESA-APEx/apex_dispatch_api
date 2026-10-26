@@ -15,6 +15,7 @@ from app.middleware.error_handling import get_dispatcher_error_response
 from http_apis_problems_detail import ErrorDetail
 from http_apis_problems_detail.fastapi import (
     PROBLEM_RESPONSES,
+    BusinessRuleViolationException,
     ServerErrorException,
     NotFoundException,
     ProblemRegistryException
@@ -42,9 +43,10 @@ from app.services.processing import (
     delete_processing_job,
     get_processing_job_by_user_id,
     get_processing_job_results,
-    update_job_status_from_callback,
+    get_job_by_platform_or_id,
+    update_job_status_by_id
 )
-
+from app.services.processing_state_machine import ProcessingStateMachine
 from stac_pydantic import Collection
 
 # from app.auth import get_current_user
@@ -319,7 +321,7 @@ def _handle_callback_status_update(
     logger.info(f"Callback '{endpoint_name}' received for job '{job_identifier}'")
 
     try:
-        job = update_job_status_from_callback(db, job_identifier, target_status)
+        job = get_job_by_platform_or_id(db, job_identifier)
         if not job:
             if endpoint_name == "inProgress":
                 # An early inProgress callback may arrive before initial job commit finishes;
@@ -334,11 +336,32 @@ def _handle_callback_status_update(
                 request=request,
                 errors=[
                     ErrorDetail(
-                        parameter="job_id",
+                        pointer="subject",
                         detail=f"Job {job_identifier} does not exist in the Job registry",
                     )
                 ]
             )
+
+        if not ProcessingStateMachine.can_transition(job.status, target_status):
+            raise BusinessRuleViolationException(
+                request=request,
+                errors=[
+                    ErrorDetail(
+                        pointer="subject",
+                        detail=(
+                            f"Job {job_identifier} can not transition from status "
+                            f"{job.status} to {target_status}"
+                        ),
+                    )
+                ]
+            )
+
+        update_job_status_by_id(db, job.id, target_status)
+        job.status = target_status
+        logger.info(
+            f"Successfully updated status of job '{job_identifier}' (id={job.id}) "
+            f"to {target_status}"
+        )
     except ProblemRegistryException:
         raise
     except Exception as e:
@@ -368,6 +391,9 @@ def _handle_callback_status_update(
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            PROBLEM_RESPONSES[status.HTTP_422_UNPROCESSABLE_CONTENT]
+        ),
         status.HTTP_500_INTERNAL_SERVER_ERROR: (
             PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
         ),
@@ -399,6 +425,9 @@ def on_success_job(
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            PROBLEM_RESPONSES[status.HTTP_422_UNPROCESSABLE_CONTENT]
+        ),
         status.HTTP_500_INTERNAL_SERVER_ERROR: (
             PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
         ),
@@ -433,6 +462,9 @@ def on_progress_job(
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            PROBLEM_RESPONSES[status.HTTP_422_UNPROCESSABLE_CONTENT]
+        ),
         status.HTTP_500_INTERNAL_SERVER_ERROR: (
             PROBLEM_RESPONSES[status.HTTP_500_INTERNAL_SERVER_ERROR]
         ),

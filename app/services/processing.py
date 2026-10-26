@@ -169,24 +169,6 @@ def get_job_by_platform_or_id(
     )
 
 
-def update_job_status_from_callback(
-    database: Session, job_identifier: str, status: ProcessingStatusEnum
-) -> Optional[ProcessingJobRecord]:
-    logger.info(
-        f"Updating status of job '{job_identifier}' from callback to {status}"
-    )
-    job = get_job_by_platform_or_id(database, job_identifier)
-    if not job:
-        return None
-
-    update_job_status_by_id(database, job.id, status)
-    job.status = status
-    logger.info(
-        f"Successfully updated status of job '{job_identifier}' (id={job.id}) to {status}"
-    )
-    return job
-
-
 async def get_processing_jobs_by_user_id(
     token: str, database: Session, upscaling_task_id: int | None = None
 ) -> List[ProcessingJobSummary]:

@@ -682,33 +682,3 @@ def test_get_job_by_platform_or_id_string(fake_db_session, fake_processing_job_r
     result = get_job_by_platform_or_id(fake_db_session, "myns:uid-1:wf-abc")
     assert result == fake_processing_job_record
     fake_db_session.query.assert_called_once()
-
-
-def test_update_job_status_from_callback_success(fake_db_session, fake_processing_job_record):
-    from app.services.processing import update_job_status_from_callback
-
-    with (
-        patch(
-            "app.services.processing.get_job_by_platform_or_id",
-            return_value=fake_processing_job_record,
-        ),
-        patch("app.services.processing.update_job_status_by_id") as mock_update_db,
-    ):
-        result = update_job_status_from_callback(
-            fake_db_session, "myns:wf-abc", ProcessingStatusEnum.FINISHED
-        )
-        assert result == fake_processing_job_record
-        assert result.status == ProcessingStatusEnum.FINISHED
-        mock_update_db.assert_called_once_with(
-            fake_db_session, fake_processing_job_record.id, ProcessingStatusEnum.FINISHED
-        )
-
-
-def test_update_job_status_from_callback_not_found(fake_db_session):
-    from app.services.processing import update_job_status_from_callback
-
-    with patch("app.services.processing.get_job_by_platform_or_id", return_value=None):
-        result = update_job_status_from_callback(
-            fake_db_session, "nonexistent", ProcessingStatusEnum.RUNNING
-        )
-        assert result is None
