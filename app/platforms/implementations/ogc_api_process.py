@@ -5,6 +5,7 @@ from typing import List
 import requests
 from app.auth import exchange_token, get_current_user_claims
 from app.config.settings import settings
+from app.platforms.implementations.gep.subscriber import build_subscriber
 from fastapi import Response
 from loguru import logger
 
@@ -211,18 +212,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if user_claims.get("email"):
             properties["email"] = user_claims["email"]
 
-        base_url = settings.dispatch_api_public_url.rstrip("/")
-        subscriber = {
-            "successUri": f"{base_url}/unit_jobs/success",
-            "inProgressUri": f"{base_url}/unit_jobs/inProgress",
-            "failedUri": f"{base_url}/unit_jobs/failed",
-        }
-
-        data = {
-            "inputs": parameters,
-            "properties": properties,
-            "subscriber": subscriber,
-        }
+        data = {"inputs": parameters, "properties": properties}
+        data["subscriber"] = build_subscriber(settings.dispatch_api_public_url)
 
         content = api_client.execute_simple(
             process_id=details.application, execute=data, _headers=headers

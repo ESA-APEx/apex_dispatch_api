@@ -10,7 +10,6 @@ from stac_pydantic import Collection
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
     ProcessingJobRecord,
-    get_job_by_id,
     get_job_by_user_id,
     get_jobs_by_user_id,
     remove_job_by_id,
@@ -144,29 +143,6 @@ async def _refresh_job_status(
         update_job_status_by_id(database, record.id, new_status)
         record.status = new_status
     return record
-
-
-def get_job_by_platform_or_id(
-    database: Session, job_identifier: str
-) -> Optional[ProcessingJobRecord]:
-    if job_identifier.isdigit():
-        return get_job_by_id(database, int(job_identifier))
-
-    candidates = [job_identifier]
-    parts = job_identifier.split(":")
-    if len(parts) == 3:
-        # e.g. "<namespace>:<workflow_uid>:<workflow_name>" -> "<namespace>:<workflow_name>"
-        candidates.append(f"{parts[0]}:{parts[2]}")
-    candidates.append(parts[-1])
-
-    return (
-        database.query(ProcessingJobRecord)
-        .filter(
-            ProcessingJobRecord.platform_job_id.in_(candidates)
-            | ProcessingJobRecord.platform_job_id.endswith(f":{parts[-1]}")
-        )
-        .first()
-    )
 
 
 async def get_processing_jobs_by_user_id(

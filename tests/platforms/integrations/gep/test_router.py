@@ -101,16 +101,17 @@ COMPLETED_PAYLOAD = {
 
 @pytest.fixture
 def callback_dependencies(fake_processing_job_record):
+    fake_processing_job_record.platform_job_id = "default:job-123"
     with (
         patch(
-            "app.routers.unit_jobs.get_job_by_platform_or_id",
+            "app.platforms.implementations.gep.router.get_gep_job",
             return_value=fake_processing_job_record,
         ) as lookup,
         patch(
-            "app.routers.unit_jobs.ProcessingStateMachine.can_transition",
+            "app.services.job_status.ProcessingStateMachine.can_transition",
             return_value=True,
         ) as can_transition,
-        patch("app.routers.unit_jobs.update_job_status_by_id") as update,
+        patch("app.services.job_status.update_job_status_by_id") as update,
     ):
         yield lookup, can_transition, update
 
@@ -135,7 +136,7 @@ def test_callback_updates_job_status(
     initial_status = fake_processing_job_record.status
 
     response = client.post(
-        f"/unit_jobs/{endpoint}",
+        f"/integrations/ogc-api-processes/gep/callbacks/{endpoint}",
         json=payload,
         headers={"Content-Type": "application/cloudevents+json"},
     )
@@ -159,7 +160,7 @@ def test_callback_rejects_invalid_transition(
     can_transition.return_value = False
 
     response = client.post(
-        f"/unit_jobs/{endpoint}",
+        f"/integrations/ogc-api-processes/gep/callbacks/{endpoint}",
         json=payload,
         headers={"Content-Type": "application/cloudevents+json"},
     )
@@ -168,7 +169,7 @@ def test_callback_rejects_invalid_transition(
     assert response.headers["content-type"] == "application/problem+json"
     data = response.json()
     assert data["status"] == 422
-    assert data["instance"].endswith(f"/unit_jobs/{endpoint}")
+    assert data["instance"].endswith(f"/integrations/ogc-api-processes/gep/callbacks/{endpoint}")
     assert len(data["errors"]) == 1
     assert data["errors"][0]["pointer"] == "subject"
     assert "default:job-123" in data["errors"][0]["detail"]
@@ -189,7 +190,7 @@ def test_callback_missing_job_404_problem_details(
     lookup.return_value = None
 
     response = client.post(
-        f"/unit_jobs/{endpoint}",
+        f"/integrations/ogc-api-processes/gep/callbacks/{endpoint}",
         json={**payload, "subject": "default:test-uid:nonexistent"},
         headers={"Content-Type": "application/cloudevents+json"},
     )
@@ -199,7 +200,7 @@ def test_callback_missing_job_404_problem_details(
     data = response.json()
     assert data["status"] == 404
     assert data["title"] == "Not Found"
-    assert data["instance"].endswith(f"/unit_jobs/{endpoint}")
+    assert data["instance"].endswith(f"/integrations/ogc-api-processes/gep/callbacks/{endpoint}")
     assert data["errors"] == [
         {
             "detail": "Job default:nonexistent does not exist in the Job registry",
@@ -221,7 +222,7 @@ def test_callback_in_progress_uncommitted_job_acknowledges_cleanly(
     lookup.return_value = None
 
     response = client.post(
-        "/unit_jobs/inProgress",
+        "/integrations/ogc-api-processes/gep/callbacks/inProgress",
         json=payload,
         headers={"Content-Type": "application/cloudevents+json"},
     )
@@ -242,7 +243,7 @@ def test_callback_unexpected_error_returns_500(
     dependencies[failure_point].side_effect = RuntimeError("callback failure")
 
     response = client.post(
-        "/unit_jobs/success",
+        "/integrations/ogc-api-processes/gep/callbacks/success",
         json=PIPED_PAYLOAD,
         headers={"Content-Type": "application/cloudevents+json"},
     )
@@ -251,7 +252,7 @@ def test_callback_unexpected_error_returns_500(
     assert response.headers["content-type"] == "application/problem+json"
     data = response.json()
     assert data["status"] == 500
-    assert data["instance"].endswith("/unit_jobs/success")
+    assert data["instance"].endswith("/integrations/ogc-api-processes/gep/callbacks/success")
     assert data["errors"] == [{
         "parameter": "job_id",
         "detail": (
@@ -266,24 +267,24 @@ def test_callback_unexpected_error_returns_500(
         can_transition.assert_not_called()
 
 
-def test_extract_job_identifier_from_cloudevent():
-    from app.routers.unit_jobs import _extract_job_identifier_from_cloudevent
+def testextract_job_identifier():
+    from app.platforms.implementations.gep.callbacks import extract_job_identifier
 
     # 3-part subject (<namespace>:<uid>:<workflow_name>)
     event = MagicMock(subject="myns:uid-1234:wf-5678")
-    assert _extract_job_identifier_from_cloudevent(event) == "myns:wf-5678"
+    assert extract_job_identifier(event) == "myns:wf-5678"
 
     # 2-part subject
     event = MagicMock(subject="myns:wf-5678")
-    assert _extract_job_identifier_from_cloudevent(event) == "myns:wf-5678"
+    assert extract_job_identifier(event) == "myns:wf-5678"
 
     # Single string
     event = MagicMock(subject="wf-5678")
-    assert _extract_job_identifier_from_cloudevent(event) == "wf-5678"
+    assert extract_job_identifier(event) == "wf-5678"
 
     # Missing / None subject
     event = MagicMock(subject=None)
-    assert _extract_job_identifier_from_cloudevent(event) is None
+    assert extract_job_identifier(event) is None
 
 
 # --- Outbound Subscriber Payload Test ---
@@ -334,6 +335,12 @@ async def test_ogc_platform_execute_job_injects_subscriber(
         execute_data = kwargs["execute"]
         assert "subscriber" in execute_data
         subscriber = execute_data["subscriber"]
-        assert subscriber["successUri"].endswith("/unit_jobs/success")
-        assert subscriber["inProgressUri"].endswith("/unit_jobs/inProgress")
-        assert subscriber["failedUri"].endswith("/unit_jobs/failed")
+        assert subscriber["successUri"].endswith(
+            "/integrations/ogc-api-processes/gep/callbacks/success"
+        )
+        assert subscriber["inProgressUri"].endswith(
+            "/integrations/ogc-api-processes/gep/callbacks/inProgress"
+        )
+        assert subscriber["failedUri"].endswith(
+            "/integrations/ogc-api-processes/gep/callbacks/failed"
+        )

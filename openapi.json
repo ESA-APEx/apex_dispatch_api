@@ -712,11 +712,12 @@
         }
       }
     },
-    "/unit_jobs/success": {
+    "/integrations/ogc-api-processes/gep/callbacks/success": {
       "post": {
-        "operationId": "onSuccessJob",
+        "operationId": "onGepJobSuccess",
+        "tags": ["GEP callbacks"],
         "summary": "URIs for success callbacks for jobs.",
-        "description": "The callback URL will be invoked after a job succeeded its execution.\n",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked after a job succeeded its execution.\n",
         "requestBody": {
           "$ref": "#/components/requestBodies/SuccessRequestBody"
         },
@@ -730,17 +731,21 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
+          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
-    "/unit_jobs/inProgress": {
+    "/integrations/ogc-api-processes/gep/callbacks/inProgress": {
       "post": {
-        "operationId": "onProgressJob",
+        "operationId": "onGepJobProgress",
+        "tags": ["GEP callbacks"],
         "summary": "URIs for progress callbacks for jobs.",
-        "description": "The callback URL will be invoked while a job is changing its status during its execution.\n",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked while a job is changing its status during its execution.\n",
         "requestBody": {
           "$ref": "#/components/requestBodies/InProgressRequestBody"
         },
@@ -754,17 +759,21 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
+          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
         }
       }
     },
-    "/unit_jobs/failed": {
+    "/integrations/ogc-api-processes/gep/callbacks/failed": {
       "post": {
-        "operationId": "onFailedJob",
+        "operationId": "onGepJobFailed",
+        "tags": ["GEP callbacks"],
         "summary": "URIs for failed callbacks for jobs.",
-        "description": "The callback URL will be invoked after a job failed its execution.\n",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked after a job failed its execution.\n",
         "requestBody": {
           "$ref": "#/components/requestBodies/FailedRequestBody"
         },
@@ -777,6 +786,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
