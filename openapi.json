@@ -711,6 +711,108 @@
           }
         }
       }
+    },
+    "/integrations/ogc-api-processes/gep/callbacks/success": {
+      "post": {
+        "operationId": "onGepJobSuccess",
+        "tags": ["GEP callbacks"],
+        "summary": "URIs for success callbacks for jobs.",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked after a job succeeded its execution.\n",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SuccessRequestBody"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/integrations/ogc-api-processes/gep/callbacks/inProgress": {
+      "post": {
+        "operationId": "onGepJobProgress",
+        "tags": ["GEP callbacks"],
+        "summary": "URIs for progress callbacks for jobs.",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked while a job is changing its status during its execution.\n",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InProgressRequestBody"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/integrations/ogc-api-processes/gep/callbacks/failed": {
+      "post": {
+        "operationId": "onGepJobFailed",
+        "tags": ["GEP callbacks"],
+        "summary": "URIs for failed callbacks for jobs.",
+        "description": "Accepts GEP stage CloudEvents. The callback URL will be invoked after a job failed its execution.\n",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FailedRequestBody"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/BusinessRuleViolation"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2544,6 +2646,95 @@
             "tokenUrl": "https://auth.dev.apex.esa.int/realms/apex/protocol/openid-connect/token"
           }
         }
+      }
+    },
+    "parameters": {
+      "job_id": {
+        "name": "job_id",
+        "in": "path",
+        "description": "local identifier of a Job",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "SuccessRequestBody": {
+        "description": "A structured-mode CloudEvent request body for successes.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PipedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/CompletedCloudEvent"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "InProgressRequestBody": {
+        "description": "A structured-mode CloudEvent request body for in-progress updates.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/SubmittedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/DismissedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/PreparedCloudEvent"
+                },
+                {
+                  "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/StagedCloudEvent"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "FailedRequestBody": {
+        "description": "A structured-mode CloudEvent request body for failures.",
+        "required": true,
+        "content": {
+          "application/cloudevents+json": {
+            "schema": {
+              "$ref": "https://terradue.github.io/stage-events-client/c4/class/schemas/openapi.yaml#/components/schemas/FailedCloudEvent"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Ok": {
+        "description": "Request has been processed and job status has been successfully updated.\n"
+      },
+      "BadRequest": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/BadRequest"
+      },
+      "BusinessRuleViolation": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/BusinessRuleViolation"
+      },
+      "Unauthorized": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/Unauthorized"
+      },
+      "Forbidden": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/Forbidden"
+      },
+      "NotFound": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/NotFound"
+      },
+      "ServerError": {
+        "$ref": "https://terradue.github.io/http-apis-problems-detail/openapi.yaml#/components/responses/ServerError"
       }
     }
   }

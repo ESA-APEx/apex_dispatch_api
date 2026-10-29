@@ -25,7 +25,6 @@ from app.services.processing import (
     get_processing_job_by_user_id,
     get_processing_job_results,
 )
-
 from stac_pydantic import Collection
 
 # from app.auth import get_current_user

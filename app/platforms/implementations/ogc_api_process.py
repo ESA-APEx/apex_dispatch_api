@@ -4,6 +4,8 @@ from typing import List
 
 import requests
 from app.auth import exchange_token, get_current_user_claims
+from app.config.settings import settings
+from app.platforms.implementations.gep.subscriber import build_subscriber
 from fastapi import Response
 from loguru import logger
 
@@ -50,7 +52,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
     }
 
     status_mapping = {
-        StatusCode.ACCEPTED: ProcessingStatusEnum.CREATED,
+        StatusCode.ACCEPTED: ProcessingStatusEnum.QUEUED,
         StatusCode.RUNNING: ProcessingStatusEnum.RUNNING,
         StatusCode.DISMISSED: ProcessingStatusEnum.CANCELED,
         StatusCode.SUCCESSFUL: ProcessingStatusEnum.FINISHED,
@@ -210,10 +212,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         if user_claims.get("email"):
             properties["email"] = user_claims["email"]
 
-        data = {
-            "inputs": parameters,
-            "properties": properties,
-        }
+        data = {"inputs": parameters, "properties": properties}
+        data["subscriber"] = build_subscriber(settings.dispatch_api_public_url)
 
         content = api_client.execute_simple(
             process_id=details.application, execute=data, _headers=headers

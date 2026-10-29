@@ -66,7 +66,7 @@ async def test_create_processing_job_calls_platform_execute(
         id=fake_result,
         title=fake_job.title,
         label=ProcessTypeEnum.OPENEO,
-        status=ProcessingStatusEnum.CREATED,
+        status=ProcessingStatusEnum.QUEUED,
         parameters=fake_job.parameters,
         service=fake_job.service,
     )
@@ -74,7 +74,7 @@ async def test_create_processing_job_calls_platform_execute(
         id=fake_result,
         title=fake_summary.title,
         label=ProcessTypeEnum.OPENEO,
-        status=ProcessingStatusEnum.CREATED,
+        status=ProcessingStatusEnum.QUEUED,
     )
     fake_platform = MagicMock()
 
@@ -100,7 +100,7 @@ async def test_create_processing_job_calls_platform_execute(
     mock_save_job_to_db.assert_called_once()
     args, _ = mock_save_job_to_db.call_args
     saved_record = args[1]
-    assert saved_record.status == ProcessingStatusEnum.CREATED
+    assert saved_record.status == ProcessingStatusEnum.QUEUED
     assert result == fake_summary
 
 

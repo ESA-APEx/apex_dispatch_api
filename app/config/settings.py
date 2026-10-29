@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     cors_allowed_origins: str = Field(
         default="", json_schema_extra={"env": "CORS_ALLOWED_ORIGINS"}
     )
+    dispatch_api_public_url: str = Field(
+        default="http://localhost:8000",
+        json_schema_extra={"env": "DISPATCH_API_PUBLIC_URL"},
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

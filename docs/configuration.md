@@ -68,3 +68,40 @@ KEYCLOAK_CLIENT_SECRET=apex-client-secret
 
 BACKENDS='{"https://openeo.backend1.com" {"auth_method": "CLIENT_CREDENTIALS", "client_credentials": "oidc_provider/client_id/secret_secret"}, "https://openeo.backend2.com" {"auth_method": "USER_CREDENTIALS",  "token_provider": "backend", "token_prefix": "oidc/backend"}}'
 ```
+
+## GEP callbacks for OGC API Processes
+
+GEP callback routes run inside the existing APEx Dispatcher. OGC job execution
+continues to attach a subscriber block automatically, using the existing
+`DISPATCH_API_PUBLIC_URL` setting. No additional backend configuration is required.
+
+The callback URLs are rooted at `DISPATCH_API_PUBLIC_URL`:
+
+- `/integrations/ogc-api-processes/gep/callbacks/inProgress`
+- `/integrations/ogc-api-processes/gep/callbacks/success`
+- `/integrations/ogc-api-processes/gep/callbacks/failed`
+
+These endpoints accept GEP stage CloudEvents, not arbitrary OGC API Processes
+notification payloads. Routes are registered explicitly in `app/main.py`;
+`app/platforms/implementations/gep/__init__.py` has no registration side effects.
+
+The GEP adapter owns event mapping, subject normalization and subscriber URLs.
+It resolves exact platform job identifiers for OGC jobs;
+it does not accept APEx database IDs or suffix matches. Multiple matching jobs
+are rejected rather than arbitrarily selecting a backend. The existing subject
+format does not identify a trusted backend; backend authentication/correlation
+requires a separate change. This refactor does not implement callback authentication.
+
+The shared `app/services/job_status.py` validates and persists status changes.
+Duplicate statuses are no-ops; the existing state machine rejects terminal-state
+regressions. Existing polling behavior is unchanged. Missing jobs on progress
+callbacks still receive 200, preserving the existing early-callback behavior;
+missing jobs on success/failure receive 404.
+
+### Migration
+
+This change removes the three `/unit_jobs/{inProgress,success,failed}` callback
+routes. Finish jobs
+already subscribed to old URLs before deployment, or provide temporary explicit
+reverse-proxy rewrites to the new URLs until those jobs complete. No database
+migration or new `ProcessTypeEnum` value is required.
