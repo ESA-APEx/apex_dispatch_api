@@ -525,6 +525,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 self._remove_stac_links(feature.links, keep=["collection"])
             )
             feature.assets = self._update_assets_hrefs(feature.assets, user_token)
+            feature.collection = None
 
             # Some providers expose assets through an item link
             # instead of inlining them in the feature.
