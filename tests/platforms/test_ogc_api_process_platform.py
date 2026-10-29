@@ -138,6 +138,44 @@ def build_collection_payload(collection_id="collection-1", title="Test Collectio
     }
 
 
+def build_feature_collection_payload(item_id="item-1"):
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "bbox": [12.145, 41.996, 12.458, 42.176],
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [12.145, 41.996],
+                            [12.145, 42.176],
+                            [12.458, 42.176],
+                            [12.458, 41.996],
+                            [12.145, 41.996]
+                        ]
+                    ]
+                },
+                "properties": {
+                    "datetime": None,
+                    "start_datetime": "2024-11-13T17:06:07Z",
+                    "end_datetime": "2024-11-13T17:06:32Z",
+                    "title": f"Title for {item_id}",
+                },
+                "id": item_id,
+                "stac_version": "1.1.0",
+                "assets": {},
+                "links": [],
+                "stac_extensions": [],
+                "collection": "opensartoolkit-v2-2-1-dsb8v-zwdj6w"
+            }
+        ],
+        "links": [],
+        "bbox": [12.145, 41.996, 12.458, 42.176]
+    }
+
+
 @pytest.mark.parametrize(
     ("schema", "input_id", "expected_type"),
     [
@@ -632,22 +670,24 @@ async def test_get_job_status_maps_client_status(
 
 
 @pytest.mark.asyncio
+@patch.object(OGCAPIProcessPlatform, "_get_token_for_api", new_callable=AsyncMock)
 @patch(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
 @patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
 async def test_get_job_results_returns_stac_collection(
-    mock_create_api_client, mock_exchange_token, platform
+    mock_create_api_client, mock_exchange_token, mock_get_token_for_api, platform
 ):
+    mock_get_token_for_api.return_value = "exchanged-token"
     mock_exchange_token.return_value = "exchanged-token"
     api_client = MagicMock()
     api_client.get_result.return_value = {
-        "result": SimpleNamespace(
+        "output": SimpleNamespace(
             actual_instance=SimpleNamespace(
-                var_schema=SimpleNamespace(actual_instance=STAC_COLLECTION_SCHEMA),
+                var_schema=SimpleNamespace(actual_instance=GEOJSON_FEATURECOLLECTION_SCHEMA),
                 value=SimpleNamespace(
-                    actual_instance=build_collection_payload("collection-from-stac")
+                    oneof_schema_2_validator=build_feature_collection_payload("item-from-stac")
                 ),
             )
         )
@@ -664,8 +704,8 @@ async def test_get_job_results_returns_stac_collection(
         ),
     )
 
-    assert result.id == "collection-from-stac"
-    assert result.title == "Test Collection"
+    assert result.features[0].id == "item-from-stac"
+    assert result.features[0].properties.title == "Title for item-from-stac"
 
 
 @pytest.mark.asyncio
