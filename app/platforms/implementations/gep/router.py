@@ -1,5 +1,8 @@
 """Receive GEP stage CloudEvents, not arbitrary OGC callback payloads."""
 
+import json
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Request, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -7,9 +10,10 @@ from stage_events_client.models import BaseCloudEvent
 from http_apis_problems_detail import ErrorDetail
 from http_apis_problems_detail.fastapi import (
     PROBLEM_RESPONSES, BusinessRuleViolationException, ServerErrorException,
-    NotFoundException, ProblemRegistryException,
+    NotFoundException, ProblemRegistryException, ForbiddenException,
 )
 
+from app.platforms.implementations.gep.auth import verify_callback_token
 from app.database.db import get_db
 from app.schemas.enum import ProcessingStatusEnum
 from app.services.job_status import apply_job_status, InvalidJobTransition
@@ -29,6 +33,7 @@ def _handle_callback_status_update(
     cloud_event: BaseCloudEvent,
     target_status: ProcessingStatusEnum,
     request: Request,
+    caller: set[str],
 ) -> None:
     """Internal helper to update job status from callback CloudEvents."""
     job_identifier = extract_job_identifier(cloud_event) or ""
@@ -56,6 +61,17 @@ def _handle_callback_status_update(
                         detail=f"Job {job_identifier} does not exist in the Job registry",
                     )
                 ]
+            )
+
+        # Authorize against persisted dispatch metadata, not CloudEvent claims.
+        endpoint = json.loads(job.service)["endpoint"].rstrip("/")
+        if endpoint not in caller:
+            raise ForbiddenException(
+                request=request,
+                errors=[ErrorDetail(
+                    pointer="subject",
+                    detail="Callback caller is not authorized to update this job.",
+                )],
             )
 
         try:
@@ -98,6 +114,8 @@ def _handle_callback_status_update(
     operation_id="onGepJobSuccess",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
+        status.HTTP_401_UNAUTHORIZED: PROBLEM_RESPONSES[status.HTTP_401_UNAUTHORIZED],
+        status.HTTP_403_FORBIDDEN: PROBLEM_RESPONSES[status.HTTP_403_FORBIDDEN],
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -111,11 +129,12 @@ def _handle_callback_status_update(
 def on_gep_job_success(
     request: Request,
     body: SuccessEvent,
+    caller: Annotated[set[str], Depends(verify_callback_token)],
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for success callbacks for jobs."""
     _handle_callback_status_update(
-        db, body, ProcessingStatusEnum.FINISHED, request
+        db, body, ProcessingStatusEnum.FINISHED, request, caller
     )
 
 
@@ -131,6 +150,8 @@ def on_gep_job_success(
     operation_id="onGepJobProgress",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
+        status.HTTP_401_UNAUTHORIZED: PROBLEM_RESPONSES[status.HTTP_401_UNAUTHORIZED],
+        status.HTTP_403_FORBIDDEN: PROBLEM_RESPONSES[status.HTTP_403_FORBIDDEN],
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -144,11 +165,12 @@ def on_gep_job_success(
 def on_gep_job_progress(
     request: Request,
     body: ProgressEvent,
+    caller: Annotated[set[str], Depends(verify_callback_token)],
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for progress callbacks for jobs."""
     target_status = STAGE_TO_APEX_STATUS[body.type]
-    _handle_callback_status_update(db, body, target_status, request)
+    _handle_callback_status_update(db, body, target_status, request, caller)
 
 
 @router.post(
@@ -163,6 +185,8 @@ def on_gep_job_progress(
     operation_id="onGepJobFailed",
     responses={
         status.HTTP_200_OK: {"description": "Job status updated successfully."},
+        status.HTTP_401_UNAUTHORIZED: PROBLEM_RESPONSES[status.HTTP_401_UNAUTHORIZED],
+        status.HTTP_403_FORBIDDEN: PROBLEM_RESPONSES[status.HTTP_403_FORBIDDEN],
         status.HTTP_400_BAD_REQUEST: PROBLEM_RESPONSES[status.HTTP_400_BAD_REQUEST],
         status.HTTP_404_NOT_FOUND: PROBLEM_RESPONSES[status.HTTP_404_NOT_FOUND],
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -176,9 +200,10 @@ def on_gep_job_progress(
 def on_gep_job_failed(
     request: Request,
     body: FailureEvent,
+    caller: Annotated[set[str], Depends(verify_callback_token)],
     db: Session = Depends(get_db),
 ) -> None:
     """URIs for failed callbacks for jobs."""
     _handle_callback_status_update(
-        db, body, ProcessingStatusEnum.FAILED, request
+        db, body, ProcessingStatusEnum.FAILED, request, caller
     )

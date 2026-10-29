@@ -2,6 +2,8 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from fastapi import status
 
+from app.main import app
+from app.platforms.implementations.gep.auth import verify_callback_token
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.unit_job import ServiceDetails
 from app.platforms.implementations.ogc_api_process import OGCAPIProcessPlatform
@@ -102,6 +104,8 @@ COMPLETED_PAYLOAD = {
 @pytest.fixture
 def callback_dependencies(fake_processing_job_record):
     fake_processing_job_record.platform_job_id = "default:job-123"
+    # Ensure authorized caller matches the endpoint in fake_processing_job_record.service ("foo")
+    app.dependency_overrides[verify_callback_token] = lambda: {"foo"}
     with (
         patch(
             "app.platforms.implementations.gep.router.get_gep_job",
@@ -114,6 +118,7 @@ def callback_dependencies(fake_processing_job_record):
         patch("app.services.job_status.update_job_status_by_id") as update,
     ):
         yield lookup, can_transition, update
+    app.dependency_overrides.pop(verify_callback_token, None)
 
 
 CALLBACK_CASES = [
