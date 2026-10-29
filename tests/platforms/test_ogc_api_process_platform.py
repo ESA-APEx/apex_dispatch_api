@@ -3,8 +3,16 @@ import types
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import jwt
 import pytest
 import requests
+
+
+TEST_USER_TOKEN = jwt.encode(
+    {"iss": "https://issuer.example.com/realms/test"},
+    "test-secret-for-ogc-api-tests-at-least-32-bytes",
+    algorithm="HS256",
+)
 
 
 def _install_ogc_api_processes_client_stub():
@@ -455,7 +463,7 @@ async def test_execute_job_returns_namespaced_job_id(
     mock_create_api_client.return_value = api_client
 
     result = await platform.execute_job(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         title="My job",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -510,7 +518,7 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
     mock_create_api_client.return_value = api_client
 
     result = await platform.execute_job(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         title="My job",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -561,7 +569,7 @@ async def test_execute_job_omits_missing_optional_user_fields(
     mock_create_api_client.return_value = api_client
 
     await platform.execute_job(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         title="My job",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -615,7 +623,7 @@ async def test_get_job_status_maps_client_status(
     mock_create_api_client.return_value = api_client
 
     result = await platform.get_job_status(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         job_id="ns:job-123",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -655,7 +663,7 @@ async def test_get_job_results_returns_stac_collection(
     mock_create_api_client.return_value = api_client
 
     result = await platform.get_job_results(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         job_id="ns:job-123",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -710,7 +718,7 @@ async def test_get_job_results_follows_geojson_collection_link(
     )
 
     result = await platform.get_job_results(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         job_id="ns:job-123",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -745,7 +753,7 @@ async def test_get_job_results_returns_empty_collection_when_no_supported_result
     mock_create_api_client.return_value = api_client
 
     result = await platform.get_job_results(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         job_id="ns:job-123",
         details=ServiceDetails(
             endpoint="https://example.com",
@@ -799,7 +807,7 @@ async def test_get_service_parameters_maps_geojson_and_options(
     mock_create_api_client.return_value = api_client
 
     result = await platform.get_service_parameters(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         details=ServiceDetails(
             endpoint="https://example.com",
             namespace="ns",
@@ -891,7 +899,7 @@ async def test_get_service_parameters_maps_all_supported_types(
     mock_create_api_client.return_value = api_client
 
     result = await platform.get_service_parameters(
-        user_token="token",
+        user_token=TEST_USER_TOKEN,
         details=ServiceDetails(
             endpoint="https://example.com",
             namespace="ns",
