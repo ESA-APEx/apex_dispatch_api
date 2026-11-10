@@ -1,6 +1,10 @@
 import traceback
 from typing import Any
 
+from http_apis_problems_detail.fastapi import (
+    ProblemRegistryException,
+    problem_registry_exception_handler,
+)
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -83,6 +87,7 @@ def register_exception_handlers(app):
     Call this in main.py after creating the FastAPI() instance.
     """
 
+    app.add_exception_handler(ProblemRegistryException, problem_registry_exception_handler)
     app.add_exception_handler(DispatcherException, dispatch_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)

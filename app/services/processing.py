@@ -6,6 +6,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 from stac_pydantic import Collection
 
+
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
     ProcessingJobRecord,
@@ -57,7 +58,7 @@ async def create_processing_job(
             title=request.title,
             label=request.label,
             status=(
-                ProcessingStatusEnum.CREATED if job_id else ProcessingStatusEnum.FAILED
+                ProcessingStatusEnum.QUEUED if job_id else ProcessingStatusEnum.FAILED
             ),
             user_id=user,
             platform_job_id=job_id,

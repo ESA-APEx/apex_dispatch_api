@@ -361,7 +361,7 @@ def test_split_job_id(platform, job_id, expected):
 @pytest.mark.parametrize(
     ("ogc_status, expected_status"),
     [
-        ("accepted", ProcessingStatusEnum.CREATED),
+        ("accepted", ProcessingStatusEnum.QUEUED),
         ("running", ProcessingStatusEnum.RUNNING),
         ("dismissed", ProcessingStatusEnum.CANCELED),
         ("successful", ProcessingStatusEnum.FINISHED),
@@ -486,6 +486,17 @@ async def test_execute_job_returns_namespaced_job_id(
                 "username": "alice",
                 "email": "alice@example.com",
             },
+            "subscriber": {
+                "successUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/success"
+                ),
+                "inProgressUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/inProgress"
+                ),
+                "failedUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/failed"
+                ),
+            },
         },
         _headers={
             "accept": "*/*",
@@ -538,6 +549,17 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
                 "application": "buffer",
                 "user_id": "user-123",
             },
+            "subscriber": {
+                "successUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/success"
+                ),
+                "inProgressUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/inProgress"
+                ),
+                "failedUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/failed"
+                ),
+            },
         },
         _headers={
             "accept": "*/*",
@@ -584,6 +606,17 @@ async def test_execute_job_omits_missing_optional_user_fields(
         execute={
             "inputs": {"limit": 10},
             "properties": {"title": "My job", "application": "buffer"},
+            "subscriber": {
+                "successUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/success"
+                ),
+                "inProgressUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/inProgress"
+                ),
+                "failedUri": (
+                    "http://localhost:8000/integrations/ogc-api-processes/gep/callbacks/failed"
+                ),
+            },
         },
         _headers={
             "accept": "*/*",

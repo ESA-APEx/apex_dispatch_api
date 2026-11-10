@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.correlation_id import add_correlation_id
 from app.middleware.error_handling import register_exception_handlers
 from app.platforms.dispatcher import load_processing_platforms
+from app.platforms.implementations.gep.router import router as gep_callbacks_router
 from app.services.tiles.base import load_grids
 from app.config.logger import setup_logging
 from app.config.settings import settings
@@ -59,3 +60,5 @@ app.include_router(upscale_tasks.router)
 app.include_router(health.router)
 app.include_router(parameters.router)
 app.include_router(statistics.router)
+
+app.include_router(gep_callbacks_router)
