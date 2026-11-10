@@ -6,8 +6,6 @@ import requests
 from app.auth import exchange_token, get_current_user_claims
 from fastapi import Response
 from loguru import logger
-import jwt
-from urllib.parse import urlparse
 
 from app.platforms.base import BaseProcessingPlatform
 from app.platforms.dispatcher import register_platform
