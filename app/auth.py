@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.error import AuthException, DispatcherException
 from app.schemas.websockets import WSStatusMessage
+from app.config.schemas import BackendAuthConfig, TokenExchangeMethod
 
 from .config.settings import settings
 
@@ -109,16 +110,95 @@ async def exchange_token(user_token: str, url: str) -> str:
     :return: The bearer token as a string, prefixed with `token_prefix` when configured.
     """
 
-    provider = settings.backend_auth_config[url].token_provider
-    token_prefix = settings.backend_auth_config[url].token_prefix
+    backend_idp = settings.backend_auth_config[url]
 
-    if not provider:
-        raise ValueError(
-            f"Backend '{url}' must define 'token_provider'"
+    if backend_idp.exchange_method == TokenExchangeMethod.IDENTITY_BROKERING:
+        if not backend_idp.token_provider:
+            raise ValueError(f"Backend '{url}' must define 'token_provider'")
+        external_token = await _retrieve_broker_token(
+            user_token=user_token, provider=backend_idp.token_provider
+        )
+    elif backend_idp.exchange_method == TokenExchangeMethod.TRUSTED_TOKEN_DELEGATION:
+        external_token = await _exchange_token_for_provider(
+            initial_token=user_token, backend_idp=backend_idp
+        )
+    else:
+        raise ValueError(f"Unsupported token exchange method: {backend_idp.exchange_method}")
+
+    return (
+        f"{backend_idp.token_prefix}/{external_token}"
+        if backend_idp.token_prefix
+        else external_token
+    )
+
+
+async def _exchange_token_for_provider(
+    initial_token: str, backend_idp: BackendAuthConfig
+) -> str:
+    """Exchange an APEx access token using trusted token delegation."""
+    if not backend_idp.token_url:
+        raise AuthException(
+            http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Trusted Token Delegation not configured (missing token URL).",
+        )
+    if not backend_idp.client_id:
+        raise AuthException(
+            http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Trusted Token Delegation not configured (missing client ID).",
         )
 
-    external_token = await _retrieve_broker_token(user_token=user_token, provider=provider)
-    return f"{token_prefix}/{external_token}" if token_prefix else external_token
+    provider = backend_idp.token_provider or backend_idp.token_url
+    payload = {
+        "client_id": backend_idp.client_id,
+        "client_secret": backend_idp.client_secret,
+        "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+        "subject_token": initial_token,
+        "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
+        "subject_issuer": backend_idp.subject_issuer,
+        "audience": backend_idp.audience,
+        "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
+        "scope": "openid profile email",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=BROKER_TOKEN_TIMEOUT_SECONDS) as client:
+            resp = await client.post(backend_idp.token_url, data=payload)
+    except httpx.TimeoutException:
+        logger.error(f"Trusted token delegation timed out for provider={provider}")
+        raise AuthException(
+            http_status=status.HTTP_504_GATEWAY_TIMEOUT,
+            message=_support_message(provider),
+        )
+    except httpx.RequestError as exc:
+        logger.error(
+            f"Trusted token delegation network error for provider={provider}: "
+            f"{type(exc).__name__}"
+        )
+        raise AuthException(
+            http_status=status.HTTP_502_BAD_GATEWAY,
+            message=_support_message(provider),
+        )
+
+    try:
+        body = resp.json()
+    except ValueError:
+        body = None
+
+    access_token = body.get("access_token") if isinstance(body, dict) else None
+    if resp.status_code != 200 or not isinstance(access_token, str) or not access_token.strip():
+        logger.error(
+            f"Trusted token delegation failed for provider={provider}, "
+            f"status={resp.status_code}"
+        )
+        client_status = (
+            status.HTTP_401_UNAUTHORIZED
+            if resp.status_code in (400, 401, 403)
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise AuthException(http_status=client_status, message=_support_message(provider))
+
+    _validate_external_token(access_token, initial_token, body, provider)
+    return access_token
 
 
 def _account_url() -> str:

@@ -2,8 +2,7 @@ import datetime
 from typing import List, Optional
 
 from loguru import logger
-from sqlalchemy import DateTime, Enum, Integer, String
-from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy import DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.database.db import Base
@@ -22,7 +21,7 @@ class UpscalingTaskRecord(Base):
         Enum(ProcessingStatusEnum), index=True
     )
     user_id: Mapped[str] = mapped_column(String(255), index=True)
-    service: Mapped[str] = mapped_column(LONGTEXT)
+    service: Mapped[str] = mapped_column(Text())
     created: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, index=True
     )

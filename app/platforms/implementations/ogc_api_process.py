@@ -165,6 +165,9 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         return ApiClientWrapper(configuration, **additional_args)
 
+    async def _get_token_for_api(self, user_token: str, url: str) -> str:
+        return await exchange_token(user_token, url)
+
     async def execute_job(
         self,
         user_token: str,
@@ -179,7 +182,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
         # Exchanging token
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -529,12 +532,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     return collection
 
         return self._build_collection_from_features(
-            features,
-            assets,
-            result_name,
-            user_token,
-            details,
-            internal_job_id
+            features, assets, result_name, user_token, details, internal_job_id
         )
 
     async def get_job_status(
@@ -543,7 +541,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         logger.debug(f"Fetching job status for OGC API job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -562,7 +560,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
@@ -667,7 +665,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
 
         logger.debug("Exchanging user token for OGC API Process execution...")
-        exchanged_token = await exchange_token(
+        exchanged_token = await self._get_token_for_api(
             user_token=user_token, url=details.endpoint
         )
 
