@@ -168,19 +168,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         return ApiClientWrapper(configuration, **additional_args)
 
     async def _get_token_for_api(self, user_token: str, url: str) -> str:
-        payload = jwt.decode(user_token, options={"verify_signature": False})
-
-        # Extract the 'iss' (issuer) claim safely
-        issuer = payload.get("iss")
-        parsed_uri = urlparse(issuer)
-
-        # Return token if it is a Terradue/Geohazards-TEP token
-        # (issued by iam.terradue.com)
-        if parsed_uri.netloc == "iam.terradue.com":
-            logger.debug("Skipping token exchange for iam.terradue.com issuer")
-            return user_token
-
-        # Otherwise perform token exchange (using APEx token as input)
         return await exchange_token(user_token, url)
 
     async def execute_job(
