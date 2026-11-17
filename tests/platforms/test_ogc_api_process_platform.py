@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import jwt
 import pytest
 import requests
+from stac_pydantic import ItemCollection
 
 
 TEST_USER_TOKEN = jwt.encode(
@@ -693,7 +694,7 @@ async def test_get_job_status_maps_client_status(
 @patch.object(
     OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
 )
-async def test_get_job_results_returns_stac_collection(
+async def test_get_job_results_returns_item_collection(
     mock_create_api_client,
     mock_exchange_token,
     mock_get_token_for_api,
@@ -727,6 +728,8 @@ async def test_get_job_results_returns_stac_collection(
         ),
     )
 
+    assert isinstance(result, ItemCollection)
+    assert result.type == "FeatureCollection"
     assert result.features[0].id == "item-from-stac"
     assert result.features[0].properties.title == "Title for item-from-stac"
     mock_http_get.assert_called_once_with(
