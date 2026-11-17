@@ -1,5 +1,6 @@
 import json
 import re
+from asyncio import to_thread
 from urllib.parse import urlparse
 
 import jwt
@@ -615,8 +616,27 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
                 if STAC_COLLECTION_SCHEMA == schema_reference:
                     logger.success(f"STAC Collection found in results: '{result_name}'")
-                    return Collection.model_validate(
+                    collection = Collection.model_validate(
                         qualified_value.value.actual_instance
+                    )
+                    features = []
+                    for link in collection.links.root:
+                        if link.rel != "item":
+                            continue
+                        response = await to_thread(
+                            http_get,
+                            link.href,
+                            follow_redirects=True,
+                            headers={
+                                "Authorization": f"Bearer {exchanged_token or user_token}"
+                            },
+                        )
+                        response.raise_for_status()
+                        features.append(response.json())
+                    return self._process_feature_collection(
+                        {"features": features},
+                        result_name=result_name,
+                        user_token=exchanged_token or user_token,
                     )
                 elif GEOJSON_FEATURECOLLECTION_SCHEMA == schema_reference:
                     logger.success(

@@ -685,6 +685,9 @@ async def test_get_job_status_maps_client_status(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "schema_reference", [GEOJSON_FEATURECOLLECTION_SCHEMA, STAC_COLLECTION_SCHEMA]
+)
 @patch("app.platforms.implementations.ogc_api_process.http_get")
 @patch.object(OGCAPIProcessPlatform, "_get_token_for_api", new_callable=AsyncMock)
 @patch(
@@ -700,19 +703,34 @@ async def test_get_job_results_returns_item_collection(
     mock_get_token_for_api,
     mock_http_get,
     platform,
+    schema_reference,
 ):
     mock_get_token_for_api.return_value = "exchanged-token"
     mock_exchange_token.return_value = "exchanged-token"
     mock_http_get.return_value.json.return_value = build_collection_payload()
     feature_collection = build_feature_collection_payload("item-from-stac")
+    collection = build_collection_payload()
+    collection["links"] = [
+        {"rel": "item", "href": "https://example.com/items/item-from-stac"}
+    ]
+    collection["assets"] = {
+        "ignored": {"href": "https://example.com/collection-only.tif"}
+    }
+    if schema_reference == STAC_COLLECTION_SCHEMA:
+        item_response = MagicMock()
+        item_response.json.return_value = feature_collection["features"][0]
+        mock_http_get.side_effect = [item_response, mock_http_get.return_value]
     api_client = MagicMock()
     api_client.get_result.return_value = {
         "output": SimpleNamespace(
             actual_instance=SimpleNamespace(
                 var_schema=SimpleNamespace(
-                    actual_instance=GEOJSON_FEATURECOLLECTION_SCHEMA
+                    actual_instance=schema_reference
                 ),
-                value=SimpleNamespace(oneof_schema_2_validator=feature_collection),
+                value=SimpleNamespace(
+                    actual_instance=collection,
+                    oneof_schema_2_validator=feature_collection,
+                ),
             )
         )
     }
@@ -730,9 +748,23 @@ async def test_get_job_results_returns_item_collection(
 
     assert isinstance(result, ItemCollection)
     assert result.type == "FeatureCollection"
+    assert len(result.features) == 1
     assert result.features[0].id == "item-from-stac"
     assert result.features[0].properties.title == "Title for item-from-stac"
-    mock_http_get.assert_called_once_with(
+    assert result.features[0].assets == {}
+    if schema_reference == STAC_COLLECTION_SCHEMA:
+        assert mock_http_get.call_count == 2
+        assert mock_http_get.call_args_list[0].args == (
+            "https://example.com/items/item-from-stac",
+        )
+        assert mock_http_get.call_args_list[0].kwargs == {
+            "follow_redirects": True,
+            "headers": {"Authorization": "Bearer exchanged-token"},
+        }
+        item_response.raise_for_status.assert_called_once_with()
+    else:
+        mock_http_get.assert_called_once()
+    mock_http_get.assert_called_with(
         "https://example.com/collections/1",
         follow_redirects=True,
         headers={"Authorization": "Bearer exchanged-token"},
