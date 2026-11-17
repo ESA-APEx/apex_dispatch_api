@@ -160,7 +160,6 @@ async def _exchange_token_for_provider(
         "scope": "openid profile email",
     }
 
-    provider_str = backend_idp.token_provider or backend_idp.token_url
     try:
         async with httpx.AsyncClient(timeout=BROKER_TOKEN_TIMEOUT_SECONDS) as client:
             resp = await client.post(backend_idp.token_url, data=payload)

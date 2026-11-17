@@ -1,9 +1,7 @@
 import json
 import re
 from asyncio import to_thread
-from urllib.parse import urlparse
 
-import jwt
 import requests
 from fastapi import Response
 from httpx import Response as HTTPXResponse
@@ -17,11 +15,10 @@ from ogc_api_processes_client.models.link import Link as OgcLink
 from ogc_api_processes_client.models.qualified_input_value import QualifiedInputValue
 from ogc_api_processes_client.models.status_code import StatusCode
 from ogc_api_processes_client.models.status_info import StatusInfo
-from stac_pydantic.collection import Collection, Extent, SpatialExtent, TimeInterval
+from stac_pydantic.collection import Collection
 from stac_pydantic.item import Item
 from stac_pydantic.item_collection import ItemCollection
 from stac_pydantic.links import Links
-from stac_pydantic.version import STAC_VERSION
 
 from app.auth import exchange_token, get_current_user_claims
 from app.platforms.base import BaseProcessingPlatform
@@ -477,7 +474,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             link
             for link in links.root
             if link.rel in ["self", "item", "items", "collection", "parent", "root"]
-            and not link.rel in keep
+            and link.rel not in keep
             or link.rel.endswith("queryables")
         ]
         for link in stac_links:
@@ -536,7 +533,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         item_collection = self._build_item_collection_from_features(
             features, result_name
         )
-        
         return item_collection
 
     async def get_job_status(
@@ -648,7 +644,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     return self._process_feature_collection(
                         feature_collection,
                         result_name=result_name,
-                        user_token=exchanged_token or user_token
+                        user_token=exchanged_token or user_token,
                     )
                 else:
                     logger.warning(

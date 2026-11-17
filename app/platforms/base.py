@@ -7,7 +7,6 @@ from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.parameters import Parameter
 from app.schemas.unit_job import ServiceDetails
 
-from stac_pydantic.collection import Collection
 from stac_pydantic.item_collection import ItemCollection
 
 
