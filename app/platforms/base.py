@@ -76,7 +76,7 @@ class BaseProcessingPlatform(ABC):
     @abstractmethod
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection | ItemCollection:
+    ) -> ItemCollection:
         """
         Retrieve the job results of a processing job that is running on the platform.
 

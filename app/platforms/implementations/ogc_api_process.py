@@ -317,8 +317,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             str | None: The download link if available, otherwise None.
         """
         refs = [
-            asset.href,
-            asset.to_dict().get("alternate", {}).get("https", {}).get("href"),
+            asset.get("href", None),
+            asset.get("alternate", {}).get("https", {}).get("href"),
         ]
         for href in refs:
             if href and href.startswith("https://"):
@@ -405,7 +405,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         "original HTTPS href."
                     )
                     signed_url = href
-                updated_asset.href = signed_url
+                updated_asset["href"] = signed_url
                 updated_assets[asset_name] = updated_asset
 
         return updated_assets
@@ -414,9 +414,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         self,
         features: list,
         result_name: str,
-        user_token: str,
-        details: ServiceDetails,
-        internal_job_id: str,
     ) -> ItemCollection:
         """
         Build a STAC Collection from a list of GeoJSON features.
@@ -492,8 +489,6 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         *,
         result_name: str,
         user_token: str,
-        details: ServiceDetails,
-        internal_job_id: str,
     ) -> ItemCollection:
         logger.debug(f"Feature collection: {json.dumps(feature_collection, indent=2)}")
 
@@ -529,7 +524,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 collection_data = response.json()
                 collection = Collection.model_validate(collection_data)
                 collection.assets = self._update_assets_hrefs(
-                    collection.assets, user_token
+                    collection.assets or {}, user_token
                 )
                 logger.debug(
                     f"Extracted collection '{collection.id}' "
@@ -538,7 +533,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                 collection.links = Links(self._remove_stac_links(collection.links))
 
         item_collection = self._build_item_collection_from_features(
-            features, result_name, user_token, details, internal_job_id
+            features, result_name
         )
         
         return item_collection
@@ -564,7 +559,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
 
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection | ItemCollection:
+    ) -> ItemCollection:
         logger.debug(f"Fetching job result for opfenEO job with ID {job_id}")
 
         logger.debug("Exchanging user token for OGC API Process execution...")
@@ -633,9 +628,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     return self._process_feature_collection(
                         feature_collection,
                         result_name=result_name,
-                        user_token=exchanged_token or user_token,
-                        details=details,
-                        internal_job_id=internal_job_id,
+                        user_token=exchanged_token or user_token
                     )
                 else:
                     logger.warning(
@@ -644,24 +637,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                     )
 
         # result not found, send back an empty collection
-
-        return Collection(
-            id=f"{details.namespace}-{internal_job_id}",
-            stac_version=STAC_VERSION,
-            title=f"Results for {details.application}",
-            description=(
-                f"OGC API process result items for job '{internal_job_id}' "
-                f"of application '{details.application}'."
-            ),
-            type="Collection",
-            license="proprietary",
-            links=Links([]),
-            extent=Extent(
-                spatial=SpatialExtent(bbox=[(-180.0, -90.0, 180.0, 90.0)]),
-                temporal=TimeInterval(interval=[[None, None]]),
-            ),
-            assets={},
-        )
+        return self._build_item_collection_from_features([], "No results found")
 
     async def get_service_parameters(
         self, user_token: str, details: ServiceDetails

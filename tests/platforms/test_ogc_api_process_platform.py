@@ -20,9 +20,7 @@ def _install_ogc_api_processes_client_stub():
     api_client_wrapper_module = types.ModuleType(
         "ogc_api_processes_client.api_client_wrapper"
     )
-    configuration_module = types.ModuleType(
-        "ogc_api_processes_client.configuration"
-    )
+    configuration_module = types.ModuleType("ogc_api_processes_client.configuration")
     models_module = types.ModuleType("ogc_api_processes_client.models")
     inline_or_ref_data_module = types.ModuleType(
         "ogc_api_processes_client.models.inline_or_ref_data"
@@ -138,7 +136,12 @@ def build_collection_payload(collection_id="collection-1", title="Test Collectio
         "description": "Test STAC collection",
         "type": "Collection",
         "license": "proprietary",
-        "links": [],
+        "links": [
+            {
+                "rel": "collection",
+                "href": "https://example.com/collections/1",
+            }
+        ],
         "extent": {
             "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
             "temporal": {"interval": [[None, None]]},
@@ -161,9 +164,9 @@ def build_feature_collection_payload(item_id="item-1"):
                             [12.145, 42.176],
                             [12.458, 42.176],
                             [12.458, 41.996],
-                            [12.145, 41.996]
+                            [12.145, 41.996],
                         ]
-                    ]
+                    ],
                 },
                 "properties": {
                     "datetime": None,
@@ -174,13 +177,18 @@ def build_feature_collection_payload(item_id="item-1"):
                 "id": item_id,
                 "stac_version": "1.1.0",
                 "assets": {},
-                "links": [],
+                "links": [
+                    {
+                        "rel": "collection",
+                        "href": "https://example.com/collections/1",
+                    }
+                ],
                 "stac_extensions": [],
-                "collection": "opensartoolkit-v2-2-1-dsb8v-zwdj6w"
+                "collection": "opensartoolkit-v2-2-1-dsb8v-zwdj6w",
             }
         ],
         "links": [],
-        "bbox": [12.145, 41.996, 12.458, 42.176]
+        "bbox": [12.145, 41.996, 12.458, 42.176],
     }
 
 
@@ -210,32 +218,28 @@ def build_feature_collection_payload(item_id="item-1"):
         ({"type": "integer"}, "limit", ParamTypeEnum.INTEGER),
         ({"type": "double"}, "scale", ParamTypeEnum.DOUBLE),
         (
-            {"type": "object", "required": ["coordinates", "type", "bbox"],
-             "properties": {
-                 "type": {
-                     "actual_instance": {
-                        "actual_instance": {
-                            "enum": ["Polygon"]
-                        }
-                     }
-                 }
-             }
-             },
+            {
+                "type": "object",
+                "required": ["coordinates", "type", "bbox"],
+                "properties": {
+                    "type": {
+                        "actual_instance": {"actual_instance": {"enum": ["Polygon"]}}
+                    }
+                },
+            },
             "aoi",
             ParamTypeEnum.POLYGON,
         ),
         (
-            {"type": "object", "required": ["coordinates", "type", "bbox"],
-             "properties": {
-                 "type": {
-                     "actual_instance": {
-                        "actual_instance": {
-                            "enum": ["Point"]
-                        }
-                     }
-                 }
-             }
-             },
+            {
+                "type": "object",
+                "required": ["coordinates", "type", "bbox"],
+                "properties": {
+                    "type": {
+                        "actual_instance": {"actual_instance": {"enum": ["Point"]}}
+                    }
+                },
+            },
             "poi",
             ParamTypeEnum.POINT,
         ),
@@ -285,17 +289,13 @@ def test_transform_bbox_parameter(platform, value, expected):
         "invalid",
         {
             "type": "Polygon",
-            "coordinates": [
-                [[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]
-            ],
+            "coordinates": [[[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]],
         },
         {
             "type": "Feature",
             "geometry": {
                 "type": "Polygon",
-                "coordinates": [
-                    [[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]
-                ],
+                "coordinates": [[[4, 50], [5, 50], [5, 51], [4, 51], [4, 50]]],
             },
         },
     ],
@@ -373,9 +373,7 @@ def test_update_assets_hrefs_keeps_original_href_when_signing_fails(platform):
     assets = {
         "result": {
             "href": "s3://bucket/result.tif",
-            "alternate": {
-                "https": {"href": "https://download.example.com/resource"}
-            },
+            "alternate": {"https": {"href": "https://download.example.com/resource"}},
         }
     }
 
@@ -481,7 +479,9 @@ async def test_create_api_client_instance_with_token_and_namespace(
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
 @patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_execute_job_returns_namespaced_job_id(
     mock_create_api_client,
     mock_transform_parameters,
@@ -540,7 +540,9 @@ async def test_execute_job_returns_namespaced_job_id(
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
 @patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_execute_job_returns_plain_job_id_without_namespace(
     mock_create_api_client,
     mock_transform_parameters,
@@ -591,7 +593,9 @@ async def test_execute_job_returns_plain_job_id_without_namespace(
 )
 @patch("app.platforms.implementations.ogc_api_process.get_current_user_claims")
 @patch.object(OGCAPIProcessPlatform, "_transform_parameters", new_callable=AsyncMock)
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_execute_job_omits_missing_optional_user_fields(
     mock_create_api_client,
     mock_transform_parameters,
@@ -651,7 +655,9 @@ async def test_execute_synchronous_job_not_implemented(platform):
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_job_status_maps_client_status(
     mock_create_api_client, mock_exchange_token, platform
 ):
@@ -678,25 +684,34 @@ async def test_get_job_status_maps_client_status(
 
 
 @pytest.mark.asyncio
+@patch("app.platforms.implementations.ogc_api_process.http_get")
 @patch.object(OGCAPIProcessPlatform, "_get_token_for_api", new_callable=AsyncMock)
 @patch(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_job_results_returns_stac_collection(
-    mock_create_api_client, mock_exchange_token, mock_get_token_for_api, platform
+    mock_create_api_client,
+    mock_exchange_token,
+    mock_get_token_for_api,
+    mock_http_get,
+    platform,
 ):
     mock_get_token_for_api.return_value = "exchanged-token"
     mock_exchange_token.return_value = "exchanged-token"
+    mock_http_get.return_value.json.return_value = build_collection_payload()
+    feature_collection = build_feature_collection_payload("item-from-stac")
     api_client = MagicMock()
     api_client.get_result.return_value = {
         "output": SimpleNamespace(
             actual_instance=SimpleNamespace(
-                var_schema=SimpleNamespace(actual_instance=GEOJSON_FEATURECOLLECTION_SCHEMA),
-                value=SimpleNamespace(
-                    oneof_schema_2_validator=build_feature_collection_payload("item-from-stac")
+                var_schema=SimpleNamespace(
+                    actual_instance=GEOJSON_FEATURECOLLECTION_SCHEMA
                 ),
+                value=SimpleNamespace(oneof_schema_2_validator=feature_collection),
             )
         )
     }
@@ -714,6 +729,12 @@ async def test_get_job_results_returns_stac_collection(
 
     assert result.features[0].id == "item-from-stac"
     assert result.features[0].properties.title == "Title for item-from-stac"
+    mock_http_get.assert_called_once_with(
+        "https://example.com/collections/1",
+        follow_redirects=True,
+        headers={"Authorization": "Bearer exchanged-token"},
+    )
+    mock_http_get.return_value.raise_for_status.assert_called_once_with()
 
 
 @pytest.mark.asyncio
@@ -722,11 +743,14 @@ async def test_get_job_results_returns_stac_collection(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_job_results_follows_geojson_collection_link(
     mock_create_api_client, mock_exchange_token, mock_http_get, platform
 ):
     mock_exchange_token.return_value = "exchanged-token"
+    feature_collection = build_feature_collection_payload("item-from-geojson")
     api_client = MagicMock()
     api_client.get_result.return_value = {
         "result": SimpleNamespace(
@@ -734,20 +758,7 @@ async def test_get_job_results_follows_geojson_collection_link(
                 var_schema=SimpleNamespace(
                     actual_instance=GEOJSON_FEATURECOLLECTION_SCHEMA
                 ),
-                value=SimpleNamespace(
-                    oneof_schema_2_validator={
-                        "features": [
-                            {
-                                "links": [
-                                    {
-                                        "rel": "collection",
-                                        "href": "https://example.com/collections/1",
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ),
+                value=SimpleNamespace(oneof_schema_2_validator=feature_collection),
             )
         )
     }
@@ -767,7 +778,11 @@ async def test_get_job_results_follows_geojson_collection_link(
         ),
     )
 
-    assert result.id == "collection-from-geojson"
+    assert result.type == "FeatureCollection"
+    assert len(result.features) == 1
+    assert result.features[0].id == "item-from-geojson"
+    assert result.features[0].collection is None
+    assert result.features[0].links.root[0].rel == "collection"
     mock_http_get.assert_called_once_with(
         "https://example.com/collections/1",
         follow_redirects=True,
@@ -781,7 +796,9 @@ async def test_get_job_results_follows_geojson_collection_link(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_job_results_returns_empty_collection_when_no_supported_result(
     mock_create_api_client, mock_exchange_token, platform
 ):
@@ -802,9 +819,10 @@ async def test_get_job_results_returns_empty_collection_when_no_supported_result
         ),
     )
 
-    assert result.id == "ns-job-123"
-    assert result.title == "Results for buffer"
-    assert result.license == "proprietary"
+    assert result.type == "FeatureCollection"
+    assert result.features == []
+    assert result.links.root == []
+    assert result.bbox == (-180.0, -90.0, 180.0, 90.0)
 
 
 @pytest.mark.asyncio
@@ -812,7 +830,9 @@ async def test_get_job_results_returns_empty_collection_when_no_supported_result
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_service_parameters_maps_geojson_and_options(
     mock_create_api_client, mock_exchange_token, platform
 ):
@@ -880,7 +900,9 @@ async def test_get_service_parameters_maps_geojson_and_options(
     "app.platforms.implementations.ogc_api_process.exchange_token",
     new_callable=AsyncMock,
 )
-@patch.object(OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock)
+@patch.object(
+    OGCAPIProcessPlatform, "_create_api_client_instance", new_callable=AsyncMock
+)
 async def test_get_service_parameters_maps_all_supported_types(
     mock_create_api_client, mock_exchange_token, platform
 ):

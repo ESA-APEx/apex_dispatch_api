@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 from fastapi import status
+from stac_pydantic import ItemCollection
 
 from app.error import InternalException
 
@@ -103,9 +104,9 @@ def test_unit_jobs_get_job_internal_error(mock_get_processing_job, client):
 def test_unit_jobs_get_job_results_200(
     mock_get_processing_job_results,
     client,
-    fake_result,
 ):
 
+    fake_result = ItemCollection(type="FeatureCollection", features=[], links=[])
     mock_get_processing_job_results.return_value = fake_result
 
     r = client.get("/unit_jobs/1/results")

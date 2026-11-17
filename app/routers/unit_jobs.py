@@ -213,7 +213,7 @@ async def get_job(
 )
 async def get_job_results(
     job_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
-) -> Collection | ItemCollection | None:
+) -> ItemCollection | None:
     try:
         result = await get_processing_job_results(token, db, job_id)
         if not result:
