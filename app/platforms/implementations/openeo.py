@@ -196,7 +196,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
             for link in collection.links.root
             if link.rel == "item"
         ]
-        return ItemCollection(type="FeatureCollection", features=features, links=[])
+        return ItemCollection(type="FeatureCollection", features=features)
 
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
