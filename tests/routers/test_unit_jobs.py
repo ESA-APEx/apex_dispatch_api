@@ -111,6 +111,9 @@ def test_unit_jobs_get_job_results_200(
 
     r = client.get("/unit_jobs/1/results")
     assert r.status_code == 200
+    assert r.json()["type"] == "FeatureCollection"
+    assert "features" in r.json()
+    assert isinstance(ItemCollection.model_validate(r.json()), ItemCollection)
     assert json.dumps(r.json(), indent=1) == fake_result.model_dump_json(
         indent=1, exclude_unset=False
     )

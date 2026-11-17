@@ -9,7 +9,7 @@ import openeo
 import requests
 from dotenv import load_dotenv
 from loguru import logger
-from stac_pydantic import Collection
+from stac_pydantic import Collection, Item, ItemCollection
 
 from app.auth import exchange_token
 from app.config.schemas import AuthMethod
@@ -187,10 +187,16 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
     async def _get_job_results_once(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection:
+    ) -> ItemCollection:
         connection = await self._setup_connection(user_token, details.endpoint)
         job = connection.job(job_id)
-        return Collection(**job.get_results().get_metadata())
+        collection = Collection.model_validate(job.get_results().get_metadata())
+        features = [
+            Item.model_validate(connection.get(link.href, expected_status=200).json())
+            for link in collection.links.root
+            if link.rel == "item"
+        ]
+        return ItemCollection(type="FeatureCollection", features=features, links=[])
 
     def _get_client_credentials(self, url: str) -> tuple[str, str, str]:
         """
@@ -387,7 +393,7 @@ class OpenEOPlatform(BaseProcessingPlatform):
 
     async def get_job_results(
         self, user_token: str, job_id: str, details: ServiceDetails
-    ) -> Collection:
+    ) -> ItemCollection:
         try:
             logger.debug(f"Fetching job result for openEO job with ID {job_id}")
             return await self._get_job_results_once(user_token, job_id, details)
