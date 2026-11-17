@@ -4,7 +4,7 @@ from typing import Dict
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.config.schemas import AuthMethod, BackendAuthConfig
+from app.config.schemas import AuthMethod, BackendAuthConfig, TokenExchangeMethod
 
 
 class Settings(BaseSettings):
@@ -66,7 +66,10 @@ class Settings(BaseSettings):
                     if backend.auth_method == AuthMethod.CLIENT_CREDENTIALS:
                         required_fields = ["client_credentials"]
                     elif backend.auth_method == AuthMethod.USER_CREDENTIALS:
-                        required_fields = ["token_provider"]
+                        if backend.exchange_method == TokenExchangeMethod.IDENTITY_BROKERING:
+                            required_fields = ["token_provider"]
+                        else:
+                            required_fields = ["token_url", "client_id"]
 
                     for field in required_fields:
                         if not getattr(backend, field, None):

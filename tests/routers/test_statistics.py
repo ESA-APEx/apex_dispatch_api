@@ -17,7 +17,7 @@ def test_statistics_get_200(mock_get_public_statistics, client):
         processing_jobs=EntityStatistics(
             total=42,
             by_status={"finished": 30, "failed": 12},
-            by_platform={"openeo": 40, "ogc_api_process": 2},
+            by_interface={"openeo": 40, "ogc_api_process": 2},
             by_service={
                 "variabilitymap": 40,
                 "land-cover": 2,
@@ -26,7 +26,7 @@ def test_statistics_get_200(mock_get_public_statistics, client):
         upscaling_tasks=UpscalingStatistics(
             total=10,
             by_status={"finished": 9, "failed": 1},
-            by_platform={"openeo": 10},
+            by_interface={"openeo": 10},
             by_service={"variabilitymap": 10},
             average_processing_jobs_per_upscaling_task=4.2,
         ),
@@ -62,13 +62,13 @@ def test_statistics_get_200_with_date_filter(mock_get_public_statistics, client)
         processing_jobs=EntityStatistics(
             total=0,
             by_status={},
-            by_platform={},
+            by_interface={},
             by_service={},
         ),
         upscaling_tasks=UpscalingStatistics(
             total=0,
             by_status={},
-            by_platform={},
+            by_interface={},
             by_service={},
             average_processing_jobs_per_upscaling_task=0.0,
         ),

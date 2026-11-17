@@ -1,0 +1,15 @@
+version: '3'
+
+tasks:
+
+  skaffold:dev:
+    vars:
+      CR_REPO: cr.terradue.com/fbrito 
+    cmds:
+      - skaffold dev --default-repo={{.CR_REPO}}
+
+  skaffold:run:
+    vars:
+      CR_REPO: cr.terradue.com/fbrito 
+    cmds:
+      - skaffold run --default-repo={{.CR_REPO}}

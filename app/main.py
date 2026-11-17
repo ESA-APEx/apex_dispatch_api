@@ -40,6 +40,16 @@ app.add_middleware(
 app.middleware("http")(add_correlation_id)
 register_exception_handlers(app)
 
+
+@app.get("/")
+async def root():
+    return {
+        "message": f"Welcome to the {settings.app_name}",
+        "description": settings.app_description,
+        "version": settings.app_version,
+    }
+
+
 # include routers
 app.include_router(tiles.router)
 app.include_router(jobs_status.router)
