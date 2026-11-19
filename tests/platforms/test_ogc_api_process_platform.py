@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import jwt
 import pytest
 import requests
-from stac_pydantic import ItemCollection
+from stac_pydantic.shared import Asset
+from stac_pydantic.item_collection import ItemCollection
 
 
 TEST_USER_TOKEN = jwt.encode(
@@ -372,7 +373,7 @@ def test_generate_signed_url_returns_none_on_request_exception(
 
 def test_update_assets_hrefs_keeps_original_href_when_signing_fails(platform):
     assets = {
-        "result": {
+        "result": Asset(
             "href": "s3://bucket/result.tif",
             "alternate": {"https": {"href": "https://download.example.com/resource"}},
         }
