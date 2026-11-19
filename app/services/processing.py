@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import Response
 from loguru import logger
 from sqlalchemy.orm import Session
-from stac_pydantic import Collection
+from stac_pydantic.item_collection import ItemCollection
 
 from app.auth import get_current_user_id
 from app.database.models.processing_job import (
@@ -114,7 +114,7 @@ async def get_processing_job_results(
     token: str,
     database: Session,
     job_id: int,
-) -> Collection | None:
+) -> ItemCollection | None:
     user = get_current_user_id(token)
     record = get_job_by_user_id(database, job_id, user)
     if not record:

@@ -16,7 +16,7 @@ from app.platforms.implementations.openeo import (
 from app.schemas.enum import OutputFormatEnum, ProcessingStatusEnum
 from app.schemas.parameters import ParamTypeEnum, Parameter
 from app.schemas.unit_job import ServiceDetails
-from stac_pydantic import Collection
+from stac_pydantic import Collection, ItemCollection
 
 from openeo.rest import OpenEoApiError
 
@@ -336,14 +336,53 @@ async def test_get_job_status_404_with_other_code_returns_unknown(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("result_kind", ["empty", "assets", "items", "items_and_assets"])
 @patch.object(OpenEOPlatform, "_setup_connection")
-async def test_get_job_results_success(mock_connection, platform, fake_result):
-    mock_connection.return_value = DummyOpenEOClient(result=fake_result)
+async def test_get_job_results_success(
+    mock_connection, platform, fake_result, result_kind
+):
+    metadata = fake_result.model_dump()
+    assets = {"result": {"href": "https://example.com/result.tif"}}
+    item = {
+        "type": "Feature",
+        "id": "result-item",
+        "geometry": None,
+        "properties": {"datetime": "2025-01-01T00:00:00Z"},
+        "assets": assets,
+        "links": [],
+    }
+    connection = MagicMock()
+    connection.job.return_value.get_results.return_value.get_metadata.return_value = metadata
+    if result_kind in ("assets", "items_and_assets"):
+        metadata["assets"] = {
+            "collection-only": {"href": "https://example.com/collection-only.tif"}
+        }
+    if result_kind in ("items", "items_and_assets"):
+        metadata["links"] = [
+            {"rel": "item", "href": "https://example.com/items/result-item"}
+        ]
+        connection.get.return_value.json.return_value = item
+    mock_connection.return_value = connection
 
     details = ServiceDetails(endpoint="foo", application="bar")
     result = await platform.get_job_results("foobar", "job123", details)
 
-    assert result == fake_result
+    assert isinstance(result, ItemCollection)
+    assert result.type == "FeatureCollection"
+    if result_kind in ("empty", "assets"):
+        assert result.features == []
+    else:
+        assert len(result.features) == 1
+        assert result.features[0].model_dump(mode="json", exclude_none=True)[
+            "assets"
+        ] == assets
+        assert result.features[0].id == "result-item"
+    if result_kind in ("items", "items_and_assets"):
+        connection.get.assert_called_once_with(
+            "https://example.com/items/result-item", expected_status=200
+        )
+    else:
+        connection.get.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -818,7 +857,8 @@ async def test_get_job_results_retries_after_auth_error(
 
         result = await platform.get_job_results("fake_token", "job-1", service_details)
 
-    assert result == fake_result
+    assert isinstance(result, ItemCollection)
+    assert result.type == "FeatureCollection"
     mock_refresh_connection.assert_awaited_once_with(
         "fake_token", service_details.endpoint
     )

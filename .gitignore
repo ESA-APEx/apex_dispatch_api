@@ -196,3 +196,6 @@ cython_debug/
 
 .vscode/settings.json
 .codex
+
+
+env*
