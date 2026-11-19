@@ -19,6 +19,7 @@ from stac_pydantic.collection import Collection
 from stac_pydantic.item import Item
 from stac_pydantic.item_collection import ItemCollection
 from stac_pydantic.links import Links
+from stac_pydantic.shared import Asset
 
 from app.auth import exchange_token, get_current_user_claims
 from app.platforms.base import BaseProcessingPlatform
@@ -301,7 +302,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             logger.warning(f"Mapping of unknown OGC API status: {ogcapi_status}")
             return ProcessingStatusEnum.UNKNOWN
 
-    def _extract_download_link_from_asset(self, asset: dict) -> str | None:
+    def _extract_download_link_from_asset(self, asset: Asset) -> str | None:
         """
         Extracts the download link from an asset dictionary. Checks if the
         `href` field is present and contains an HTTPS URL. If this is not
@@ -378,7 +379,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
         )
         return None
 
-    def _update_assets_hrefs(self, assets: dict, user_token: str) -> dict:
+    def _update_assets_hrefs(self, assets: dict[str, Asset], user_token: str) -> dict:
         """
         Update the hrefs of the assets to be HTTPS URLs. If the current
         href is an S3 URL, the code will look into `alternate` links to
