@@ -315,8 +315,8 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
             str | None: The download link if available, otherwise None.
         """
         refs = [
-            asset.get("href", None),
-            asset.get("alternate", {}).get("https", {}).get("href"),
+            asset.href,
+            asset.to_dict().get("alternate", {}).get("https", {}).get("href"),
         ]
         for href in refs:
             if href and href.startswith("https://"):
@@ -403,7 +403,7 @@ class OGCAPIProcessPlatform(BaseProcessingPlatform):
                         "original HTTPS href."
                     )
                     signed_url = href
-                updated_asset["href"] = signed_url
+                updated_asset.href = signed_url
                 updated_assets[asset_name] = updated_asset
 
         return updated_assets
