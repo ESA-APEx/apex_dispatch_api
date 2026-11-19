@@ -384,7 +384,7 @@ def test_update_assets_hrefs_keeps_original_href_when_signing_fails(platform):
     with patch.object(platform, "_generate_signed_url", return_value=None):
         updated = platform._update_assets_hrefs(assets, "token")
 
-    assert updated["result"]["href"] == "https://download.example.com/resource"
+    assert updated["result"].href == "https://download.example.com/resource"
 
 
 @pytest.mark.parametrize(
