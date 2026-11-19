@@ -373,10 +373,12 @@ def test_generate_signed_url_returns_none_on_request_exception(
 
 def test_update_assets_hrefs_keeps_original_href_when_signing_fails(platform):
     assets = {
-        "result": Asset(
-            "href": "s3://bucket/result.tif",
-            "alternate": {"https": {"href": "https://download.example.com/resource"}},
-        }
+        "result": Asset.model_validate(
+            {
+                "href": "s3://bucket/result.tif",
+                "alternate": {"https": {"href": "https://download.example.com/resource"}},
+            }
+        )
     }
 
     with patch.object(platform, "_generate_signed_url", return_value=None):
