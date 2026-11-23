@@ -22,3 +22,4 @@ class OutputFormatEnum(str, Enum):
     GEOTIFF = "gtiff"
     NETCDF = "netcdf"
     JSON = "json"
+    CSV = "csv"
